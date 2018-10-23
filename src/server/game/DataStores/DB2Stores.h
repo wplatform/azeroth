@@ -225,6 +225,7 @@ TC_GAME_API extern DB2Storage<WorldMapOverlayEntry>                 sWorldMapOve
 TC_GAME_API extern DB2Storage<WorldSafeLocsEntry>                   sWorldSafeLocsStore;
 TC_GAME_API extern DB2Storage<ItemNameDescriptionEntry>             sItemNameDescriptionStore;
 TC_GAME_API extern DB2Storage<MapDifficultyEntry>                   sMapDifficultyStore;
+TC_GAME_API extern DB2Storage<WorldStateExpressionEntry>            sWorldStateExpressionStore;
 
 struct TaxiPathBySourceAndDestination
 {
