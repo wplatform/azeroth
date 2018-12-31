@@ -2866,6 +2866,79 @@ struct SpellTotemsEntry
     uint16 RequiredTotemCategoryID[MAX_SPELL_TOTEMS];
 };
 
+struct SpellVisualEntry
+{
+    uint32 ID;
+    float MissileCastOffset[3];
+    float MissileImpactOffset[3];
+    uint32 AnimEventSoundID;
+    int32 Flags;
+    int8 MissileAttachment;
+    int8 MissileDestinationAttachment;
+    uint32 MissileCastPositionerID;
+    uint32 MissileImpactPositionerID;
+    int32 MissileTargetingKit;
+    uint32 HostileSpellVisualID;
+    uint32 CasterSpellVisualID;
+    uint16 SpellVisualMissileSetID;
+    uint16 DamageNumberDelay;
+    uint32 LowViolenceSpellVisualID;
+    uint32 RaidSpellVisualMissileSetID;
+    int32 ReducedUnexpectedCameraMovementSpellVisualID;
+};
+
+struct SpellVisualEffectNameEntry
+{
+    uint32 ID;
+    int32 ModelFileDataID;
+    float BaseMissileSpeed;
+    float Scale;
+    float MinAllowedScale;
+    float MaxAllowedScale;
+    float Alpha;
+    uint32 Flags;
+    int32 TextureFileDataID;
+    float EffectRadius;
+    uint32 Type;
+    int32 GenericID;
+    uint32 RibbonQualityID;
+    int32 DissolveEffectID;
+    int32 ModelPosition;
+    int8 Unknown901;
+};
+
+struct SpellVisualMissileEntry
+{
+    float CastOffset[3];
+    float ImpactOffset[3];
+    uint32 ID;
+    uint16 SpellVisualEffectNameID;
+    uint32 SoundEntriesID;
+    int8 Attachment;
+    int8 DestinationAttachment;
+    uint16 CastPositionerID;
+    uint16 ImpactPositionerID;
+    int32 FollowGroundHeight;
+    uint32 FollowGroundDropSpeed;
+    uint16 FollowGroundApproach;
+    uint32 Flags;
+    uint16 SpellMissileMotionID;
+    uint32 AnimKitID;
+    int8 ClutterLevel;
+    int32 DecayTimeAfterImpact;
+    uint32 SpellVisualMissileSetID;
+};
+
+struct SpellVisualKitEntry
+{
+    uint32 ID;
+    int8 FallbackPriority;
+    int32 FallbackSpellVisualKitId;
+    uint16 DelayMin;
+    uint16 DelayMax;
+    int32 Flags[2];
+};
+
 struct SpellXSpellVisualEntry
 {
     uint32 SpellVisualID;
