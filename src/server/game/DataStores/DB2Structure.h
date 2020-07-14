@@ -1058,6 +1058,13 @@ struct FactionTemplateEntry
     bool ShouldSparAttack() const { return (Flags & FACTION_TEMPLATE_ENEMY_SPAR) != 0; }
 };
 
+struct GameObjectArtKitEntry
+{
+    uint32 ID;
+    int32 AttachModelFileID;
+    int32 TextureVariationFileID[3];
+};
+
 struct GameObjectDisplayInfoEntry
 {
     uint32 ID;
