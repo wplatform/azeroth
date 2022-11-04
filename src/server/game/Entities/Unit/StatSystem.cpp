@@ -549,30 +549,7 @@ void Player::UpdateMastery()
     value += GetRatingBonusValue(CR_MASTERY);
     SetFloatValue(PLAYER_MASTERY, value);
 
-    TalentTabEntry const* talentTab = sTalentTabStore.LookupEntry(GetPrimaryTalentTree(GetActiveSpec()));
-    if (!talentTab)
-        return;
 
-    for (uint32 i = 0; i < MAX_MASTERY_SPELLS; ++i)
-    {
-        if (!talentTab->MasterySpellID[i])
-            continue;
-
-        if (Aura* aura = GetAura(talentTab->MasterySpellID[i]))
-        {
-            for (uint32 j = 0; j < MAX_SPELL_EFFECTS; ++j)
-            {
-                if (!aura->HasEffect(j))
-                    continue;
-
-                float mult = aura->GetSpellInfo()->Effects[j].BonusMultiplier;
-                if (G3D::fuzzyEq(mult, 0.0f))
-                    continue;
-
-                aura->GetEffect(j)->ChangeAmount(int32(value * aura->GetSpellInfo()->Effects[j].BonusMultiplier));
-            }
-        }
-    }
 }
 
 float const m_diminishing_k[MAX_CLASSES] =
@@ -834,7 +811,7 @@ void Player::UpdatePowerRegeneration(Powers powerType)
         {
             // Formular: base cooldown / (1 - haste)
             float regeneration = 0.1f;
-            float haste = GetFloatValue(PLAYER_FIELD_MOD_HASTE_REGEN);
+            float haste = GetFloatValue(UNIT_MOD_HASTE_REGEN);
             if (haste != 0.f)
                 regeneration /= haste;
 

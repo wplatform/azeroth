@@ -206,7 +206,7 @@ void Archaeology::SetSite(uint32 position, uint16 entry, uint32 state)
 {
     _site[position].Entry = entry;
     _site[position].State = state;
-    _player->SetUInt16Value(PLAYER_FIELD_RESEARCH_SITE_1 + (position / 2), position % 2, entry);
+    //_player->SetUInt16Value(PLAYER_FIELD_RESEARCH_SITE_1 + (position / 2), position % 2, entry);
 
     if (entry == 0)
     {

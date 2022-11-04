@@ -123,20 +123,20 @@ float CONF_float_to_int16_limit = 2048.0f;   // Max accuracy = val/65536
 float CONF_flat_height_delta_limit = 0.005f; // If max - min less this value - surface is flat
 float CONF_flat_liquid_delta_limit = 0.001f; // If max - min less this value - liquid surface is flat
 
-uint32 CONF_TargetBuild = 15595;              // 4.3.4.15595
+uint32 CONF_TargetBuild = 18273;             // 5.4.8 18273 -- current build is 18414, but Blizz didnt rename the MPQ files
 
 // List MPQ for extract maps from
 char const* CONF_mpq_list[]=
 {
     "world.MPQ",
-    "art.MPQ",
-    "world2.MPQ",
+    "misc.MPQ",
     "expansion1.MPQ",
     "expansion2.MPQ",
     "expansion3.MPQ",
+    "expansion4.MPQ"
 };
 
-uint32 const Builds[] = {13164, 13205, 13287, 13329, 13596, 13623, 13914, 14007, 14333, 14480, 14545, 15005, 15050, 15211, 15354, 15595, 0};
+uint32 const Builds[] = {16016, 16048, 16057, 16309, 16357, 16516, 16650, 16844, 16965, 17116, 17266, 17325, 17345, 17538, 17645, 17688, 17898, 18273};
 #define LAST_DBC_IN_DATA_BUILD 13623    // after this build mpqs with dbc are back to locale folder
 #define NEW_BASE_SET_BUILD  15211
 
@@ -1224,6 +1224,10 @@ void ExtractDB2Files(int l)
 
             filename = foundFile.cFileName;
             filename = outputPath + filename.substr(filename.rfind('\\') + 1);
+
+            if (FileExists(filename.c_str()))
+                continue;
+
             if (ExtractFile(dbcFile, filename.c_str()))
                 ++count;
 
@@ -1240,7 +1244,7 @@ void ExtractCameraFiles()
 {
     printf("Extracting camera files...\n");
     HANDLE dbcFile;
-    if (!SFileOpenFileEx(LocaleMpq, "DBFilesClient\\CinematicCamera.dbc", SFILE_OPEN_PATCHED_FILE, &dbcFile))
+    if (!SFileOpenFileEx(WorldMpq, "DBFilesClient\\CinematicCamera.dbc", SFILE_OPEN_PATCHED_FILE, &dbcFile))
     {
         printf("Fatal error: Cannot find Map.dbc in archive!\n");
         exit(1);
@@ -1300,9 +1304,22 @@ void ExtractCameraFiles()
 bool LoadLocaleMPQFile(int locale)
 {
     TCHAR buff[512];
+
+    memset(buff, 0, sizeof(buff));
+    _stprintf(buff, _T("%s/Data/misc.MPQ"), input_path);
+    if (!SFileOpenArchive(buff, 0, MPQ_OPEN_READ_ONLY, &LocaleMpq))
+    {
+        if (GetLastError() != ERROR_PATH_NOT_FOUND)
+        {
+            _tprintf(_T("\nLoading %s locale MPQs\n"), LocalesT[locale]);
+            _tprintf(_T("Cannot open archive %s\n"), buff);
+        }
+        return false;
+    }
+
     memset(buff, 0, sizeof(buff));
     _stprintf(buff, _T("%s/Data/%s/locale-%s.MPQ"), input_path, LocalesT[locale], LocalesT[locale]);
-    if (!SFileOpenArchive(buff, 0, MPQ_OPEN_READ_ONLY, &LocaleMpq))
+    if (!SFileOpenPatchArchive(LocaleMpq, buff, "", 0))
     {
         if (GetLastError() != ERROR_PATH_NOT_FOUND)
         {

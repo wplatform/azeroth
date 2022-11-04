@@ -80,7 +80,7 @@ Object::Object() : m_PackGUID(sizeof(uint64)+1)
 
     m_uint32Values      = nullptr;
     m_valuesCount       = 0;
-    _fieldNotifyFlags   = UF_FLAG_DYNAMIC;
+    _fieldNotifyFlags   = UF_FLAG_URGENT;
 
     m_inWorld           = false;
     m_isNewObject       = false;
@@ -744,7 +744,7 @@ uint32 Object::GetUpdateFieldData(Player const* target, uint32*& flags) const
             if (ToUnit()->GetOwnerGUID() == target->GetGUID())
                 visibleFlag |= UF_FLAG_OWNER;
 
-            if (HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_SPECIALINFO))
+            if (HasFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_SPECIALINFO))
                 if (ToUnit()->HasAuraTypeWithCaster(SPELL_AURA_EMPATHY, target->GetGUID()))
                     visibleFlag |= UF_FLAG_SPECIAL_INFO;
 
@@ -752,7 +752,7 @@ uint32 Object::GetUpdateFieldData(Player const* target, uint32*& flags) const
                 visibleFlag |= UF_FLAG_PARTY_MEMBER;
 
             if (IsCreature())
-                visibleFlag |= UF_FLAG_UNIT_ALL;
+                visibleFlag |= UF_FLAG_URGENT;
             break;
         }
         case TYPEID_GAMEOBJECT:

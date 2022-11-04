@@ -3907,7 +3907,7 @@ void Spell::EffectApplyGlyph(SpellEffIndex effIndex)
 
             player->CastSpell(m_caster, newGlyphProperties->SpellID, true);
             player->SetGlyph(m_glyphIndex, newGlyph);
-            player->SendTalentsInfoData(false);
+            player->SendTalentsInfoData();
         }
     }
     else if (uint32 oldGlyph = player->GetGlyph(player->GetActiveSpec(), m_glyphIndex)) // Removing the glyph, get the old one
@@ -3916,7 +3916,7 @@ void Spell::EffectApplyGlyph(SpellEffIndex effIndex)
         {
             player->RemoveAurasDueToSpell(oldGlyphProperties->SpellID);
             player->SetGlyph(m_glyphIndex, 0);
-            player->SendTalentsInfoData(false);
+            player->SendTalentsInfoData();
         }
     }
 }
@@ -4383,7 +4383,7 @@ void Spell::EffectSkinning(SpellEffIndex /*effIndex*/)
     uint32 skill = creature->GetCreatureTemplate()->GetRequiredLootSkill();
 
     creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
-    creature->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
+    creature->SetFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
     player->SendLoot(creature->GetGUID(), LOOT_SKINNING);
 
     int32 reqValue = 1;
@@ -4726,7 +4726,7 @@ void Spell::EffectResurrectPet(SpellEffIndex /*effIndex*/)
         pet->Relocate(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), player->GetOrientation()); // This is needed so SaveStayPosition() will get the proper coords.
     }
 
-    pet->SetUInt32Value(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_NONE);
+    pet->SetUInt32Value(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_NONE);
     pet->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
     pet->setDeathState(ALIVE);
     pet->ClearUnitState(UNIT_STATE_ALL_ERASABLE);

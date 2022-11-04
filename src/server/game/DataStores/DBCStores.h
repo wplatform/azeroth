@@ -131,7 +131,6 @@ TC_GAME_API extern DBCStorage <MapEntry>                     sMapStore;
 TC_GAME_API extern DBCStorage <MountCapabilityEntry>         sMountCapabilityStore;
 TC_GAME_API extern DBCStorage <MountTypeEntry>               sMountTypeStore;
 //TC_GAME_API extern DBCStorage <NameGenEntry>                 sNameGenStore; -- use GetRandomCharacterName instead
-TC_GAME_API extern DBCStorage <NumTalentsAtLevelEntry>       sNumTalentsAtLevelStore;
 TC_GAME_API extern DBCStorage <PhaseEntry>                   sPhaseStore;
 TC_GAME_API extern DBCStorage <PhaseGroupEntry>              sPhaseGroupStore;
 TC_GAME_API extern DBCStorage <LightEntry>                   sLightStore;
@@ -157,8 +156,8 @@ TC_GAME_API extern DBCStorage <SkillLineAbilityEntry>        sSkillLineAbilitySt
 TC_GAME_API extern DBCStorage <SkillTiersEntry>              sSkillTiersStore;
 TC_GAME_API extern DBCStorage <SoundEntriesEntry>            sSoundEntriesStore;
 TC_GAME_API extern DBCStorage <SpellCastTimesEntry>          sSpellCastTimesStore;
+TC_GAME_API extern DBCStorage <SpellMiscEntry>               sSpellMiscStore;
 TC_GAME_API extern DBCStorage <SpellCategoryEntry>           sSpellCategoryStore;
-TC_GAME_API extern DBCStorage <SpellDifficultyEntry>         sSpellDifficultyStore;
 TC_GAME_API extern DBCStorage <SpellDurationEntry>           sSpellDurationStore;
 TC_GAME_API extern DBCStorage <SpellFocusObjectEntry>        sSpellFocusObjectStore;
 TC_GAME_API extern DBCStorage <SpellItemEnchantmentEntry>    sSpellItemEnchantmentStore;
@@ -179,6 +178,7 @@ TC_GAME_API extern DBCStorage <SpellCategoriesEntry>         sSpellCategoriesSto
 TC_GAME_API extern DBCStorage <SpellClassOptionsEntry>       sSpellClassOptionsStore;
 TC_GAME_API extern DBCStorage <SpellCooldownsEntry>          sSpellCooldownsStore;
 TC_GAME_API extern DBCStorage <SpellEffectEntry>             sSpellEffectStore;
+TC_GAME_API extern DBCStorage <SpellEffectScalingEntry>      sSpellEffectScalingStore;
 TC_GAME_API extern DBCStorage <SpellEquippedItemsEntry>      sSpellEquippedItemsStore;
 TC_GAME_API extern DBCStorage <SpellInterruptsEntry>         sSpellInterruptsStore;
 TC_GAME_API extern DBCStorage <SpellLevelsEntry>             sSpellLevelsStore;
@@ -189,7 +189,6 @@ TC_GAME_API extern DBCStorage <SpellTargetRestrictionsEntry> sSpellTargetRestric
 TC_GAME_API extern DBCStorage <SpellTotemsEntry>             sSpellTotemsStore;
 TC_GAME_API extern DBCStorage <SummonPropertiesEntry>        sSummonPropertiesStore;
 TC_GAME_API extern DBCStorage <TalentEntry>                  sTalentStore;
-TC_GAME_API extern DBCStorage <TalentTabEntry>               sTalentTabStore;
 TC_GAME_API extern DBCStorage <TaxiNodesEntry>               sTaxiNodesStore;
 TC_GAME_API extern DBCStorage <TaxiPathEntry>                sTaxiPathStore;
 TC_GAME_API extern TaxiMask                                  sTaxiNodesMask;
@@ -220,7 +219,6 @@ public:
     SimpleFactionsList const* GetFactionTeamList(uint32 faction);
     static char const* GetPetName(uint32 petfamily, uint32 dbclang);
     uint32 GetTalentSpellCost(uint32 spellId);
-    TalentSpellPos const* GetTalentSpellPos(uint32 spellId);
     static char const* GetRaceName(uint8 race, uint8 locale);
     static char const* GetClassName(uint8 class_, uint8 locale);
     WMOAreaTableEntry const* GetWMOAreaTableEntryByTripple(int32 rootid, int32 adtid, int32 groupid);
@@ -248,7 +246,8 @@ public:
     std::vector<SkillLineAbilityEntry const*> const* GetSkillLineAbilitiesBySkill(uint32 skillId) const;
     SkillRaceClassInfoEntry const* GetSkillRaceClassInfo(uint32 skill, uint8 race, uint8 class_);
     ResponseCodes ValidateName(std::wstring const& name, LocaleConstant locale);
-    EmotesTextSoundEntry const* FindTextSoundEmoteFor(uint32 emote, uint32 race, uint32 gender); 
+    EmotesTextSoundEntry const* FindTextSoundEmoteFor(uint32 emote, uint32 race, uint32 gender);
+    std::vector<TalentEntry const*> const& GetTalentsByPosition(uint32 class_, uint32 tier, uint32 column) const;
 };
 
 #define sDBCManager DBCManager::Instance()

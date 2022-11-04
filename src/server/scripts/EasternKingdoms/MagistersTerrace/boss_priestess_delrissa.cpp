@@ -238,8 +238,8 @@ public:
                 instance->SetBossState(DATA_PRIESTESS_DELRISSA, DONE);
             else
             {
-                if (me->HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE))
-                    me->RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
+                if (me->HasFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE))
+                    me->RemoveFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
             }
         }
 
@@ -425,8 +425,8 @@ struct boss_priestess_lackey_commonAI : public ScriptedAI
             //time to make her lootable and complete event if she died before lackeys
             if (!delrissa->IsAlive())
             {
-                if (!delrissa->HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE))
-                    delrissa->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
+                if (!delrissa->HasFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE))
+                    delrissa->SetFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
 
                 instance->SetBossState(DATA_PRIESTESS_DELRISSA, DONE);
             }

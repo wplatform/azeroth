@@ -455,11 +455,8 @@ uint8 PlayerAI::GetPlayerSpec(Player const* who)
         return 0;
 
     uint32 tabId = who->GetPrimaryTalentTree(who->GetActiveSpec());
-    TalentTabEntry const* tabEntry = sTalentTabStore.LookupEntry(tabId);
-    if (!tabEntry)
-        return 0;
 
-    return tabEntry->OrderIndex;
+    return 1;
 }
 
 bool PlayerAI::IsPlayerHealer(Player const* who)

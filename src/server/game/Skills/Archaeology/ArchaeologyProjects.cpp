@@ -81,7 +81,7 @@ void Archaeology::LoadCurrentProjectsFromDB()
 void Archaeology::VisualizeBranch(uint8 position, uint16 project)
 {
     if (position < MAX_PROJECTS)
-        _player->SetUInt16Value(PLAYER_FIELD_RESEARCH_PROJECT_1 + (position / 2), position % 2, project);
+        _player->SetUInt16Value(PLAYER_FIELD_RESEARCHING + (position / 2), position % 2, project);
 }
 
 void Archaeology::RegenerateBranch(uint8 branch)

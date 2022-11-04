@@ -30,7 +30,7 @@ void WorldSession::HandleLearnTalentOpcode(WorldPacket& recvData)
     recvData >> talentId >> requestedRank;
 
     if (_player->LearnTalent(talentId, requestedRank))
-        _player->SendTalentsInfoData(false);
+        _player->SendTalentsInfoData();
 }
 
 void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
@@ -44,14 +44,6 @@ void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
     // prevent cheating (selecting new tree with points already in another)
     if (tabPage >= 0)   // -1 if player already has specialization
     {
-        if (TalentTabEntry const* talentTabEntry = sTalentTabStore.LookupEntry(_player->GetPrimaryTalentTree(_player->GetActiveSpec())))
-        {
-            if (talentTabEntry->OrderIndex != uint32(tabPage))
-            {
-                recvPacket.rfinish();
-                return;
-            }
-        }
     }
 
     recvPacket >> talentsCount;
@@ -72,7 +64,7 @@ void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
         }
     }
 
-    _player->SendTalentsInfoData(false);
+    _player->SendTalentsInfoData();
 
     recvPacket.rfinish();
 }
@@ -106,7 +98,7 @@ void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recvData)
         return;
     }
 
-    _player->SendTalentsInfoData(false);
+    _player->SendTalentsInfoData();
     unit->CastSpell(_player, 14867, true);                  //spell: "Untalent Visual Effect"
 }
 

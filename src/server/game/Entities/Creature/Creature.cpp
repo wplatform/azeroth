@@ -590,7 +590,7 @@ bool Creature::UpdateEntry(uint32 entry, CreatureData const* data /*= nullptr*/,
     SetUInt32Value(UNIT_FIELD_FLAGS, unit_flags);
     SetUInt32Value(UNIT_FIELD_FLAGS_2, cInfo->unit_flags2);
 
-    SetUInt32Value(UNIT_DYNAMIC_FLAGS, dynamicflags);
+    SetUInt32Value(OBJECT_FIELD_DYNAMIC_FLAGS, dynamicflags);
 
     SetCanDualWield(cInfo->flags_extra & CREATURE_FLAG_EXTRA_USE_OFFHAND_ATTACK);
 
@@ -1232,7 +1232,7 @@ void Creature::SetLootRecipient(Unit* unit, bool withGroup)
     {
         m_lootRecipient.Clear();
         m_lootRecipientGroup = 0;
-        RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE|UNIT_DYNFLAG_TAPPED);
+        RemoveFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE|UNIT_DYNFLAG_TAPPED);
         return;
     }
 
@@ -1252,7 +1252,7 @@ void Creature::SetLootRecipient(Unit* unit, bool withGroup)
     else
         m_lootRecipientGroup = ObjectGuid::Empty;
 
-    SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED);
+    SetFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED);
 }
 
 // return true if this creature is tapped by the player or by a member of his group.
@@ -1298,7 +1298,7 @@ void Creature::SaveToDB(uint32 mapid, uint8 spawnMask)
     uint32 displayId = GetNativeDisplayId();
     uint32 npcflag = GetUInt32Value(UNIT_NPC_FLAGS);
     uint32 unit_flags = GetUInt32Value(UNIT_FIELD_FLAGS);
-    uint32 dynamicflags = GetUInt32Value(UNIT_DYNAMIC_FLAGS);
+    uint32 dynamicflags = GetUInt32Value(OBJECT_FIELD_DYNAMIC_FLAGS);
 
     // check if it's a custom model and if not, use 0 for displayId
     CreatureTemplate const* cinfo = GetCreatureTemplate();
@@ -1982,7 +1982,7 @@ void Creature::setDeathState(DeathState s)
 
             SetUInt32Value(UNIT_NPC_FLAGS, npcflag);
             SetUInt32Value(UNIT_FIELD_FLAGS, unit_flags);
-            SetUInt32Value(UNIT_DYNAMIC_FLAGS, dynamicflags);
+            SetUInt32Value(OBJECT_FIELD_DYNAMIC_FLAGS, dynamicflags);
 
             SetMeleeDamageSchool(SpellSchools(cinfo->dmgschool));
         }
@@ -3300,8 +3300,8 @@ void Creature::AtDisengage()
     Unit::AtDisengage();
 
     ClearUnitState(UNIT_STATE_ATTACK_PLAYER);
-    if (IsAlive() && HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED))
-        SetUInt32Value(UNIT_DYNAMIC_FLAGS, GetCreatureTemplate()->dynamicflags);
+    if (IsAlive() && HasFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_TAPPED))
+        SetUInt32Value(OBJECT_FIELD_DYNAMIC_FLAGS, GetCreatureTemplate()->dynamicflags);
 }
 
 bool Creature::IsEscorted() const

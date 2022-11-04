@@ -264,7 +264,7 @@ public:
     uint32    ChainTarget;
     uint32    ItemType;
     uint32    TriggerSpell;
-    flag96    SpellClassMask;
+    flag128   SpellClassMask;
     std::vector<Condition*>* ImplicitTargetConditions;
     // SpellScalingEntry
     struct
@@ -385,7 +385,7 @@ class TC_GAME_API SpellInfo
         uint32 BaseLevel;
         uint32 SpellLevel;
         SpellDurationEntry const* DurationEntry;
-        uint32 PowerType;
+        int32  PowerType;
         uint32 ManaCost;
         uint32 ManaCostPerlevel;
         uint32 ManaPerSecond;
@@ -428,12 +428,12 @@ class TC_GAME_API SpellInfo
         uint32 SpellEquippedItemsId;
         uint32 SpellInterruptsId;
         uint32 SpellLevelsId;
-        uint32 SpellPowerId;
         uint32 SpellReagentsId;
         uint32 SpellShapeshiftId;
         uint32 SpellTargetRestrictionsId;
         uint32 SpellTotemsId;
         uint32 ResearchProjectId;
+        uint32 MiscId;
         // SpellScalingEntry
         struct
         {
@@ -539,7 +539,7 @@ class TC_GAME_API SpellInfo
 
         WeaponAttackType GetAttackType() const;
 
-        bool IsAffected(uint32 familyName, flag96 const& familyFlags) const;
+        bool IsAffected(uint32 familyName, flag128 const& familyFlags) const;
 
         bool IsAffectedBySpellMods() const;
         bool IsAffectedBySpellMod(SpellModifier const* mod) const;

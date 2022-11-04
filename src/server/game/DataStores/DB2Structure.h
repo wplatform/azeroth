@@ -26,6 +26,19 @@
 #define MAX_ITEM_PROTO_SPELLS  5
 #define MAX_ITEM_PROTO_STATS  10
 
+struct BroadcastTextEntry
+{
+    uint32   ID;                                           // 0
+    //uint32   LanguageID;                                 // 1
+    LocalizedString* Text;                                 // 2
+    LocalizedString* Text1;                                // 3
+    //uint32  EmoteID[3];                                  // 4 - 6
+    //uint32  EmoteDelay[3];                               // 7 -9
+    //uint32   SoundEntriesID ;                            // 10
+    //uint32   EmotesID;                                   // 11
+    //uint32   Flags;                                      // 12
+};
+
 struct ItemEntry
 {
     uint32   ID;                                             // 0
@@ -50,6 +63,7 @@ struct ItemSparseEntry
     uint32     Quality;                                             // 1
     uint32     Flags;                                               // 2
     uint32     Flags2;                                              // 3
+    uint32     Flags3;                                              // 3
     float      PriceRandomValue;                                    // 4
     float      PriceVariance;                                       // 5
     uint32     BuyCount;                                            // 6
@@ -83,9 +97,9 @@ struct ItemSparseEntry
     int32      SpellCharges[MAX_ITEM_PROTO_SPELLS];                 // 78 - 82
     int32      SpellCooldown[MAX_ITEM_PROTO_SPELLS];                // 83 - 87
     int32      SpellCategory[MAX_ITEM_PROTO_SPELLS];                // 88 - 92
-    int32      SpellCategoryCooldown[MAX_ITEM_PROTO_SPELLS];        // 93 - 94
-    int32      Bonding;                                             // 95
-    LocalizedString* Display;                                       // 96
+    int32      SpellCategoryCooldown[MAX_ITEM_PROTO_SPELLS];        // 93 - 97
+    int32      Bonding;                                             // 98
+    LocalizedString* Display;                                       // 99
     LocalizedString* Display1;                                      // 97
     LocalizedString* Display2;                                      // 98
     LocalizedString* Display3;                                      // 99

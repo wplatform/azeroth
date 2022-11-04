@@ -8210,7 +8210,7 @@ float Unit::GetPowerRegen(Powers powerType, bool isInCombat) const
 
     if (IsPlayer() && (powerType == POWER_ENERGY || powerType == POWER_FOCUS))
     {
-        float hasteRegen = GetFloatValue(PLAYER_FIELD_MOD_HASTE_REGEN);
+        float hasteRegen = GetFloatValue(UNIT_MOD_HASTE_REGEN);
         if (hasteRegen != 0.f)
             result = totalRegeneration / hasteRegen;
     }
@@ -10580,8 +10580,8 @@ void ApplyPercentModFloatVar(float& var, float val, bool apply)
 void Unit::ApplyAttackTimePercentMod(WeaponAttackType att, float val, bool apply)
 {
     float amount = GetFloatValue(UNIT_FIELD_BASEATTACKTIME + att);
-    float hasteAmount = GetTypeId() == TYPEID_PLAYER ? GetFloatValue(PLAYER_FIELD_MOD_HASTE) : 0.f;
-    float rangedHasteAmount = GetTypeId() == TYPEID_PLAYER ? GetFloatValue(PLAYER_FIELD_MOD_RANGED_HASTE) : 0.f;
+    float hasteAmount = GetTypeId() == TYPEID_PLAYER ? GetFloatValue(UNIT_MOD_HASTE_REGEN) : 0.f;
+    float rangedHasteAmount = GetTypeId() == TYPEID_PLAYER ? GetFloatValue(UNIT_FIELD_MOD_RANGED_HASTE) : 0.f;
 
     float remainingTimePct = (float)m_attackTimer[att] / (GetAttackTime(att) * m_modAttackSpeedPct[att]);
     if (val > 0.f)
@@ -10615,8 +10615,8 @@ void Unit::ApplyAttackTimePercentMod(WeaponAttackType att, float val, bool apply
 
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        SetFloatValue(PLAYER_FIELD_MOD_HASTE, hasteAmount);
-        SetFloatValue(PLAYER_FIELD_MOD_RANGED_HASTE, rangedHasteAmount);
+        SetFloatValue(UNIT_MOD_HASTE, hasteAmount);
+        SetFloatValue(UNIT_FIELD_MOD_RANGED_HASTE, rangedHasteAmount);
     }
 
     m_attackTimer[att] = uint32(GetAttackTime(att) * m_modAttackSpeedPct[att] * remainingTimePct);
@@ -10627,7 +10627,7 @@ void Unit::ApplyHasteRegenMod(WeaponAttackType att, float val, bool apply)
     if (GetTypeId() != TYPEID_PLAYER)
         return;
 
-    float amount = GetFloatValue(PLAYER_FIELD_MOD_HASTE_REGEN);
+    float amount = GetFloatValue(UNIT_MOD_HASTE_REGEN);
 
     if (val > 0.f)
     {
@@ -10644,7 +10644,7 @@ void Unit::ApplyHasteRegenMod(WeaponAttackType att, float val, bool apply)
             ApplyPercentModFloatVar(amount, -val, apply);
     }
 
-    SetFloatValue(PLAYER_FIELD_MOD_HASTE_REGEN, amount);
+    SetFloatValue(UNIT_MOD_HASTE_REGEN, amount);
 
     if (getClass() == CLASS_DEATH_KNIGHT)
         ToPlayer()->UpdatePowerRegeneration(POWER_RUNE);
@@ -11151,7 +11151,7 @@ void Unit::PlayOneShotAnimKitId(uint16 animKitId)
         {
             // must be after setDeathState which resets dynamic flags
             if (!creature->loot.isLooted())
-                creature->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
+                creature->SetFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
             else
                 creature->AllLootRemovedFromCorpse();
         }
@@ -13875,8 +13875,6 @@ void Unit::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target)
 
     if (target == this)
         visibleFlag |= UF_FLAG_PRIVATE;
-    else if (GetTypeId() == TYPEID_PLAYER)
-        valCount = PLAYER_END_NOT_SELF;
 
     UpdateMaskPacketBuilder updateMask(valCount);
 
@@ -13884,15 +13882,12 @@ void Unit::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target)
     if (GetOwnerGUID() == target->GetGUID())
         visibleFlag |= UF_FLAG_OWNER;
 
-    if (HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_SPECIALINFO))
+    if (HasFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_SPECIALINFO))
         if (HasAuraTypeWithCaster(SPELL_AURA_EMPATHY, target->GetGUID()))
             visibleFlag |= UF_FLAG_SPECIAL_INFO;
 
     if (plr && plr->IsInSameRaidWith(target))
         visibleFlag |= UF_FLAG_PARTY_MEMBER;
-
-    if (IsCreature())
-        visibleFlag |= UF_FLAG_UNIT_ALL;
 
     Creature const* creature = ToCreature();
     for (uint16 index = 0; index < valCount; ++index)
@@ -13931,10 +13926,10 @@ void Unit::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target)
                 fieldBuffer << uint32(m_floatValues[index] < 0 ? 0 : m_floatValues[index]);
             }
             // there are some float values which may be negative or can't get negative due to other checks
-            else if ((index >= UNIT_FIELD_NEGSTAT0   && index <= UNIT_FIELD_NEGSTAT4) ||
+            else if ((index >= UNIT_FIELD_NEGSTAT0   && index <= UNIT_FIELD_NEGSTAT0 + 4) ||
                 (index >= UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE  && index <= (UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE + 6)) ||
                 (index >= UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE  && index <= (UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE + 6)) ||
-                (index >= UNIT_FIELD_POSSTAT0   && index <= UNIT_FIELD_POSSTAT4))
+                (index >= UNIT_FIELD_POSSTAT0   && index <= UNIT_FIELD_POSSTAT0 + 4))
             {
                 fieldBuffer << uint32(m_floatValues[index]);
             }
@@ -13973,9 +13968,9 @@ void Unit::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target)
                 fieldBuffer << uint32(displayId);
             }
             // hide lootable animation for unallowed players
-            else if (index == UNIT_DYNAMIC_FLAGS)
+            else if (index == OBJECT_FIELD_DYNAMIC_FLAGS)
             {
-                uint32 dynamicFlags = m_uint32Values[UNIT_DYNAMIC_FLAGS] & ~(UNIT_DYNFLAG_TAPPED | UNIT_DYNFLAG_TAPPED_BY_PLAYER);
+                uint32 dynamicFlags = m_uint32Values[OBJECT_FIELD_DYNAMIC_FLAGS] & ~(UNIT_DYNFLAG_TAPPED | UNIT_DYNFLAG_TAPPED_BY_PLAYER);
 
                 if (creature)
                 {

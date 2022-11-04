@@ -317,7 +317,7 @@ bool Pet::LoadPetData(Player* owner, uint32 petEntry, uint32 petnumber, bool cur
     if (owner->GetGroup())
         owner->SetGroupUpdateFlag(GROUP_UPDATE_PET);
 
-    owner->SendTalentsInfoData(true);
+    //owner->SendTalentsInfoData(true);
 
     if (getPetType() == HUNTER_PET)
     {
@@ -506,7 +506,7 @@ void Pet::setDeathState(DeathState s)                       // overwrite virtual
         if (getPetType() == HUNTER_PET)
         {
             // pet corpse non lootable and non skinnable
-            SetUInt32Value(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_NONE);
+            SetUInt32Value(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_NONE);
             RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
 
             //SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED);
@@ -1321,26 +1321,7 @@ bool Pet::addSpell(uint32 spellId, ActiveStates active /*= ACT_DECIDE*/, PetSpel
     else
         newspell.active = active;
 
-    // talent: unlearn all other talent ranks (high and low)
-    if (TalentSpellPos const* talentPos = sDBCManager.GetTalentSpellPos(spellId))
-    {
-        if (TalentEntry const* talentInfo = sTalentStore.LookupEntry(talentPos->talent_id))
-        {
-            for (uint8 i = 0; i < MAX_TALENT_RANK; ++i)
-            {
-                // skip learning spell and no rank spell case
-                uint32 rankSpellId = talentInfo->SpellRank[i];
-                if (!rankSpellId || rankSpellId == spellId)
-                    continue;
-
-                // skip unknown ranks
-                if (!HasSpell(rankSpellId))
-                    continue;
-                removeSpell(rankSpellId, false, false);
-            }
-        }
-    }
-    else if (spellInfo->IsRanked())
+    if (spellInfo->IsRanked())
     {
         for (PetSpellMap::const_iterator itr2 = m_spells.begin(); itr2 != m_spells.end(); ++itr2)
         {
@@ -1581,38 +1562,7 @@ bool Pet::resetTalents()
         if (!talentInfo)
             continue;
 
-        TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TabID);
 
-        if (!talentTabInfo)
-            continue;
-
-        // unlearn only talents for pets family talent type
-        if (!((1 << pet_family->PetTalentType) & talentTabInfo->CategoryEnumID))
-            continue;
-
-        for (uint8 j = 0; j < MAX_TALENT_RANK; ++j)
-        {
-            for (PetSpellMap::const_iterator itr = m_spells.begin(); itr != m_spells.end();)
-            {
-                if (itr->second.state == PETSPELL_REMOVED)
-                {
-                    ++itr;
-                    continue;
-                }
-                // remove learned spells (all ranks)
-                uint32 itrFirstId = sSpellMgr->GetFirstSpellInChain(itr->first);
-
-                // unlearn if first rank is talent or learned by talent
-                if (itrFirstId == talentInfo->SpellRank[j] || sSpellMgr->IsSpellLearnToSpell(talentInfo->SpellRank[j], itrFirstId))
-                {
-                    unlearnSpell(itr->first, false);
-                    itr = m_spells.begin();
-                    continue;
-                }
-                else
-                    ++itr;
-            }
-        }
     }
 
     SetFreeTalentPoints(talentPointsForLevel);
@@ -1711,8 +1661,6 @@ void Pet::InitTalentForLevel()
 
     SetFreeTalentPoints(talentPointsForLevel - m_usedTalentCount);
 
-    if (!m_loading)
-        GetOwner()->SendTalentsInfoData(true);
 }
 
 uint8 Pet::GetMaxTalentPointsForLevel(uint8 level) const

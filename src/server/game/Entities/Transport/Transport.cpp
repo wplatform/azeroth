@@ -226,7 +226,7 @@ void Transport::Update(uint32 diff)
             if (_requestStopTimestamp && GetGoState() != GO_STATE_READY)
             {
                 SetGoState(GO_STATE_READY);
-                SetFlag(GAMEOBJECT_DYNAMIC, GO_DYNFLAG_LO_STOPPED);
+                SetFlag(GAMEOBJECT_FIELD_ANIM_PROGRESS, GO_DYNFLAG_LO_STOPPED);
             }
         }
 
@@ -591,7 +591,7 @@ void Transport::EnableMovement(bool enabled)
     {
         _requestStopTimestamp.reset();
         SetGoState(GO_STATE_ACTIVE);
-        RemoveFlag(GAMEOBJECT_DYNAMIC,GO_DYNFLAG_LO_STOPPED);
+        RemoveFlag(GAMEOBJECT_FIELD_ANIM_PROGRESS,GO_DYNFLAG_LO_STOPPED);
     }
 }
 

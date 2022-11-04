@@ -159,7 +159,7 @@ public:
                 instance->SetBossState(DATA_EREDAR_TWINS, DONE);
             }
             else
-                me->RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
+                me->RemoveFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
         }
 
         void SpellHitTarget(WorldObject* target, SpellInfo const* spell) override
@@ -448,7 +448,7 @@ public:
                 instance->SetBossState(DATA_EREDAR_TWINS, DONE);
             }
             else
-                me->RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
+                me->RemoveFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
         }
 
         void SpellHitTarget(WorldObject* target, SpellInfo const* spell) override

@@ -116,7 +116,7 @@ public:
             targetPlayer->LearnSpell(spell, false);
 
         if (sDBCManager.GetTalentSpellCost(spellInfo->GetFirstRankSpell()->Id))
-            targetPlayer->SendTalentsInfoData(false);
+            targetPlayer->SendTalentsInfoData();
 
         return true;
     }
@@ -189,27 +189,18 @@ public:
     static bool HandleLearnAllMyTalentsCommand(ChatHandler* handler, char const* /*args*/)
     {
         Player* player = handler->GetSession()->GetPlayer();
-        uint32 classMask = player->getClassMask();
 
-        for (TalentEntry const* talentInfo : sTalentStore)
+        for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
         {
-            TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TabID);
-            if (!talentTabInfo)
+            TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
+            if (!talentInfo)
                 continue;
 
-            if ((classMask & talentTabInfo->ClassMask) == 0)
+            if (talentInfo->ClassID != player->getClass())
                 continue;
 
             // search highest talent rank
-            uint32 spellId = 0;
-            for (int8 rank = MAX_TALENT_RANK - 1; rank >= 0; --rank)
-            {
-                if (talentInfo->SpellRank[rank] != 0)
-                {
-                    spellId = talentInfo->SpellRank[rank];
-                    break;
-                }
-            }
+            uint32 spellId = talentInfo->SpellID;
 
             if (!spellId)                                        // ??? none spells in talent
                 continue;
@@ -222,8 +213,6 @@ public:
             player->LearnSpellHighestRank(spellId);
             player->AddTalent(spellId, player->GetActiveSpec(), true);
         }
-
-        player->SetFreeTalentPoints(0);
 
         handler->SendSysMessage(LANG_COMMAND_LEARN_CLASS_TALENTS);
         return true;
@@ -264,37 +253,23 @@ public:
             return false;
         }
 
-        for (TalentEntry const* talentInfo : sTalentStore)
+        for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
         {
-            TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TabID);
-            if (!talentTabInfo)
+            TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
+            if (!talentInfo)
                 continue;
 
-            // prevent learn talent for different family (cheating)
-            if (((1 << petFamily->PetTalentType) & talentTabInfo->CategoryEnumID) == 0)
+
+
+            if (!talentInfo->SpellID)                                        // ??? none spells in talent
                 continue;
 
-            // search highest talent rank
-            uint32 spellId = 0;
-
-            for (int8 rank = MAX_TALENT_RANK - 1; rank >= 0; --rank)
-            {
-                if (talentInfo->SpellRank[rank] != 0)
-                {
-                    spellId = talentInfo->SpellRank[rank];
-                    break;
-                }
-            }
-
-            if (!spellId)                                        // ??? none spells in talent
-                continue;
-
-            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(talentInfo->SpellID);
             if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, handler->GetSession()->GetPlayer(), false))
                 continue;
 
             // learn highest rank of talent and learn all non-talent spell ranks (recursive by tree)
-            pet->learnSpellHighRank(spellId);
+            pet->learnSpellHighRank(talentInfo->SpellID);
         }
 
         pet->SetFreeTalentPoints(0);
@@ -468,7 +443,7 @@ public:
             handler->SendSysMessage(LANG_FORGET_SPELL);
 
         if (sDBCManager.GetTalentSpellCost(spellId))
-            target->SendTalentsInfoData(false);
+            target->SendTalentsInfoData();
 
         return true;
     }

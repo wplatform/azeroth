@@ -369,7 +369,7 @@ public:
                 {
                     me->SetStandState(UNIT_STAND_STATE_DEAD);
                     me->SetImmuneToPC(true);
-                    me->SetUInt32Value(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
+                    me->SetUInt32Value(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
                 }
                 _phase = 0;
             }

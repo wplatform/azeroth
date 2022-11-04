@@ -1885,7 +1885,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
         {
             for (WorldObject* target : targets)
                 if (IsUnit(target))
-                    target->ToUnit()->SetUInt32Value(UNIT_DYNAMIC_FLAGS, e.action.unitFlag.flag);
+                    target->ToUnit()->SetUInt32Value(OBJECT_FIELD_DYNAMIC_FLAGS, e.action.unitFlag.flag);
 
             break;
         }
@@ -1893,7 +1893,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
         {
             for (WorldObject* target : targets)
                 if (IsUnit(target))
-                    target->ToUnit()->SetFlag(UNIT_DYNAMIC_FLAGS, e.action.unitFlag.flag);
+                    target->ToUnit()->SetFlag(OBJECT_FIELD_DYNAMIC_FLAGS, e.action.unitFlag.flag);
 
             break;
         }
@@ -1901,7 +1901,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
         {
             for (WorldObject* target : targets)
                 if (IsUnit(target))
-                    target->ToUnit()->RemoveFlag(UNIT_DYNAMIC_FLAGS, e.action.unitFlag.flag);
+                    target->ToUnit()->RemoveFlag(OBJECT_FIELD_DYNAMIC_FLAGS, e.action.unitFlag.flag);
 
             break;
         }

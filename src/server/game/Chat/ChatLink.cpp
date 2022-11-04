@@ -447,13 +447,6 @@ bool TalentChatLink::Initialize(std::istringstream& iss)
         TC_LOG_TRACE("chat.system", "ChatHandler::isValidChatMessage('%s'): got invalid talent id %u in |talent command", iss.str().c_str(), _talentId);
         return false;
     }
-    // Validate talent's spell
-    _spell = sSpellMgr->GetSpellInfo(talentInfo->SpellRank[0]);
-    if (!_spell)
-    {
-        TC_LOG_TRACE("chat.system", "ChatHandler::isValidChatMessage('%s'): got invalid spell id %u in |trade command", iss.str().c_str(), talentInfo->SpellRank[0]);
-        return false;
-    }
     // Delimiter
     if (!CheckDelimiter(iss, DELIMITER, "talent"))
         return false;

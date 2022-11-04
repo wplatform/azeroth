@@ -983,11 +983,6 @@ uint32 ChatHandler::extractSpellIdFromLink(char* text)
             if (!talentEntry)
                 return 0;
 
-            uint32 rank = param1_str ? atol(param1_str) : 0u;
-            if (rank >= MAX_TALENT_RANK)
-                return 0;
-
-            return talentEntry->SpellRank[rank];
         }
         case SPELL_LINK_ENCHANT:
         case SPELL_LINK_TRADE:

@@ -374,12 +374,14 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recvData)
     }
 
     // prevent character creating Expansion class without Expansion account
+    /*
     if (classEntry->Required_expansion > GetAccountExpansion())
     {
         TC_LOG_ERROR("entities.player.cheat", "Expansion %u account:[%d] tried to Create character with expansion %u class (%u)", GetAccountExpansion(), GetAccountId(), classEntry->Required_expansion, createInfo->Class);
         SendCharCreate(CHAR_CREATE_EXPANSION_CLASS);
         return;
     }
+    */
 
     if (!HasPermission(rbac::RBAC_PERM_SKIP_CHECK_CHARACTER_CREATION_RACEMASK))
     {
@@ -991,7 +993,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder const& holder)
     if (pCurrChar->HasAtLoginFlag(AT_LOGIN_RESET_TALENTS))
     {
         pCurrChar->ResetTalents(true);
-        pCurrChar->SendTalentsInfoData(false);              // original talents send already in to SendInitialPacketsBeforeAddToMap, resend reset state
+        pCurrChar->SendTalentsInfoData();              // original talents send already in to SendInitialPacketsBeforeAddToMap, resend reset state
         SendNotification(LANG_RESET_TALENTS);
     }
 
@@ -1455,7 +1457,7 @@ void WorldSession::HandleRemoveGlyph(WorldPacket& recvData)
         {
             _player->RemoveAurasDueToSpell(gp->SpellID);
             _player->SetGlyph(slot, 0);
-            _player->SendTalentsInfoData(false);
+            _player->SendTalentsInfoData();
         }
     }
 }

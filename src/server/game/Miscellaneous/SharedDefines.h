@@ -52,7 +52,8 @@ enum Expansions
     EXPANSION_THE_BURNING_CRUSADE      = 1,
     EXPANSION_WRATH_OF_THE_LICH_KING   = 2,
     EXPANSION_CATACLYSM                = 3,
-    MAX_EXPANSIONS                     = 4
+    EXPANSION_MISTS_OF_PANDARIA        = 4,
+    MAX_EXPANSIONS                     = 5
 };
 
 enum Gender
@@ -119,7 +120,7 @@ enum Classes
     CLASS_SHAMAN        = 7,
     CLASS_MAGE          = 8,
     CLASS_WARLOCK       = 9,
-    //CLASS_UNK           = 10,
+    CLASS_MONK          = 10,
     CLASS_DRUID         = 11
 };
 
@@ -747,6 +748,10 @@ enum SpellAttr10
     SPELL_ATTR10_PREVENT_CLIENT_CAST_CANCEL       = 0x40000000, // 30 Prevent Client Cast Cancel
     SPELL_ATTR10_ENFORCE_FACTING_ON_PRIMARY_TARGET = 0x80000000  // 31 Enforce Facing on Primary Target Only
 };
+
+#define MIN_SPECIALIZATION_LEVEL    10
+#define MAX_SPECIALIZATIONS         4
+#define PET_SPEC_OVERRIDE_CLASS_INDEX MAX_CLASSES
 
 #define MIN_TALENT_SPEC         0
 #define MAX_TALENT_SPEC         1

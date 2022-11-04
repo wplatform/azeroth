@@ -192,7 +192,7 @@ uint32 SpellMgr::GetSpellIdForDifficulty(uint32 spellId, WorldObject const* cast
     uint32 difficultyId = GetSpellDifficultyId(spellId);
     if (!difficultyId)
         return spellId; //return source spell, it has only REGULAR_DIFFICULTY
-
+    /*
     SpellDifficultyEntry const* difficultyEntry = sSpellDifficultyStore.LookupEntry(difficultyId);
     if (!difficultyEntry)
     {
@@ -214,6 +214,8 @@ uint32 SpellMgr::GetSpellIdForDifficulty(uint32 spellId, WorldObject const* cast
 
     TC_LOG_DEBUG("spells", "SpellMgr::GetSpellIdForDifficulty: spellid for spell %u in mode %u is %d", spellId, mode, difficultyEntry->DifficultySpellID[mode]);
     return uint32(difficultyEntry->DifficultySpellID[mode]);
+    */
+    return spellId;
 }
 
 SpellInfo const* SpellMgr::GetSpellForDifficultyFromSpell(SpellInfo const* spell, WorldObject const* caster) const
@@ -788,52 +790,17 @@ void SpellMgr::LoadSpellTalentRanks()
             continue;
 
         SpellInfo const* lastSpell = nullptr;
-        for (uint8 rank = MAX_TALENT_RANK - 1; rank > 0; --rank)
-        {
-            if (talentInfo->SpellRank[rank])
-            {
-                lastSpell = GetSpellInfo(talentInfo->SpellRank[rank]);
-                break;
-            }
-        }
 
         if (!lastSpell)
             continue;
 
-        SpellInfo const* firstSpell = GetSpellInfo(talentInfo->SpellRank[0]);
+        SpellInfo const* firstSpell = GetSpellInfo(talentInfo->SpellID);
         if (!firstSpell)
         {
-            TC_LOG_ERROR("spells", "SpellMgr::LoadSpellTalentRanks: First Rank Spell %u for TalentEntry %u does not exist.", talentInfo->SpellRank[0], i);
+            TC_LOG_ERROR("spells", "SpellMgr::LoadSpellTalentRanks: First Rank Spell %u for TalentEntry %u does not exist.", talentInfo->SpellID, i);
             continue;
         }
 
-        SpellInfo const* prevSpell = nullptr;
-        for (uint8 rank = 0; rank < MAX_TALENT_RANK; ++rank)
-        {
-            uint32 spellId = talentInfo->SpellRank[rank];
-            if (!spellId)
-                break;
-
-            SpellInfo const* currentSpell = GetSpellInfo(spellId);
-            if (!currentSpell)
-            {
-                TC_LOG_ERROR("spells", "SpellMgr::LoadSpellTalentRanks: Spell %u (Rank: %u) for TalentEntry %u does not exist.", spellId, rank + 1, i);
-                break;
-            }
-
-            SpellChainNode node;
-            node.first = firstSpell;
-            node.last  = lastSpell;
-            node.rank  = rank + 1;
-
-            node.prev = prevSpell;
-            node.next = node.rank < MAX_TALENT_RANK ? GetSpellInfo(talentInfo->SpellRank[node.rank]) : nullptr;
-
-            mSpellChains[spellId] = node;
-            mSpellInfoMap[spellId]->ChainEntry = &mSpellChains[spellId];
-
-            prevSpell = currentSpell;
-        }
     }
 }
 
@@ -1162,65 +1129,6 @@ void SpellMgr::LoadSpellLearnSpells()
     }
 
     uint32 mastery_count = 0;
-    for (uint32 i = 0; i < sTalentTabStore.GetNumRows(); ++i)
-    {
-        TalentTabEntry const* talentTab = sTalentTabStore.LookupEntry(i);
-        if (!talentTab)
-            continue;
-
-        for (uint32 c = CLASS_WARRIOR; c < MAX_CLASSES; ++c)
-        {
-            if (!(talentTab->ClassMask & (1 << (c - 1))))
-                continue;
-
-            uint32 masteryMainSpell = MasterySpells[c];
-
-            for (uint32 m = 0; m < MAX_MASTERY_SPELLS; ++m)
-            {
-                uint32 mastery = talentTab->MasterySpellID[m];
-                if (!mastery)
-                    continue;
-
-                SpellLearnSpellMapBounds db_node_bounds = dbSpellLearnSpells.equal_range(masteryMainSpell);
-                bool found = false;
-                for (SpellLearnSpellMap::const_iterator itr = db_node_bounds.first; itr != db_node_bounds.second; ++itr)
-                {
-                    if (itr->second.spell == mastery)
-                    {
-                        TC_LOG_ERROR("sql.sql", "Found redundant record (entry: %u, SpellID: %u) in `spell_learn_spell`, spell added automatically as mastery learned spell from TalentTab.dbc", masteryMainSpell, mastery);
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (found)
-                    continue;
-
-                // Check if it is already found in Spell.dbc, ignore silently if yes
-                SpellLearnSpellMapBounds dbc_node_bounds = GetSpellLearnSpellMapBounds(masteryMainSpell);
-                found = false;
-                for (SpellLearnSpellMap::const_iterator itr = dbc_node_bounds.first; itr != dbc_node_bounds.second; ++itr)
-                {
-                    if (itr->second.spell == mastery)
-                    {
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (found)
-                    continue;
-
-                SpellLearnSpellNode masteryNode;
-                masteryNode.spell       = mastery;
-                masteryNode.active      = true;
-                masteryNode.autoLearned = false;
-
-                mSpellLearnSpells.insert(SpellLearnSpellMap::value_type(masteryMainSpell, masteryNode));
-                ++mastery_count;
-            }
-        }
-    }
 
     TC_LOG_INFO("server.loading", ">> Loaded %u spell learn spells, %u found in Spell.dbc and %u from TalentTab.dbc in %u ms", count, dbc_count, mastery_count, GetMSTimeDiffToNow(oldMSTime));
 }
@@ -2579,7 +2487,7 @@ void SpellMgr::LoadSpellInfoStore()
         effectsBySpell[effect->SpellID].effects[effect->EffectIndex] = effect;
 
     for (SpellEntry const* spellEntry : sSpellStore)
-        mSpellInfoMap[spellEntry->ID] = new SpellInfo(spellEntry, effectsBySpell[spellEntry->ID].effects);
+        mSpellInfoMap[spellEntry->Id] = new SpellInfo(spellEntry, effectsBySpell[spellEntry->Id].effects);
 
     for (uint32 spellIndex = 0; spellIndex < GetSpellInfoStoreSize(); ++spellIndex)
     {
@@ -3245,7 +3153,7 @@ void SpellMgr::LoadSpellInfoCorrections()
     // Wrecking Crew
     ApplySpellFix({ 46867, 56611, 56612 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x02000000, 0, 0);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x02000000, 0, 0, 0);
     });
 
     // Death and Decay
@@ -3374,7 +3282,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         53243, // (Rank 2)
     }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x00067801, 0x10820001, 0x00000801);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x00067801, 0x10820001, 0x00000801, 0x00000000);
     });
 
     ApplySpellFix({
@@ -3400,13 +3308,13 @@ void SpellMgr::LoadSpellInfoCorrections()
         // this is done because another spell also uses the same SpellFamilyFlags as Icy Touch
         // SpellFamilyFlags[0] & 0x00000040 in SPELLFAMILY_DEATHKNIGHT is currently unused (3.3.5a)
         // this needs research on modifier applying rules, does not seem to be in Attributes fields
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x00000040, 0x00000000, 0x00000000);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x00000040, 0x00000000, 0x00000000, 0x00000000);
     });
 
     // Idol of the Flourishing Life
     ApplySpellFix({ 64949 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x00000000, 0x02000000, 0x00000000);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x00000000, 0x02000000, 0x00000000, 0x00000000);
         spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ADD_FLAT_MODIFIER;
     });
 
@@ -3416,7 +3324,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         64956  // Libram of the Resolute
     }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x80000000, 0x00000000, 0x00000000);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x80000000, 0x00000000, 0x00000000, 0x00000000);
         spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ADD_FLAT_MODIFIER;
     });
 
@@ -3426,7 +3334,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         32403  // Blessed Book of Nagrand
     }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x40000000, 0x00000000, 0x00000000);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x40000000, 0x00000000, 0x00000000, 0x00000000);
         spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ADD_FLAT_MODIFIER;
     });
 

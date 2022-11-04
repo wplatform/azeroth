@@ -255,7 +255,7 @@ struct SpellProcEntry
 {
     uint32 SchoolMask;      // if nonzero - bitmask for matching proc condition based on spell's school
     uint32 SpellFamilyName; // if nonzero - for matching proc condition based on candidate spell's SpellFamilyName
-    flag96 SpellFamilyMask; // if nonzero - bitmask for matching proc condition based on candidate spell's SpellFamilyFlags
+    flag128 SpellFamilyMask; // if nonzero - bitmask for matching proc condition based on candidate spell's SpellFamilyFlags
     uint32 ProcFlags;       // if nonzero - owerwrite procFlags field for given Spell.dbc entry, bitmask for matching proc condition, see enum ProcFlags
     uint32 SpellTypeMask;   // if nonzero - bitmask for matching proc condition based on candidate spell's damage/heal effects, see enum ProcFlagsSpellType
     uint32 SpellPhaseMask;  // if nonzero - bitmask for matching phase of a spellcast on which proc occurs, see enum ProcFlagsSpellPhase

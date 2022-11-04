@@ -27,7 +27,7 @@ enum LevelLimit
     // Client expected level limitation, like as used in DBC item max levels for "until max player level"
     // use as default max player level, must be fit max level for used client
     // also see MAX_LEVEL and STRONG_MAX_LEVEL define
-    DEFAULT_MAX_LEVEL = 85,
+    DEFAULT_MAX_LEVEL = 90,
 
     // client supported max level for player/pets/etc. Avoid overflow or client stability affected.
     // also see GT_MAX_LEVEL define
@@ -598,9 +598,8 @@ enum class SpellItemEnchantmentFlags : uint32
 
 DEFINE_ENUM_FLAG(SpellItemEnchantmentFlags);
 
-#define MAX_TALENT_RANK 5
-#define MAX_PET_TALENT_RANK 3                               // use in calculations, expected <= MAX_TALENT_RANK
-#define MAX_TALENT_TABS 3
+#define MAX_TALENT_TIERS 6
+#define MAX_TALENT_COLUMNS 3
 
 enum class SpellShapeshiftFormFlags : int32
 {

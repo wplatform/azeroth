@@ -192,7 +192,7 @@ struct SpellModifier
     SpellModType type;
 
     int32 value;
-    flag96 mask;
+    flag128 mask;
     uint32 spellId;
     Aura* const ownerAura;
 };
@@ -1608,7 +1608,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void InitTalentForLevel();
         void BuildPlayerTalentsInfoData(WorldPacket* data);
         void BuildPetTalentsInfoData(WorldPacket* data);
-        void SendTalentsInfoData(bool pet);
+        void SendTalentsInfoData(bool pet=false);
         bool LearnTalent(uint32 talentId, uint32 talentRank);
         void LearnPetTalent(ObjectGuid petGuid, uint32 talentId, uint32 talentRank);
         bool AddTalent(uint32 spellId, uint8 spec, bool learning);
@@ -1734,8 +1734,8 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void SetInArenaTeam(uint32 ArenaTeamId, uint8 slot, uint8 type);
         void SetArenaTeamInfoField(uint8 slot, ArenaTeamInfoType type, uint32 value);
         static void LeaveAllArenaTeams(ObjectGuid guid);
-        uint32 GetArenaTeamId(uint8 slot) const { return GetUInt32Value(PLAYER_FIELD_ARENA_TEAM_INFO_1_1 + (slot * ARENA_TEAM_END) + ARENA_TEAM_ID); }
-        uint32 GetArenaPersonalRating(uint8 slot) const { return GetUInt32Value(PLAYER_FIELD_ARENA_TEAM_INFO_1_1 + (slot * ARENA_TEAM_END) + ARENA_TEAM_PERSONAL_RATING); }
+        uint32 GetArenaTeamId(uint8 slot) const { return  ARENA_TEAM_ID; }
+        uint32 GetArenaPersonalRating(uint8 slot) const { return ARENA_TEAM_PERSONAL_RATING; }
         void SetArenaTeamIdInvited(uint32 ArenaTeamId) { m_ArenaTeamIdInvited = ArenaTeamId; }
         uint32 GetArenaTeamIdInvited() const { return m_ArenaTeamIdInvited; }
         uint32 GetRBGPersonalRating() const { return 0; }

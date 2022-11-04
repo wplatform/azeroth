@@ -813,7 +813,7 @@ class npc_wild_wyrm : public CreatureScript
                         me->RemoveAurasDueToSpell(SPELL_JAWS_OF_DEATH_PERIODIC);
                         me->RemoveAurasDueToSpell(SPELL_PRY_JAWS_OPEN);
 
-                        me->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
+                        me->SetFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
                         me->SetUInt32Value(UNIT_NPC_FLAGS, 0);
 
                         me->GetMotionMaster()->MoveFall(POINT_FALL);

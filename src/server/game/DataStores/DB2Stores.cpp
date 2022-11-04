@@ -27,6 +27,7 @@
 
 #include <sstream>
 
+DB2Storage<BroadcastTextEntry>      sBroadcastTextStore("BroadcastText.db2", BroadcastTextfmt, HOTFIX_SEL_ITEM);
 DB2Storage<ItemEntry>               sItemStore("Item.db2", Itemfmt, HOTFIX_SEL_ITEM);
 DB2Storage<ItemCurrencyCostEntry>   sItemCurrencyCostStore("ItemCurrencyCost.db2", ItemCurrencyCostfmt, HOTFIX_SEL_ITEM_CURRENCY_COST);
 DB2Storage<ItemExtendedCostEntry>   sItemExtendedCostStore("ItemExtendedCost.db2", ItemExtendedCostEntryfmt, HOTFIX_SEL_ITEM_EXTENDED_COST);
