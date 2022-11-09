@@ -44,7 +44,7 @@ char const* TerrainInfo::GetMapName() const
 
 void TerrainInfo::DiscoverGridMapFiles()
 {
-    std::string tileListName = Trinity::StringFormat("%smaps/%03u.tilelist", sWorld->GetDataPath().c_str(), GetId());
+    std::string tileListName = Trinity::StringFormat("%smaps/%04u.tilelist", sWorld->GetDataPath().c_str(), GetId());
     // tile list is optional
     if (FILE* tileList = fopen(tileListName.c_str(), "rb"))
     {
@@ -74,7 +74,7 @@ void TerrainInfo::DiscoverGridMapFiles()
 
 bool TerrainInfo::ExistMap(uint32 mapid, int32 gx, int32 gy, bool log /*= true*/)
 {
-    std::string fileName = Trinity::StringFormat("%smaps/%03u%02u%02u.map", sWorld->GetDataPath().c_str(), mapid, gx, gy);
+    std::string fileName = Trinity::StringFormat("%smaps/%04u%02u%02u.map", sWorld->GetDataPath().c_str(), mapid, gx, gy);
 
     bool ret = false;
     FILE* file = fopen(fileName.c_str(), "rb");
@@ -181,7 +181,7 @@ void TerrainInfo::LoadMap(int32 gx, int32 gy)
         return;
 
     // map file name
-    std::string fileName = Trinity::StringFormat("%smaps/%03u%02u%02u.map", sWorld->GetDataPath().c_str(), GetId(), gx, gy);
+    std::string fileName = Trinity::StringFormat("%smaps/%04u%02u%02u.map", sWorld->GetDataPath().c_str(), GetId(), gx, gy);
     TC_LOG_DEBUG("maps", "Loading map %s", fileName.c_str());
     // loading data
     std::unique_ptr<GridMap> gridMap = std::make_unique<GridMap>();

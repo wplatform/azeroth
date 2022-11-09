@@ -294,7 +294,7 @@ inline void LoadDBC(uint32& availableDbcLocales, StoreProblemList& errors, DBCSt
     ASSERT(DBCFileLoader::GetFormatRecordSize(storage.GetFormat()) == sizeof(T) || LoadDBC_assert_print(DBCFileLoader::GetFormatRecordSize(storage.GetFormat()), sizeof(T), filename));
 
     ++DBCFileCount;
-    std::string dbcFilename = dbcPath + localeNames[defaultLocale] + '/' + filename;
+    std::string dbcFilename = dbcPath + filename;
 
     if (storage.Load(dbcFilename))
     {
@@ -516,11 +516,8 @@ void DBCManager::LoadStores(const std::string& dataPath, uint32 defaultLocale)
     LOAD_DBC(sWorldMapOverlayStore,               "WorldMapOverlay.dbc");//15595
     LOAD_DBC(sWorldSafeLocsStore,                 "WorldSafeLocs.dbc");//15595
 
-    LOAD_DBC(sAchievementStore,     "Achievement.dbc");//15595
-    LOAD_DBC(sSpellStore,           "Spell.dbc");//
-    LOAD_DBC(sSpellEffectStore,     "SpellEffect.dbc");//15595
 #undef LOAD_DBC
-/*
+
 #define LOAD_DBC_EXT(store, file, dbformat, dbpk) LoadDBC(availableDbcLocales, bad_dbc_files, store, dbcPath, file, defaultLocale, dbformat, dbpk)
 
     LOAD_DBC_EXT(sAchievementStore,     "Achievement.dbc",     CustomAchievementfmt,      CustomAchievementIndex);//15595
@@ -528,7 +525,7 @@ void DBCManager::LoadStores(const std::string& dataPath, uint32 defaultLocale)
     LOAD_DBC_EXT(sSpellEffectStore,     "SpellEffect.dbc",     CustomSpellEffectEntryfmt, CustomSpellEffectEntryIndex);//15595
 
 #undef LOAD_DBC_EXT
-*/
+
     for (CharStartOutfitEntry const* outfit : sCharStartOutfitStore)
         sCharStartOutfitMap[outfit->RaceID | (outfit->ClassID << 8) | (outfit->SexID << 16)] = outfit;
 

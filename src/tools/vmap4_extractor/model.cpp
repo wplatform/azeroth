@@ -27,15 +27,13 @@
 #include <cstdio>
 #include <limits>
 
-extern HANDLE WorldMpq;
-
 Model::Model(std::string &filename) : filename(filename), header(), vertices(nullptr), indices(nullptr)
 {
 }
 
 bool Model::open()
 {
-    MPQFile f(WorldMpq, filename.c_str());
+    MPQFile f(filename.c_str());
 
     if (f.isEof())
     {
@@ -74,11 +72,11 @@ bool Model::open()
 
 bool Model::ConvertToVMAPModel(const char * outfilename)
 {
-    int N[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
-    FILE* output=fopen(outfilename, "wb");
+    int N[12] = { };
+    FILE* output = fopen(outfilename, "wb");
     if (!output)
     {
-        printf("Can't create the output file '%s'\n",outfilename);
+        printf("Can't create the output file '%s'\n", outfilename);
         return false;
     }
     fwrite(VMAP::RAW_VMAP_MAGIC, 8, 1, output);
@@ -97,7 +95,7 @@ bool Model::ConvertToVMAPModel(const char * outfilename)
     fwrite(&branches, sizeof(branches), 1, output);
     uint32 nIndexes = header.nBoundingTriangles;
     fwrite(&nIndexes, sizeof(uint32), 1, output);
-    fwrite("INDX",4, 1, output);
+    fwrite("INDX", 4, 1, output);
     wsize = sizeof(uint32) + sizeof(unsigned short) * nIndexes;
     fwrite(&wsize, sizeof(int), 1, output);
     fwrite(&nIndexes, sizeof(uint32), 1, output);
@@ -119,7 +117,7 @@ bool Model::ConvertToVMAPModel(const char * outfilename)
     wsize = sizeof(int) + sizeof(float) * 3 * nVertices;
     fwrite(&wsize, sizeof(int), 1, output);
     fwrite(&nVertices, sizeof(int), 1, output);
-    if (nVertices >0)
+    if (nVertices > 0)
     {
         for (uint32 vpos = 0; vpos < nVertices; ++vpos)
         {
@@ -128,7 +126,7 @@ bool Model::ConvertToVMAPModel(const char * outfilename)
             vertices[vpos].z = tmp;
         }
 
-        fwrite(vertices, sizeof(float)*3, nVertices, output);
+        fwrite(vertices, sizeof(float) * 3, nVertices, output);
     }
 
     fclose(output);
@@ -155,7 +153,7 @@ void Doodad::Extract(ADT::MDDF const& doodadDef, char const* ModelInstName, uint
 
     fseek(input, 8, SEEK_SET); // get the correct no of vertices
     int nVertices;
-    int count = fread(&nVertices, sizeof (int), 1, input);
+    int count = fread(&nVertices, sizeof(int), 1, input);
     fclose(input);
 
     if (count != 1 || nVertices == 0)

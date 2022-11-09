@@ -584,8 +584,8 @@ enum class SpellCategoryFlags : uint8
 
 DEFINE_ENUM_FLAG(SpellCategoryFlags);
 
-#define MAX_SPELL_EFFECTS 3
-#define MAX_EFFECT_MASK 7
+#define MAX_SPELL_EFFECTS 32
+#define MAX_EFFECT_MASK 4294967295
 #define MAX_SPELL_REAGENTS 8
 
 enum class SpellItemEnchantmentFlags : uint32

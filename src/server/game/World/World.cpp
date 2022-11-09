@@ -1654,8 +1654,12 @@ void World::SetInitialWorldSettings()
         || !TerrainMgr::ExistMapAndVMap(1, 10311.3f, 832.463f)
         || !TerrainMgr::ExistMapAndVMap(1, -2917.58f, -257.98f)
         || (m_int_configs[CONFIG_EXPANSION] && (
-        !TerrainMgr::ExistMapAndVMap(530, 10349.6f, -6357.29f) ||
-        !TerrainMgr::ExistMapAndVMap(530, -3961.64f, -13931.2f))))
+            !TerrainMgr::ExistMapAndVMap(530, 10349.6f, -6357.29f) ||
+            !TerrainMgr::ExistMapAndVMap(530, -3961.64f, -13931.2f) ||
+            !TerrainMgr::ExistMapAndVMap(648, -8423.81f, 1361.3f) ||
+            !TerrainMgr::ExistMapAndVMap(654, -1451.53f, 1403.35f) ||
+            !TerrainMgr::ExistMapAndVMap(609, 2356.21f, -5662.21f) ||
+            !TerrainMgr::ExistMapAndVMap(860, 1471.67f, 3466.25f))))
     {
         TC_LOG_FATAL("server.loading", "Unable to load critical files - server shutting down !!!");
         exit(1);

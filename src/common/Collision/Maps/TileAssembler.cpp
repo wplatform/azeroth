@@ -116,7 +116,7 @@ namespace VMAP
             // ===> possibly move this code to StaticMapTree class
             // write map tree file
             std::stringstream mapfilename;
-            mapfilename << iDestDir << '/' << std::setfill('0') << std::setw(3) << data.MapId << ".vmtree";
+            mapfilename << iDestDir << '/' << std::setfill('0') << std::setw(4) << data.MapId << ".vmtree";
             FILE* mapfile = fopen(mapfilename.str().c_str(), "wb");
             if (!mapfile)
             {
@@ -149,7 +149,7 @@ namespace VMAP
             {
                 uint32 x, y;
                 StaticMapTree::unpackTileID(tileItr->first, x, y);
-                std::string tileFileName = Trinity::StringFormat("%s/%03u_%02u_%02u.vmtile", iDestDir.c_str(), data.MapId, y, x);
+                std::string tileFileName = Trinity::StringFormat("%s/%04u_%02u_%02u.vmtile", iDestDir.c_str(), data.MapId, y, x);
                 if (FILE* tileFile = fopen(tileFileName.c_str(), "wb"))
                 {
                     std::set<TileSpawn> const& parentTileEntries = data.ParentTileEntries[tileItr->first];

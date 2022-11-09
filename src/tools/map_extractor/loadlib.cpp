@@ -18,7 +18,10 @@
 #define _CRT_SECURE_NO_DEPRECATE
 
 #include "loadlib.h"
+#include "mpq.h"
 #include <cstdio>
+
+class MPQFile;
 
 u_map_fcc MverMagic = { {'R','E','V','M'} };
 
@@ -33,32 +36,29 @@ ChunkedFile::~ChunkedFile()
     free();
 }
 
-bool ChunkedFile::loadFile(HANDLE mpq, std::string const& fileName, bool log)
+bool ChunkedFile::loadFile(std::string const& fileName, bool log)
 {
     free();
-    HANDLE file;
-    if (!SFileOpenFileEx(mpq, fileName.c_str(), SFILE_OPEN_PATCHED_FILE, &file))
+    MPQFile mf(fileName.c_str());
+    if(mf.isEof())
     {
         if (log)
             printf("No such file %s\n", fileName.c_str());
         return false;
     }
 
-    data_size = SFileGetFileSize(file, nullptr);
-    data = new uint8[data_size];
-    SFileReadFile(file, data, data_size, nullptr/*bytesRead*/, nullptr);
+    data_size = mf.getSize();
 
+    data = new uint8 [data_size];
+    mf.read(data, data_size);
+    mf.close();
     parseChunks();
     if (prepareLoadedData())
-    {
-        SFileCloseFile(file);
         return true;
-    }
 
-    printf("Error loading %s\n", fileName.c_str());
-    SFileCloseFile(file);
+    printf("Error loading %s", fileName.c_str());
+    mf.close();
     free();
-
     return false;
 }
 

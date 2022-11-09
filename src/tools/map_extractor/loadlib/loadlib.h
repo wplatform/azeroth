@@ -18,7 +18,6 @@
 #ifndef LOAD_LIB_H
 #define LOAD_LIB_H
 
-#include "StormLib.h"
 #include "Define.h"
 #include <map>
 #include <string>
@@ -81,7 +80,7 @@ public:
     ChunkedFile();
     virtual ~ChunkedFile();
     bool prepareLoadedData();
-    bool loadFile(HANDLE mpq, std::string const& fileName, bool log = true);
+    bool loadFile(std::string const& fileName, bool log = true);
     void free();
 
     void parseChunks();

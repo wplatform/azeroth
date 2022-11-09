@@ -43,7 +43,7 @@ namespace ADT
         Vec3D Rotation;
         AaBox3D Bounds;
         uint16 Flags;
-        uint16 DoodadSet;   // // can be larger than number of doodad sets in WMO
+        uint16 DoodadSet;   // can be larger than number of doodad sets in WMO
         uint16 NameSet;
         uint16 Scale;
     };

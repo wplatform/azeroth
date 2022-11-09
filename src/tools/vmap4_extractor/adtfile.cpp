@@ -17,6 +17,7 @@
 
 #include "vmapexport.h"
 #include "adtfile.h"
+#include "StringFormat.h"
 #include <algorithm>
 #include <cstdio>
 #include "Errors.h"
@@ -25,7 +26,7 @@ char const* GetPlainName(char const* FileName)
 {
     const char * szTemp;
 
-    if ((szTemp = strrchr(FileName, '\\')) != nullptr)
+    if((szTemp = strrchr(FileName, '\\')) != nullptr)
         FileName = szTemp + 1;
     return FileName;
 }
@@ -34,7 +35,7 @@ char* GetPlainName(char* FileName)
 {
     char * szTemp;
 
-    if ((szTemp = strrchr(FileName, '\\')) != nullptr)
+    if((szTemp = strrchr(FileName, '\\')) != nullptr)
         FileName = szTemp + 1;
     return FileName;
 }
@@ -73,9 +74,7 @@ char* GetExtension(char* FileName)
     return nullptr;
 }
 
-extern HANDLE WorldMpq;
-
-ADTFile::ADTFile(char* filename, bool cache) : _file(WorldMpq, filename, false)
+ADTFile::ADTFile(char* filename, bool cache): _file(filename)
 {
     Adtfilename.append(filename);
     cacheable = cache;

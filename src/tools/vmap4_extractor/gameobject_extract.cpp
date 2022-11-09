@@ -31,7 +31,8 @@ bool ExtractSingleModel(std::string& fname)
     std::string extension = fname.substr(fname.length() - 4, 4);
     if (extension == ".mdx" || extension == ".MDX" || extension == ".mdl" || extension == ".MDL")
     {
-        fname.erase(fname.length() - 2, 2);
+        // replace .mdx -> .m2
+        fname.erase(fname.length()-2,2);
         fname.append("2");
     }
     // >= 3.1.0 ADT MMDX section store filename.m2 filenames for corresponded .m2 file
@@ -57,13 +58,11 @@ bool ExtractSingleModel(std::string& fname)
     return mdl.ConvertToVMAPModel(output.c_str());
 }
 
-extern HANDLE WorldMpq;
-
 void ExtractGameobjectModels()
 {
-    printf("Extracting GameObject models...\n");
-    DBCFile dbc(WorldMpq, "DBFilesClient\\GameObjectDisplayInfo.dbc");
-    if (!dbc.open())
+    printf("Extracting GameObject models...");
+    DBCFile dbc("DBFilesClient\\GameObjectDisplayInfo.dbc");
+    if(!dbc.open())
     {
         printf("Fatal error: Invalid GameObjectDisplayInfo.dbc file format!\n");
         exit(1);
@@ -94,7 +93,7 @@ void ExtractGameobjectModels()
         char* name = GetPlainName((char*)path.c_str());
         FixNameSpaces(name, strlen(name));
 
-        char* ch_ext = GetExtension(name);
+        char * ch_ext = GetExtension(name);
         if (!ch_ext)
             continue;
 
@@ -113,7 +112,9 @@ void ExtractGameobjectModels()
             continue;
         }
         else //if (!strcmp(ch_ext, ".mdx") || !strcmp(ch_ext, ".m2"))
+        {
             result = ExtractSingleModel(path);
+        }
 
         if (result)
         {

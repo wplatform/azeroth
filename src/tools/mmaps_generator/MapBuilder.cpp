@@ -117,7 +117,7 @@ namespace MMAP
         getDirContents(files, "maps");
         for (uint32 i = 0; i < files.size(); ++i)
         {
-            mapID = uint32(atoi(files[i].substr(0,3).c_str()));
+            mapID = uint32(atoi(files[i].substr(0,4).c_str()));
             if (std::find(m_tiles.begin(), m_tiles.end(), mapID) == m_tiles.end())
             {
                 m_tiles.emplace_back(MapTiles(mapID, new std::set<uint32>));
@@ -129,7 +129,7 @@ namespace MMAP
         getDirContents(files, "vmaps", "*.vmtree");
         for (uint32 i = 0; i < files.size(); ++i)
         {
-            mapID = uint32(atoi(files[i].substr(0,3).c_str()));
+            mapID = uint32(atoi(files[i].substr(0,4).c_str()));
             if (std::find(m_tiles.begin(), m_tiles.end(), mapID) == m_tiles.end())
             {
                 m_tiles.emplace_back(MapTiles(mapID, new std::set<uint32>));
@@ -146,11 +146,11 @@ namespace MMAP
             mapID = (*itr).m_mapId;
 
             files.clear();
-            getDirContents(files, "vmaps", Trinity::StringFormat("%03u*.vmtile", mapID));
+            getDirContents(files, "vmaps", Trinity::StringFormat("%04u*.vmtile", mapID));
             for (uint32 i = 0; i < files.size(); ++i)
             {
-                tileX = uint32(atoi(files[i].substr(7,2).c_str()));
-                tileY = uint32(atoi(files[i].substr(4,2).c_str()));
+                tileX = uint32(atoi(files[i].substr(8,2).c_str()));
+                tileY = uint32(atoi(files[i].substr(5,2).c_str()));
                 tileID = StaticMapTree::packTileID(tileY, tileX);
 
                 tiles->insert(tileID);
@@ -158,11 +158,11 @@ namespace MMAP
             }
 
             files.clear();
-            getDirContents(files, "maps", Trinity::StringFormat("%03u*", mapID));
+            getDirContents(files, "maps", Trinity::StringFormat("%04u*", mapID));
             for (uint32 i = 0; i < files.size(); ++i)
             {
-                tileY = uint32(atoi(files[i].substr(3,2).c_str()));
-                tileX = uint32(atoi(files[i].substr(5,2).c_str()));
+                tileY = uint32(atoi(files[i].substr(4,2).c_str()));
+                tileX = uint32(atoi(files[i].substr(6,2).c_str()));
                 tileID = StaticMapTree::packTileID(tileX, tileY);
 
                 if (tiles->insert(tileID).second)
@@ -221,7 +221,7 @@ namespace MMAP
             dtNavMesh* navMesh = dtAllocNavMesh();
             if (!navMesh->init(&tileInfo.m_navMeshParams))
             {
-                printf("[Map %03i] Failed creating navmesh for tile %i,%i !\n", tileInfo.m_mapId, tileInfo.m_tileX, tileInfo.m_tileY);
+                printf("[Map %04i] Failed creating navmesh for tile %i,%i !\n", tileInfo.m_mapId, tileInfo.m_tileX, tileInfo.m_tileY);
                 dtFreeNavMesh(navMesh);
                 return;
             }
@@ -435,13 +435,13 @@ namespace MMAP
             buildNavMesh(mapID, navMesh);
             if (!navMesh)
             {
-                printf("[Map %03i] Failed creating navmesh!\n", mapID);
+                printf("[Map %04i] Failed creating navmesh!\n", mapID);
                 m_totalTilesProcessed += tiles->size();
                 return;
             }
 
             // now start building mmtiles for each tile
-            printf("[Map %03i] We have %u tiles.                          \n", mapID, (unsigned int)tiles->size());
+            printf("[Map %04i] We have %u tiles.                          \n", mapID, (unsigned int)tiles->size());
             for (std::set<uint32>::iterator it = tiles->begin(); it != tiles->end(); ++it)
             {
                 uint32 tileX, tileY;
@@ -460,7 +460,7 @@ namespace MMAP
             dtFreeNavMesh(navMesh);
         }
 
-        printf("[Map %03i] Complete!\n", mapID);
+        printf("[Map %04i] Complete!\n", mapID);
     }
 
     /**************************************************************************/
@@ -472,7 +472,7 @@ namespace MMAP
             return;
         }
 
-        printf("%u%% [Map %03i] Building tile [%02u,%02u]\n", m_mapBuilder->currentPercentageDone(), mapID, tileX, tileY);
+        printf("%u%% [Map %04i] Building tile [%02u,%02u]\n", m_mapBuilder->currentPercentageDone(), mapID, tileX, tileY);
 
         MeshData meshData;
 
@@ -575,15 +575,15 @@ namespace MMAP
         navMeshParams.maxPolys = maxPolysPerTile;
 
         navMesh = dtAllocNavMesh();
-        printf("[Map %03i] Creating navMesh...\n", mapID);
+        printf("[Map %04i] Creating navMesh...\n", mapID);
         if (!navMesh->init(&navMeshParams))
         {
-            printf("[Map %03i] Failed creating navmesh!                \n", mapID);
+            printf("[Map %04i] Failed creating navmesh!                \n", mapID);
             return;
         }
 
         char fileName[25];
-        sprintf(fileName, "mmaps/%03u.mmap", mapID);
+        sprintf(fileName, "mmaps/%04u.mmap", mapID);
 
         FILE* file = fopen(fileName, "wb");
         if (!file)
@@ -591,7 +591,7 @@ namespace MMAP
             dtFreeNavMesh(navMesh);
             navMesh = nullptr;
             char message[1024];
-            sprintf(message, "[Map %03i] Failed to open %s for writing!\n", mapID, fileName);
+            sprintf(message, "[Map %04i] Failed to open %s for writing!\n", mapID, fileName);
             perror(message);
             return;
         }
@@ -607,7 +607,7 @@ namespace MMAP
         dtNavMesh* navMesh)
     {
         // console output
-        std::string tileString = Trinity::StringFormat("[Map %03i] [%02i,%02i]: ", mapID, tileX, tileY);
+        std::string tileString = Trinity::StringFormat("[Map %04i] [%02i,%02i]: ", mapID, tileX, tileY);
         printf("%s Building movemap tiles...\n", tileString.c_str());
 
         IntermediateValues iv;
@@ -898,12 +898,12 @@ namespace MMAP
 
             // file output
             char fileName[255];
-            sprintf(fileName, "mmaps/%03u%02i%02i.mmtile", mapID, tileY, tileX);
+            sprintf(fileName, "mmaps/%04u%02i%02i.mmtile", mapID, tileY, tileX);
             FILE* file = fopen(fileName, "wb");
             if (!file)
             {
                 char message[1024];
-                sprintf(message, "[Map %03i] Failed to open %s for writing!\n", mapID, fileName);
+                sprintf(message, "[Map %04i] Failed to open %s for writing!\n", mapID, fileName);
                 perror(message);
                 navMesh->removeTile(tileRef, nullptr, nullptr);
                 break;
@@ -989,6 +989,13 @@ namespace MMAP
                 case 605:   // development_nonweighted.wdt
                 case 606:   // QA_DVD.wdt
                 case 651:   // ElevatorSpawnTest.wdt
+                case 930:   // (UNUSED) Scenario: Alcaz Island
+                case 995:   // The Depths [UNUSED]
+                case 1014:  // (UNUSED) Peak of Serenity Scenario
+                case 1028:  // (UNUSED) Scenario: Mogu Ruins
+                case 1029:  // (UNUSED) Scenario: Mogu Crypt
+                case 1049:  // (UNUSED) Scenario: Black Ox Temple
+                case 1060:  // LevelDesignLand-DevOnly.wdt
                     return true;
                 default:
                     if (isTransportMap(mapID))
@@ -1010,6 +1017,10 @@ namespace MMAP
                 case 727:   // Silvershard Mines
                 case 761:   // The Battle for Gilneas
                 case 968:   // Rated Eye of the Storm
+                case 998:   // Temple of Kotmogu
+                case 1010:  // MistsCTF3
+                case 1101:  // DefenseOfTheAleHouseBG
+                case 1105:  // Deepwind Gorge
                     return true;
                 default:
                     break;
@@ -1069,6 +1080,11 @@ namespace MMAP
             case 765:
             case 766:
             case 767:
+            case 1113: // Transport: DarkmoonCarousel
+            case 1132: // Transport218599 - The Skybag (Brawl'gar Arena)
+            case 1133: // Transport218600 - Zandalari Ship (Mogu Island)
+            case 1172: // Transport_Siege_of_Orgrimmar_Alliance - Transport: Siege of Orgrimmar (Alliance)
+            case 1173: // Transport_Siege_of_Orgrimmar_Horde - Transport: Siege of Orgrimmar (Horde)
                 return true;
             default:
                 return false;
@@ -1083,6 +1099,7 @@ namespace MMAP
             case 1:
             case 530:
             case 571:
+            case 870:  // Pandaria
                 return true;
             default:
                 return false;
@@ -1093,7 +1110,7 @@ namespace MMAP
     bool TileBuilder::shouldSkipTile(uint32 mapID, uint32 tileX, uint32 tileY) const
     {
         char fileName[255];
-        sprintf(fileName, "mmaps/%03u%02i%02i.mmtile", mapID, tileY, tileX);
+        sprintf(fileName, "mmaps/%04u%02i%02i.mmtile", mapID, tileY, tileX);
         FILE* file = fopen(fileName, "rb");
         if (!file)
             return false;

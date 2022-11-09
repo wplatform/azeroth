@@ -18,6 +18,8 @@
 #include "vmapexport.h"
 #include "wdtfile.h"
 #include "adtfile.h"
+
+#include "StringFormat.h"
 #include <cstdio>
 
 char * wdtGetPlainName(char * FileName)
@@ -29,10 +31,9 @@ char * wdtGetPlainName(char * FileName)
     return FileName;
 }
 
-extern HANDLE WorldMpq;
 
 WDTFile::WDTFile(char const* filePath, std::string mapName, bool cache)
-    : _file(WorldMpq, filePath), _mapName(std::move(mapName))
+    : _file(filePath), _mapName(std::move(mapName))
 {
     if (cache)
     {

@@ -135,7 +135,7 @@ public:
         float x, y, z;
         player->GetPosition(x, y, z);
 
-        handler->PSendSysMessage("%03u%02i%02i.mmtile", player->GetMapId(), gx, gy);
+        handler->PSendSysMessage("%04u%02i%02i.mmtile", player->GetMapId(), gx, gy);
         handler->PSendSysMessage("gridloc [%i, %i]", gy, gx);
 
         // calculate navmesh tile location

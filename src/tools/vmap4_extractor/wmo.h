@@ -20,8 +20,8 @@
 
 #include <string>
 #include <unordered_set>
-#include <memory>
 #include <vector>
+#include <memory>
 #include "vec3d.h"
 #include "mpqfile.h"
 

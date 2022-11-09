@@ -53,15 +53,17 @@ namespace MMAP
 
 using namespace MMAP;
 
-bool checkDirectories(bool debugOutput, std::vector<std::string>& dbcLocales)
+bool checkDirectories(bool debugOutput)
 {
-    if (getDirContents(dbcLocales, "dbc") == LISTFILE_DIRECTORY_NOT_FOUND || dbcLocales.empty())
+    std::vector<std::string> dirFiles;
+
+    if (getDirContents(dirFiles, "dbc") == LISTFILE_DIRECTORY_NOT_FOUND || dirFiles.empty())
     {
         printf("'dbc' directory is empty or does not exist\n");
         return false;
     }
 
-    std::vector<std::string> dirFiles;
+    dirFiles.clear();
 
     if (getDirContents(dirFiles, "maps") == LISTFILE_DIRECTORY_NOT_FOUND || dirFiles.empty())
     {
@@ -295,11 +297,11 @@ int finish(char const* message, int returnValue)
     return returnValue;
 }
 
-std::unordered_map<uint32, uint8> LoadLiquid(std::string const& locale)
+std::unordered_map<uint32, uint8> LoadLiquid()
 {
     DBCFileLoader* liquidDbc = new DBCFileLoader();
     std::unordered_map<uint32, uint8> liquidData;
-    std::string liquidTypeSource = (boost::filesystem::path("dbc") / locale / "LiquidType.dbc").string();
+    std::string liquidTypeSource = (boost::filesystem::path("dbc") / "LiquidType.dbc").string();
     char const* liquidTypeFmt = "nxxixixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
     if (liquidDbc->Load(liquidTypeSource.c_str(), liquidTypeFmt))
@@ -314,11 +316,11 @@ std::unordered_map<uint32, uint8> LoadLiquid(std::string const& locale)
     return liquidData;
 }
 
-std::unordered_map<uint32, std::vector<uint32>> LoadMap(std::string const& locale)
+std::unordered_map<uint32, std::vector<uint32>> LoadMap()
 {
     DBCFileLoader* mapDbc = new DBCFileLoader;
     std::unordered_map<uint32, std::vector<uint32>> mapData;
-    std::string mapSource = (boost::filesystem::path("dbc") / locale / "Map.dbc").string();
+    std::string mapSource = (boost::filesystem::path("dbc") / "Map.dbc").string();
     char const* mapFmt = "nxixxsixxxxiffxixxi";
 
     if (mapDbc->Load(mapSource.c_str(), mapFmt))
@@ -381,15 +383,14 @@ int main(int argc, char** argv)
     }
 
 
-    std::vector<std::string> dbcLocales;
-    if (!checkDirectories(debugOutput, dbcLocales))
+    if (!checkDirectories(debugOutput))
         return silent ? -3 : finish("Press ENTER to close...", -3);
 
-    _liquidTypes = LoadLiquid(dbcLocales[0]);
+    _liquidTypes = LoadLiquid();
     if (_liquidTypes.empty())
         return silent ? -5 : finish("Failed to load LiquidType.dbc", -5);
 
-    _mapDataForVmapInitialization = LoadMap(dbcLocales[0]);
+    _mapDataForVmapInitialization = LoadMap();
 
     MapBuilder builder(maxAngle, maxAngleNotSteep, skipLiquid, skipContinents, skipJunkMaps,
                        skipBattlegrounds, debugOutput, bigBaseUnit, mapnum, offMeshInputPath, threads);

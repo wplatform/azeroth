@@ -18,16 +18,16 @@
 #include "vmapexport.h"
 #include "adtfile.h"
 #include "mpqfile.h"
-#include "Errors.h"
-#include "vec3d.h"
 #include "VMapDefinitions.h"
-#include "wmo.h"
 #include <fstream>
 #include <map>
 #include <cstdio>
 #include <cstdlib>
+#include "Errors.h"
+#undef min
+#undef max
 
-    WMORoot::WMORoot(std::string const& filename)
+WMORoot::WMORoot(std::string const& filename)
     : filename(filename), color(0), nTextures(0), nGroups(0), nPortals(0), nLights(0),
     nDoodadNames(0), nDoodadDefs(0), nDoodadSets(0), RootWMOID(0), flags(0)
 {
@@ -35,12 +35,10 @@
     memset(bbcorn2, 0, sizeof(bbcorn2));
 }
 
-extern HANDLE WorldMpq;
-
 bool WMORoot::open()
 {
-    MPQFile f(WorldMpq, filename.c_str());
-    if (f.isEof ())
+    MPQFile f(filename.c_str());
+    if(f.isEof ())
     {
         printf("No such file.\n");
         return false;
@@ -51,7 +49,7 @@ bool WMORoot::open()
 
     while (!f.isEof())
     {
-        f.read(fourcc, 4);
+        f.read(fourcc,4);
         f.read(&size, 4);
 
         flipcc(fourcc);
@@ -59,7 +57,7 @@ bool WMORoot::open()
 
         size_t nextpos = f.getPos() + size;
 
-        if (!strcmp(fourcc, "MOHD")) // header
+        if (!strcmp(fourcc,"MOHD")) // header
         {
             f.read(&nTextures, 4);
             f.read(&nGroups, 4);
@@ -170,7 +168,7 @@ WMOGroup::WMOGroup(const std::string& filename) :
 
 bool WMOGroup::open(WMORoot* rootWMO)
 {
-    MPQFile f(WorldMpq, filename.c_str());
+    MPQFile f(filename.c_str());
     if (f.isEof())
     {
         printf("No such file.\n");
@@ -460,7 +458,7 @@ int WMOGroup::ConvertToVMAPGroupWmo(FILE* output, bool preciseVectorData)
 
         /* std::ofstream llog("Buildings/liquid.log", ios_base::out | ios_base::app);
         llog << filename;
-        llog << ":\nliquidEntry: " << liquidEntry << " type: " << hlq->type << " (root:" << rootWMO->flags << " group:" << flags << ")\n";
+        llog << ":\nliquidEntry: " << liquidEntry << " type: " << hlq->type << " (root:" << rootWMO->liquidType << " group:" << liquidType << ")\n";
         llog.close(); */
 
         fwrite(&groupLiquid, sizeof(uint32), 1, output);
