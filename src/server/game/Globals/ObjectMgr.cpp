@@ -472,7 +472,7 @@ void ObjectMgr::LoadCreatureTemplate(Field* fields)
 
     creatureTemplate.Entry = entry;
 
-    for (uint8 i = 0; i < MAX_DIFFICULTY - 1; ++i)
+    for (uint8 i = 0; i < MAX_CREATURE_DIFFICULTIES - 1; ++i)
         creatureTemplate.DifficultyEntry[i] = fields[1 + i].GetUInt32();
 
     for (uint8 i = 0; i < MAX_KILL_CREDIT; ++i)
@@ -724,7 +724,7 @@ void ObjectMgr::CheckCreatureTemplate(CreatureTemplate const* cInfo)
         return;
 
     bool ok = true;                                     // bool to allow continue outside this loop
-    for (uint32 diff = 0; diff < MAX_DIFFICULTY - 1 && ok; ++diff)
+    for (uint32 diff = 0; diff < MAX_CREATURE_DIFFICULTIES && ok; ++diff)
     {
         if (!cInfo->DifficultyEntry[diff])
             continue;
@@ -739,7 +739,7 @@ void ObjectMgr::CheckCreatureTemplate(CreatureTemplate const* cInfo)
         }
 
         bool ok2 = true;
-        for (uint32 diff2 = 0; diff2 < MAX_DIFFICULTY - 1 && ok2; ++diff2)
+        for (uint32 diff2 = 0; diff2 < MAX_CREATURE_DIFFICULTIES && ok2; ++diff2)
         {
             ok2 = false;
             if (_difficultyEntries[diff2].find(cInfo->Entry) != _difficultyEntries[diff2].end())
@@ -2099,7 +2099,7 @@ void ObjectMgr::LoadCreatures()
             data.spawnGroupData = GetLegacySpawnGroup(); // force compatibility group for transport spawns
 
         bool ok = true;
-        for (uint32 diff = 0; diff < MAX_DIFFICULTY - 1 && ok; ++diff)
+        for (uint32 diff = 0; diff < MAX_CREATURE_DIFFICULTIES && ok; ++diff)
         {
             if (_difficultyEntries[diff].find(data.id) != _difficultyEntries[diff].end())
             {
@@ -5723,7 +5723,7 @@ void ObjectMgr::LoadInstanceEncounters()
 
                 if (dungeonEncounter->DifficultyID == -1)
                 {
-                    for (uint8 i = 0; i < 3; i++)
+                    for (uint8 i = 0; i < MAX_CREATURE_DIFFICULTIES; i++)
                     {
                         if (CreatureTemplate const* creatureBaseInfo = GetCreatureTemplate(creditEntry))
                             if (CreatureTemplate const* creatureInfo = GetCreatureTemplate(creatureBaseInfo->DifficultyEntry[i]))
@@ -9557,8 +9557,8 @@ CreatureBaseStats const* ObjectMgr::GetCreatureBaseStats(uint8 level, uint8 unit
 void ObjectMgr::LoadCreatureClassLevelStats()
 {
     uint32 oldMSTime = getMSTime();
-    //                                               0      1      2        3        4        5        6         7          8            9                  10           11           12           13
-    QueryResult result = WorldDatabase.Query("SELECT level, class, basehp0, basehp1, basehp2, basehp3, basemana, basearmor, attackpower, rangedattackpower, damage_base, damage_exp1, damage_exp2, damage_exp3 FROM creature_classlevelstats");
+    //                                                      0      1        2        3        4        5        6         7         8             9                 10           11           12           13           14           15
+    QueryResult result = WorldDatabase.Query("SELECT level, class, basehp0, basehp1, basehp2, basehp3, basehp4, basemana, basearmor, attackpower, rangedattackpower, damage_base, damage_exp1, damage_exp2, damage_exp3, damage_exp4 FROM creature_classlevelstats");
 
     if (!result)
     {
@@ -9589,7 +9589,7 @@ void ObjectMgr::LoadCreatureClassLevelStats()
                 stats.BaseHealth[i] = 1;
             }
 
-            stats.BaseDamage[i] = fields[10 + i].GetFloat();
+            stats.BaseDamage[i] = fields[11 + i].GetFloat();
             if (stats.BaseDamage[i] < 0.0f)
             {
                 TC_LOG_ERROR("sql.sql", "Creature base stats for class %u, level %u has invalid negative base damage[%u] - set to 0.0", Class, Level, i);
@@ -9597,11 +9597,11 @@ void ObjectMgr::LoadCreatureClassLevelStats()
             }
         }
 
-        stats.BaseMana = fields[6].GetUInt16();
-        stats.BaseArmor = fields[7].GetUInt16();
+        stats.BaseMana = fields[7].GetUInt16();
+        stats.BaseArmor = fields[8].GetUInt16();
 
-        stats.AttackPower = fields[8].GetUInt16();
-        stats.RangedAttackPower = fields[9].GetUInt16();
+        stats.AttackPower = fields[9].GetUInt16();
+        stats.RangedAttackPower = fields[10].GetUInt16();
 
         _creatureBaseStatsStore[MAKE_PAIR16(Level, Class)] = stats;
 

@@ -97,7 +97,7 @@ Map* MapManager::CreateBaseMap_i(MapEntry const* mapEntry)
     if (mapEntry->Instanceable())
         map = new MapInstanced(mapEntry->ID, i_gridCleanUpDelay);
     else
-        map = new Map(mapEntry->ID, i_gridCleanUpDelay, 0, REGULAR_DIFFICULTY);
+        map = new Map(mapEntry->ID, i_gridCleanUpDelay, 0, DIFFICULTY_NONE);
 
     i_maps[mapEntry->ID] = map;
 

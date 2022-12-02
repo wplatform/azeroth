@@ -885,9 +885,14 @@ SpellInfo::SpellInfo(SpellEntry const* spellEntry, SpellEffectEntry const** effe
     AttributesEx9 = spellMisc ? spellMisc->AttributesEx9 : 0;
     AttributesEx10 = spellMisc ? spellMisc->AttributesEx10 : 0;
     AttributesCu = 0;
-    CastTimeEntry = spellMisc->CastingTimeIndex ? sSpellCastTimesStore.LookupEntry(spellMisc->CastingTimeIndex) : nullptr;
-    DurationEntry = spellMisc->DurationIndex ? sSpellDurationStore.LookupEntry(spellMisc->DurationIndex) : nullptr;
-    RangeEntry = spellMisc->RangeIndex ? sSpellRangeStore.LookupEntry(spellMisc->RangeIndex) : nullptr;
+
+    uint32 castingTimeIndex = spellMisc ? spellMisc->CastingTimeIndex : 0;
+    uint32 durationIndex = spellMisc ? spellMisc->DurationIndex : 0;
+    uint32 rangeIndex = spellMisc ? spellMisc->RangeIndex : 0;
+
+    CastTimeEntry = castingTimeIndex ? sSpellCastTimesStore.LookupEntry(castingTimeIndex) : nullptr;
+    DurationEntry = durationIndex ? sSpellDurationStore.LookupEntry(durationIndex) : nullptr;
+    RangeEntry = rangeIndex ? sSpellRangeStore.LookupEntry(rangeIndex) : nullptr;
     Speed = spellMisc ? spellMisc->Speed : 0;
 
     for (uint8 i = 0; i < 2; ++i)

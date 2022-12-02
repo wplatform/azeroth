@@ -2883,12 +2883,12 @@ bool Map::IsRaid() const
 
 bool Map::IsRaidOrHeroicDungeon() const
 {
-    return IsRaid() || i_spawnMode > DUNGEON_DIFFICULTY_NORMAL;
+    return IsRaid() || i_spawnMode > DIFFICULTY_NORMAL;
 }
 
 bool Map::IsHeroic() const
 {
-    return IsRaid() ? i_spawnMode >= RAID_DIFFICULTY_10MAN_HEROIC : i_spawnMode >= DUNGEON_DIFFICULTY_HEROIC;
+    return IsRaid() ? i_spawnMode >= DIFFICULTY_10_HC : i_spawnMode >= DIFFICULTY_HEROIC;
 }
 
 bool Map::Is25ManRaid() const
@@ -2904,7 +2904,7 @@ uint32 Map::GetId() const
 
 bool Map::IsRegularDifficulty() const
 {
-    return GetDifficulty() == REGULAR_DIFFICULTY;
+    return GetDifficulty() == DIFFICULTY_NONE;
 }
 
 bool Map::IsBattleground() const

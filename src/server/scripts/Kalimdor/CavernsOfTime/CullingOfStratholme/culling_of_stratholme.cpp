@@ -321,7 +321,7 @@ class npc_chromie_start : public CreatureScript
                                 {
                                     if (player->IsGameMaster())
                                         continue;
-                                    if (!player->HasAchieved(instance->instance->GetSpawnMode() == DUNGEON_DIFFICULTY_HEROIC ? ACHIEVEMENT_HEROIC : ACHIEVEMENT_NORMAL))
+                                    if (!player->HasAchieved(instance->instance->GetSpawnMode() == DIFFICULTY_HEROIC ? ACHIEVEMENT_HEROIC : ACHIEVEMENT_NORMAL))
                                     {
                                         shouldAddSkipGossip = false;
                                         break;

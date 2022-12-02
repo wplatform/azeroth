@@ -135,6 +135,8 @@ static uint8 const MAX_KILL_CREDIT = 2;
 static uint32 const MAX_CREATURE_MODELS = 4;
 static uint32 const MAX_CREATURE_QUEST_ITEMS = 6;
 static uint32 const MAX_CREATURE_SPELLS = 8;
+static uint32 const MAX_CREATURE_DIFFICULTIES = 3;
+
 
 // from `creature_template` table
 struct TC_GAME_API CreatureTemplate

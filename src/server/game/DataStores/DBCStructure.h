@@ -1268,14 +1268,15 @@ struct MapEntry
     // Helpers
     uint32 Expansion() const { return ExpansionID; }
 
-    bool IsDungeon() const { return MapType == MAP_INSTANCE || MapType == MAP_RAID; }
-    bool IsNonRaidDungeon() const { return MapType == MAP_INSTANCE; }
-    bool Instanceable() const { return MapType == MAP_INSTANCE || MapType == MAP_RAID || MapType == MAP_BATTLEGROUND || MapType == MAP_ARENA; }
-    bool IsRaid() const { return MapType == MAP_RAID; }
-    bool IsBattleground() const { return MapType == MAP_BATTLEGROUND; }
-    bool IsBattleArena() const { return MapType == MAP_ARENA; }
-    bool IsBattlegroundOrArena() const { return MapType == MAP_BATTLEGROUND || MapType == MAP_ARENA; }
-    bool IsWorldMap() const { return MapType == MAP_COMMON; }
+    bool IsDungeon() const { return (InstanceType == MAP_INSTANCE || InstanceType == MAP_RAID || InstanceType == MAP_SCENARIO); }
+    bool IsNonRaidDungeon() const { return InstanceType == MAP_INSTANCE; }
+    bool Instanceable() const { return InstanceType == MAP_INSTANCE || InstanceType == MAP_RAID || InstanceType == MAP_BATTLEGROUND || InstanceType == MAP_ARENA || InstanceType == MAP_SCENARIO; }
+    bool IsRaid() const { return InstanceType == MAP_RAID; }
+    bool IsBattleground() const { return InstanceType == MAP_BATTLEGROUND; }
+    bool IsBattleArena() const { return InstanceType == MAP_ARENA; }
+    bool IsBattlegroundOrArena() const { return InstanceType == MAP_BATTLEGROUND || InstanceType == MAP_ARENA; }
+    bool IsScenario() const { return InstanceType == MAP_SCENARIO; }
+    bool IsWorldMap() const { return InstanceType == MAP_COMMON; }
 
     bool GetEntrancePos(int32 &mapid, float &x, float &y) const
     {

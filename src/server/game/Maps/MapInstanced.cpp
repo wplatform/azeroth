@@ -29,7 +29,7 @@
 #include "VMapManager2.h"
 #include "World.h"
 
-MapInstanced::MapInstanced(uint32 id, time_t expiry) : Map(id, expiry, 0, DUNGEON_DIFFICULTY_NORMAL)
+MapInstanced::MapInstanced(uint32 id, time_t expiry) : Map(id, expiry, 0, DIFFICULTY_NORMAL)
 {
 }
 
@@ -253,7 +253,7 @@ BattlegroundMap* MapInstanced::CreateBattleground(uint32 InstanceId, Battlegroun
     if (bracketEntry)
         spawnMode = bracketEntry->Difficulty;
     else
-        spawnMode = REGULAR_DIFFICULTY;
+        spawnMode = DIFFICULTY_NONE;
 
     BattlegroundMap* map = new BattlegroundMap(GetId(), GetGridExpiry(), InstanceId, this, spawnMode);
     ASSERT(map->IsBattlegroundOrArena());

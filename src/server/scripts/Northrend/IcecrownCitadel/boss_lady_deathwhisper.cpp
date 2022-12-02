@@ -265,7 +265,7 @@ class boss_lady_deathwhisper : public CreatureScript
                             DoCast(target, SPELL_DEATH_AND_DECAY);
                         death_and_decay.Repeat(Seconds(22), Seconds(30));
                     });
-                    if (GetDifficulty() != RAID_DIFFICULTY_10MAN_NORMAL)
+                    if (GetDifficulty() != DIFFICULTY_10_N)
                         scheduler.Schedule(Seconds(27), [this](TaskContext dominate_mind)
                         {
                             Talk(SAY_DOMINATE_MIND);

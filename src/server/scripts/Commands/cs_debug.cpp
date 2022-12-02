@@ -1699,7 +1699,7 @@ public:
                 }
             }
         }
-        else if (mEntry->IsNonRaidDungeon() && difficulty == DUNGEON_DIFFICULTY_NORMAL)
+        else if (mEntry->IsNonRaidDungeon() && difficulty == DIFFICULTY_NORMAL)
         {
             handler->PSendSysMessage("'%s' does not have any permanent saves for difficulty %d.", mEntry->MapName[LOCALE_enUS], difficulty);
         }

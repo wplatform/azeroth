@@ -992,18 +992,18 @@ private:
             uint32 gameobjectId = 0;
             switch (GetDifficulty())
             {
-                case RAID_DIFFICULTY_10MAN_NORMAL:
+                case DIFFICULTY_10_N:
                     gameobjectId = GO_ELEMENTIUM_FRAGMENT_10_NORMAL;
                     break;
-                case RAID_DIFFICULTY_25MAN_NORMAL:
+                case DIFFICULTY_25_N:
                     gameobjectId = GO_ELEMENTIUM_FRAGMENT_25_NORMAL;
                     if (recipient->GetGroup() && recipient->GetGroup()->isLFRGroup())
                         gameobjectId = GO_ELEMENTIUM_FRAGMENT_25_LFR;
                     break;
-                case RAID_DIFFICULTY_10MAN_HEROIC:
+                case DIFFICULTY_10_HC:
                     gameobjectId = GO_ELEMENTIUM_FRAGMENT_10_HEROIC;
                     break;
-                case RAID_DIFFICULTY_25MAN_HEROIC:
+                case DIFFICULTY_25_HC:
                     gameobjectId = GO_ELEMENTIUM_FRAGMENT_25_HEROIC;
                     break;
                 default:

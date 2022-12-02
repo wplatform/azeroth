@@ -471,7 +471,7 @@ class instance_culling_of_stratholme : public InstanceMapScript
                     {
                         case EVENT_GUARDIAN_TICK: // regular ticks at :00 seconds on the timer, and then at 04:30 remaining for the chromie whisper
                         {                         // we do the whisper as a guardian tick because i don't want to duplicate the real-time code
-                            if (instance->GetSpawnMode() != DUNGEON_DIFFICULTY_HEROIC)
+                            if (instance->GetSpawnMode() != DIFFICULTY_HEROIC)
                                 return;
 
                             time_t secondsToGuardianDeath = _infiniteGuardianTimeout - GameTime::GetGameTime();
@@ -549,7 +549,7 @@ class instance_culling_of_stratholme : public InstanceMapScript
                                         _waveSpawns.insert(spawn->GetGUID());
                                     break;
                                 default:
-                                    if (instance->GetSpawnMode() == DUNGEON_DIFFICULTY_HEROIC)
+                                    if (instance->GetSpawnMode() == DIFFICULTY_HEROIC)
                                     {
                                         for (uint32 i = 0; i < MAX_SPAWNS_PER_WAVE; ++i)
                                             if (uint32 entry = HeroicWaves[_waveCount - 1][i])
@@ -771,7 +771,7 @@ class instance_culling_of_stratholme : public InstanceMapScript
 
             void SpawnInfiniteCorruptor()
             {
-                if (!_infiniteGuardianTimeout && instance->GetSpawnMode() == DUNGEON_DIFFICULTY_HEROIC && (GetBossState(DATA_INFINITE_CORRUPTOR) != DONE && GetBossState(DATA_INFINITE_CORRUPTOR) != FAIL))
+                if (!_infiniteGuardianTimeout && instance->GetSpawnMode() == DIFFICULTY_HEROIC && (GetBossState(DATA_INFINITE_CORRUPTOR) != DONE && GetBossState(DATA_INFINITE_CORRUPTOR) != FAIL))
                 {
                     instance->SummonCreature(NPC_TIME_RIFT, CorruptorRiftPos);
                     instance->SummonCreature(NPC_GUARDIAN_OF_TIME, GuardianPos);

@@ -54,7 +54,7 @@ inline void LoadDB2(uint32& availableDb2Locales, DB2StoreProblemList& errlist, D
 
     ++DB2FilesCount;
 
-    if (storage->Load(db2Path + localeNames[defaultLocale] + '/', defaultLocale))
+    if (storage->Load(db2Path + '/', defaultLocale))
     {
         storage->LoadFromDB();
         // LoadFromDB() always loads strings into enUS locale, other locales are expected to have data in corresponding _locale tables

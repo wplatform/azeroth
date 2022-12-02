@@ -284,9 +284,9 @@ Player::Player(WorldSession* session): Unit(true)
 
     m_HomebindTimer = 0;
     m_InstanceValid = true;
-    m_dungeonDifficulty = DUNGEON_DIFFICULTY_NORMAL;
-    m_raidDifficulty = RAID_DIFFICULTY_10MAN_NORMAL;
-    m_raidMapDifficulty = RAID_DIFFICULTY_10MAN_NORMAL;
+    m_dungeonDifficulty = DIFFICULTY_NORMAL;
+    m_raidDifficulty = DIFFICULTY_10_N;
+    m_raidMapDifficulty = DIFFICULTY_10_N;
 
     m_lastPotionId = 0;
     _talentMgr = new PlayerTalentInfo();
@@ -16961,10 +16961,10 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
 
     uint32 dungeonDiff = fields[44].GetUInt8() & 0x0F;
     if (dungeonDiff >= MAX_DUNGEON_DIFFICULTY)
-        dungeonDiff = DUNGEON_DIFFICULTY_NORMAL;
+        dungeonDiff = DIFFICULTY_NORMAL;
     uint32 raidDiff = (fields[44].GetUInt8() >> 4) & 0x0F;
     if (raidDiff >= MAX_RAID_DIFFICULTY)
-        raidDiff = RAID_DIFFICULTY_10MAN_NORMAL;
+        raidDiff = DIFFICULTY_10_N;
     SetDungeonDifficulty(Difficulty(dungeonDiff));          // may be changed in _LoadGroup
     SetRaidDifficulty(Difficulty(raidDiff));                // may be changed in _LoadGroup
 
@@ -18935,10 +18935,10 @@ void Player::SendRaidInfo()
                 WorldPackets::Instance::InstanceLock lockInfos;
 
                 Difficulty difficulty = save->GetDifficulty();
-                lockInfos.Heroic = (difficulty == RAID_DIFFICULTY_10MAN_HEROIC || difficulty == RAID_DIFFICULTY_25MAN_HEROIC);
+                lockInfos.Heroic = (difficulty == DIFFICULTY_10_HC || difficulty == DIFFICULTY_25_HC);
 
                 if (lockInfos.Heroic)
-                    lockInfos.Difficulty = difficulty == RAID_DIFFICULTY_10MAN_HEROIC ? RAID_DIFFICULTY_10MAN_NORMAL : RAID_DIFFICULTY_25MAN_NORMAL;
+                    lockInfos.Difficulty = difficulty == DIFFICULTY_10_HC ? DIFFICULTY_10_N : DIFFICULTY_25_N;
                 else
                     lockInfos.Difficulty = difficulty;
 
@@ -20511,7 +20511,7 @@ void Player::ResetInstances(uint8 method, bool isRaid)
         if (method == INSTANCE_RESET_ALL)
         {
             // the "reset all instances" method can only reset normal maps
-            if (entry->MapType == MAP_RAID || diff == DUNGEON_DIFFICULTY_HEROIC)
+            if (entry->MapType == MAP_RAID || diff == DIFFICULTY_HEROIC)
             {
                 ++itr;
                 continue;

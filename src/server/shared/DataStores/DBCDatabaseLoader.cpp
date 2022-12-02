@@ -37,29 +37,35 @@ DBCDatabaseLoader::DBCDatabaseLoader(std::string const& storageName, std::string
     ASSERT(indexPos >= 0);
     ASSERT(_recordSize);
 
-    uint32 uindexPos = uint32(indexPos);
-    for (uint32 x = 0; x < _formatString.size(); ++x)
+    uint32 uIndexPos = uint32(indexPos);
+    char const* fmt = _formatString.c_str();
+    while (uIndexPos)
     {
-        // Count only fields present in sql
-        if (_formatString[x] == FT_SQL_PRESENT)
+        switch (*fmt)
         {
-            if (x == uindexPos)
+            case FT_SQL_PRESENT:
+                ++_sqlIndexPos;
                 break;
-            ++_sqlIndexPos;
+            case FT_SQL_ABSENT:
+                break;
+            default:
+                ABORT(true, "Invalid DB format string for '%s'", storageName.c_str());
+                break;
         }
+        --uIndexPos;
+        ++fmt;
     }
+    ASSERT(*fmt == FT_SQL_PRESENT, "Index column not present in format string for '%s'", storageName.c_str());
 }
 
 static char const* nullStr = "";
 
 char* DBCDatabaseLoader::Load(uint32& records, char**& indexTable)
 {
-    std::ostringstream queryBuilder;
-    queryBuilder << "SELECT * FROM " << _sqlTableName
-        << " ORDER BY " << _indexName << " DESC;";
+    std::string query = Trinity::StringFormat("SELECT * FROM %s ORDER BY %s DESC;", _sqlTableName, _indexName);
 
     // no error if empty set
-    QueryResult result = WorldDatabase.Query(queryBuilder.str().c_str());
+    QueryResult result = WorldDatabase.Query(query.c_str());
     if (!result)
         return nullptr;
 
@@ -82,15 +88,14 @@ char* DBCDatabaseLoader::Load(uint32& records, char**& indexTable)
         indexTable = tmpIdxTable;
     }
 
-    std::unique_ptr<char[]> dataTable = Trinity::make_unique<char[]>(result->GetRowCount() * _recordSize);
-    std::unique_ptr<uint32[]> newIndexes = Trinity::make_unique<uint32[]>(result->GetRowCount());
+    std::unique_ptr<char[]> dataTable = std::make_unique<char[]>(result->GetRowCount() * _recordSize);
+    std::unique_ptr<uint32[]> newIndexes = std::make_unique<uint32[]>(result->GetRowCount());
     uint32 newRecords = 0;
 
     // Insert sql data into the data array
     do
     {
         Field* fields = result->Fetch();
-        uint32 offset = 0;
 
         uint32 indexValue = fields[_sqlIndexPos].GetUInt32();
 
@@ -107,78 +112,78 @@ char* DBCDatabaseLoader::Load(uint32& records, char**& indexTable)
             return nullptr;
         }
 
-        uint32 columnNumber = 0;
+        uint32 dataOffset = 0;
         uint32 sqlColumnNumber = 0;
-
-        for (; columnNumber < _formatString.size(); ++columnNumber)
+        char const* dbcFormat = _dbcFormat;
+        char const* sqlFormat = _formatString.c_str();
+        for (; (*dbcFormat || *sqlFormat); ++dbcFormat, ++sqlFormat)
         {
-            if (_formatString[columnNumber] == FT_SQL_ABSENT)
+            if (!*dbcFormat || !*sqlFormat)
             {
-                switch (_dbcFormat[columnNumber])
-                {
-                    case FT_FLOAT:
-                        *reinterpret_cast<float*>(&dataValue[offset]) = 0.0f;
-                        offset += 4;
-                        break;
-                    case FT_IND:
-                    case FT_INT:
-                        *reinterpret_cast<uint32*>(&dataValue[offset]) = uint32(0);
-                        offset += 4;
-                        break;
-                    case FT_BYTE:
-                        *reinterpret_cast<uint8*>(&dataValue[offset]) = uint8(0);
-                        offset += 1;
-                        break;
-                    case FT_STRING:
-                        *reinterpret_cast<char**>(&dataValue[offset]) = const_cast<char*>(nullStr);
-                        offset += sizeof(char*);
-                        break;
-                }
+                ASSERT(true, "DB and DBC format strings do not have the same length for '%s'", _sqlTableName.c_str());
+                return nullptr;
             }
-            else if (_formatString[columnNumber] == FT_SQL_PRESENT)
-            {
-                bool validSqlColumn = true;
-                switch (_dbcFormat[columnNumber])
-                {
-                    case FT_FLOAT:
-                        *reinterpret_cast<float*>(&dataValue[offset]) = fields[sqlColumnNumber].GetFloat();
-                        offset += 4;
-                        break;
-                    case FT_IND:
-                    case FT_INT:
-                        *reinterpret_cast<uint32*>(&dataValue[offset]) = fields[sqlColumnNumber].GetUInt32();
-                        offset += 4;
-                        break;
-                    case FT_BYTE:
-                        *reinterpret_cast<uint8*>(&dataValue[offset]) = fields[sqlColumnNumber].GetUInt8();
-                        offset += 1;
-                        break;
-                    case FT_STRING:
-                        ASSERT(false, "Unsupported data type in table '%s' at char %d", _sqlTableName.c_str(), columnNumber);
-                        return nullptr;
-                    case FT_SORT:
-                        break;
-                    default:
-                        validSqlColumn = false;
-                        break;
-                }
-                if (validSqlColumn && (columnNumber != (_formatString.size() - 1)))
-                    sqlColumnNumber++;
-            }
-            else
-            {
-                ASSERT(false, "Incorrect sql format string '%s' at char %d", _sqlTableName.c_str(), columnNumber);
+            if (!*dbcFormat)
                 break;
+            switch (*sqlFormat)
+            {
+                case FT_SQL_PRESENT:
+                    switch (*dbcFormat)
+                    {
+                        case FT_FLOAT:
+                            *reinterpret_cast<float*>(&dataValue[dataOffset]) = fields[sqlColumnNumber].GetFloat();
+                            dataOffset += sizeof(float);
+                            break;
+                        case FT_IND:
+                        case FT_INT:
+                            *reinterpret_cast<uint32*>(&dataValue[dataOffset]) = fields[sqlColumnNumber].GetUInt32();
+                            dataOffset += sizeof(uint32);
+                            break;
+                        case FT_BYTE:
+                            *reinterpret_cast<uint8*>(&dataValue[dataOffset]) = fields[sqlColumnNumber].GetUInt8();
+                            dataOffset += sizeof(uint8);
+                            break;
+                        case FT_STRING:
+                            *reinterpret_cast<char**>(&dataValue[dataOffset]) = fields[sqlColumnNumber].GetString().data();
+                            dataOffset += sizeof(char*);
+                            break;
+                        case FT_SORT:
+                            break;
+                        default:
+                            ASSERT(true, "Unsupported data type '%c' marked present in table '%s'", *dbcFormat, _sqlTableName.c_str());
+                            return nullptr;
+                    }
+                    ++sqlColumnNumber;
+                    break;
+                case FT_SQL_ABSENT:
+                    switch (*dbcFormat)
+                    {
+                        case FT_FLOAT:
+                            *reinterpret_cast<float*>(&dataValue[dataOffset]) = 0.0f;
+                            dataOffset += sizeof(float);
+                            break;
+                        case FT_IND:
+                        case FT_INT:
+                            *reinterpret_cast<uint32*>(&dataValue[dataOffset]) = uint32(0);
+                            dataOffset += sizeof(uint32);
+                            break;
+                        case FT_BYTE:
+                            *reinterpret_cast<uint8*>(&dataValue[dataOffset]) = uint8(0);
+                            dataOffset += sizeof(uint8);
+                            break;
+                        case FT_STRING:
+                            *reinterpret_cast<char**>(&dataValue[dataOffset]) = const_cast<char*>(nullStr);
+                            dataOffset += sizeof(char*);
+                            break;
+                    }
+                    break;
+                default:
+                    ASSERT(true, "Invalid DB format string for '%s'", _sqlTableName.c_str());
+                    return nullptr;
             }
         }
-
-        if (sqlColumnNumber != (result->GetFieldCount() - 1))
-        {
-            ASSERT(false, "SQL and DBC format strings are not matching for table: '%s'", _sqlTableName.c_str());
-            return nullptr;
-        }
-
-        ASSERT(offset == _recordSize);
+        ASSERT(sqlColumnNumber == result->GetFieldCount(), "SQL format string does not match database for table: '%s'", _sqlTableName.c_str());
+        ASSERT(dataOffset == _recordSize);
     } while (result->NextRow());
 
     ASSERT(newRecords == result->GetRowCount());
@@ -191,3 +196,4 @@ char* DBCDatabaseLoader::Load(uint32& records, char**& indexTable)
 
     return dataTable.release();
 }
+

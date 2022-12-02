@@ -393,38 +393,43 @@ enum AreaMountFlags
 
 enum Difficulty : uint8
 {
-    REGULAR_DIFFICULTY           = 0,
+    DIFFICULTY_NONE             = 0,
+    DIFFICULTY_NORMAL           = 1,
+    DIFFICULTY_HEROIC           = 2,
+    DIFFICULTY_10_N             = 3,
+    DIFFICULTY_25_N             = 4,
+    DIFFICULTY_10_HC            = 5,
+    DIFFICULTY_25_HC            = 6,
+    DIFFICULTY_LFR              = 7,
+    DIFFICULTY_CHALLENGE_MODE   = 8,
+    DIFFICULTY_40               = 9,
+    DIFFICULTY_SCENARIO_HC      = 11,
+    DIFFICULTY_SCENARIO_N       = 12,
+    DIFFICULTY_DYNAMIC          = 14
 
-    DUNGEON_DIFFICULTY_NORMAL    = 0,
-    DUNGEON_DIFFICULTY_HEROIC    = 1,
-    DUNGEON_DIFFICULTY_EPIC      = 2,
-
-    RAID_DIFFICULTY_10MAN_NORMAL = 0,
-    RAID_DIFFICULTY_25MAN_NORMAL = 1,
-    RAID_DIFFICULTY_10MAN_HEROIC = 2,
-    RAID_DIFFICULTY_25MAN_HEROIC = 3
 };
+
 
 #define RAID_DIFFICULTY_MASK_25MAN 1    // since 25man difficulties are 1 and 3, we can check them like that
 
-#define MAX_DUNGEON_DIFFICULTY     3
-#define MAX_RAID_DIFFICULTY        4
-#define MAX_DIFFICULTY             4
+#define MAX_DUNGEON_DIFFICULTY     (DIFFICULTY_HEROIC + 1)
+#define MAX_RAID_DIFFICULTY        (DIFFICULTY_40 + 1)
+#define MAX_DIFFICULTY             (DIFFICULTY_DYNAMIC + 1)
 
 enum SpawnMask
 {
-    SPAWNMASK_CONTINENT         = (1 << REGULAR_DIFFICULTY), // any maps without spawn modes
+    SPAWNMASK_CONTINENT         = (1 << DIFFICULTY_NONE), // any maps without spawn modes
 
-    SPAWNMASK_DUNGEON_NORMAL    = (1 << DUNGEON_DIFFICULTY_NORMAL),
-    SPAWNMASK_DUNGEON_HEROIC    = (1 << DUNGEON_DIFFICULTY_HEROIC),
+    SPAWNMASK_DUNGEON_NORMAL    = (1 << DIFFICULTY_NORMAL),
+    SPAWNMASK_DUNGEON_HEROIC    = (1 << DIFFICULTY_HEROIC),
     SPAWNMASK_DUNGEON_ALL       = (SPAWNMASK_DUNGEON_NORMAL | SPAWNMASK_DUNGEON_HEROIC),
 
-    SPAWNMASK_RAID_10MAN_NORMAL = (1 << RAID_DIFFICULTY_10MAN_NORMAL),
-    SPAWNMASK_RAID_25MAN_NORMAL = (1 << RAID_DIFFICULTY_25MAN_NORMAL),
+    SPAWNMASK_RAID_10MAN_NORMAL = (1 << DIFFICULTY_10_N),
+    SPAWNMASK_RAID_25MAN_NORMAL = (1 << DIFFICULTY_25_N),
     SPAWNMASK_RAID_NORMAL_ALL   = (SPAWNMASK_RAID_10MAN_NORMAL | SPAWNMASK_RAID_25MAN_NORMAL),
 
-    SPAWNMASK_RAID_10MAN_HEROIC = (1 << RAID_DIFFICULTY_10MAN_HEROIC),
-    SPAWNMASK_RAID_25MAN_HEROIC = (1 << RAID_DIFFICULTY_25MAN_HEROIC),
+    SPAWNMASK_RAID_10MAN_HEROIC = (1 << DIFFICULTY_10_HC),
+    SPAWNMASK_RAID_25MAN_HEROIC = (1 << DIFFICULTY_25_HC),
     SPAWNMASK_RAID_HEROIC_ALL   = (SPAWNMASK_RAID_10MAN_HEROIC | SPAWNMASK_RAID_25MAN_HEROIC),
 
     SPAWNMASK_RAID_ALL          = (SPAWNMASK_RAID_NORMAL_ALL | SPAWNMASK_RAID_HEROIC_ALL)
@@ -466,7 +471,8 @@ enum MapTypes                                               // Lua_IsInInstance
     MAP_INSTANCE        = 1,                                // party
     MAP_RAID            = 2,                                // raid
     MAP_BATTLEGROUND    = 3,                                // pvp
-    MAP_ARENA           = 4                                 // arena
+    MAP_ARENA           = 4,                                // arena
+    MAP_SCENARIO        = 5                                 // scenario
 };
 
 enum class MapFlags : uint32
