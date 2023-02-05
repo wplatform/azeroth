@@ -15,90 +15,139 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "temple_of_ahnqiraj.h"
+/* ScriptData
+SDName: Boss_Ouro
+SD%Complete: 85
+SDComment: No model for submerging. Currently just invisible.
+SDCategory: Temple of Ahn'Qiraj
+EndScriptData */
+
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
-#include "GameObject.h"
+#include "temple_of_ahnqiraj.h"
 
 enum Spells
 {
-    // Ouro
-    SPELL_BIRTH             = 26586,
-    SPELL_GROUND_RUPTURE    = 26100,
+    SPELL_SWEEP                 = 26103,
+    SPELL_SANDBLAST             = 26102,
+    SPELL_GROUND_RUPTURE        = 26100,
+    SPELL_BIRTH                 = 26262, // The Birth Animation
+    SPELL_DIRTMOUND_PASSIVE     = 26092
 };
 
-enum Misc
+class boss_ouro : public CreatureScript
 {
-    CUSTOM_ANIM_CREATE = 0
-};
+public:
+    boss_ouro() : CreatureScript("boss_ouro") { }
 
-QuaternionData sandwormBaseRotation = { 0.f, 0.f, -0.3987484f, 0.9170604f };
-
-struct boss_ouro : public BossAI
-{
-    boss_ouro(Creature* creature) : BossAI(creature, DATA_OURO) { }
-
-    void JustAppeared() override
+    CreatureAI* GetAI(Creature* creature) const override
     {
-        if (GameObject* sandwormBase = me->SummonGameObject(GO_SANDWORM_BASE, me->GetPosition(), sandwormBaseRotation, 0, GO_SUMMON_TIMED_OR_CORPSE_DESPAWN))
-            sandwormBase->SendCustomAnim(CUSTOM_ANIM_CREATE);
-        DoCastSelf(SPELL_BIRTH);
-        DoZoneInCombat();
+        return GetAQ40AI<boss_ouroAI>(creature);
     }
 
-    void JustEngagedWith(Unit* who) override
+    struct boss_ouroAI : public BossAI
     {
-        BossAI::JustEngagedWith(who);
-    }
-
-    void EnterEvadeMode(EvadeReason why) override
-    {
-        BossAI::EnterEvadeMode(why);
-        summons.DespawnAll();
-        _DespawnAtEvade();
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        if (!UpdateVictim())
-            return;
-
-        events.Update(diff);
-
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        /*
-        while (uint32 eventId = events.ExecuteEvent())
+        boss_ouroAI(Creature* creature) : BossAI(creature, DATA_OURO)
         {
-            switch (eventId)
-            {
-                default:
-                    break;
-            }
+            Initialize();
         }
-        */
 
-        DoMeleeAttackIfReady();
-    }
-};
+        void Initialize()
+        {
+            Sweep_Timer = urand(5000, 10000);
+            SandBlast_Timer = urand(20000, 35000);
+            Submerge_Timer = urand(90000, 150000);
+            Back_Timer = urand(30000, 45000);
+            ChangeTarget_Timer = urand(5000, 8000);
+            Spawn_Timer = urand(10000, 20000);
 
-struct npc_ouro_spawner : public ScriptedAI
-{
-    npc_ouro_spawner(Creature* creature) : ScriptedAI(creature) { }
+            Enrage = false;
+            Submerged = false;
+        }
 
-    void JustEngagedWith(Unit* /*who*/) override
-    {
-        DoSummon(BOSS_OURO, me->GetPosition());
-        me->DespawnOrUnsummon();
-    }
+        uint32 Sweep_Timer;
+        uint32 SandBlast_Timer;
+        uint32 Submerge_Timer;
+        uint32 Back_Timer;
+        uint32 ChangeTarget_Timer;
+        uint32 Spawn_Timer;
 
-    void AttackStart(Unit* /*victim*/) override { }
-    void UpdateAI(uint32 /*diff*/) override { }
+        bool Enrage;
+        bool Submerged;
+
+        void Reset() override
+        {
+            Initialize();
+            _Reset();
+        }
+
+        void JustEngagedWith(Unit* who) override
+        {
+            DoCastVictim(SPELL_BIRTH);
+            BossAI::JustEngagedWith(who);
+        }
+
+        void UpdateAI(uint32 diff) override
+        {
+            //Return since we have no target
+            if (!UpdateVictim())
+                return;
+
+            //Sweep_Timer
+            if (!Submerged && Sweep_Timer <= diff)
+            {
+                DoCastVictim(SPELL_SWEEP);
+                Sweep_Timer = urand(15000, 30000);
+            } else Sweep_Timer -= diff;
+
+            //SandBlast_Timer
+            if (!Submerged && SandBlast_Timer <= diff)
+            {
+                DoCastVictim(SPELL_SANDBLAST);
+                SandBlast_Timer = urand(20000, 35000);
+            } else SandBlast_Timer -= diff;
+
+            //Submerge_Timer
+            if (!Submerged && Submerge_Timer <= diff)
+            {
+                //Cast
+                me->HandleEmoteCommand(EMOTE_ONESHOT_SUBMERGE);
+                me->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
+                me->SetFaction(FACTION_FRIENDLY);
+                DoCast(me, SPELL_DIRTMOUND_PASSIVE);
+
+                Submerged = true;
+                Back_Timer = urand(30000, 45000);
+            } else Submerge_Timer -= diff;
+
+            //ChangeTarget_Timer
+            if (Submerged && ChangeTarget_Timer <= diff)
+            {
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                    DoTeleportTo(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
+
+                ChangeTarget_Timer = urand(10000, 20000);
+            } else ChangeTarget_Timer -= diff;
+
+            //Back_Timer
+            if (Submerged && Back_Timer <= diff)
+            {
+                me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
+                me->SetFaction(FACTION_MONSTER);
+
+                DoCastVictim(SPELL_GROUND_RUPTURE);
+
+                Submerged = false;
+                Submerge_Timer = urand(60000, 120000);
+            } else Back_Timer -= diff;
+
+            DoMeleeAttackIfReady();
+        }
+    };
+
 };
 
 void AddSC_boss_ouro()
 {
-    RegisterTempleOfAhnqirajhCreatureAI(boss_ouro);
-    RegisterTempleOfAhnqirajhCreatureAI(npc_ouro_spawner);
+    new boss_ouro();
 }

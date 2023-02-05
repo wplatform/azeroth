@@ -25,6 +25,8 @@
 #include "SpellScript.h"
 #include "TemporarySummon.h"
 
+Position const Executioner = { 152.8524f, -83.63912f, 2.021005f, 0.06981317f };
+
 class at_nethekurse_exit : public AreaTriggerScript
 {
     public:
@@ -149,7 +151,7 @@ class boss_shattered_executioner : public CreatureScript
                             [[fallthrough]];
                         case 1:
                             me->RemoveLootMode(LOOT_MODE_HARD_MODE_3);
-                            break;
+                            [[fallthrough]];
                         default:
                             break;
                     }
@@ -181,6 +183,7 @@ class boss_shattered_executioner : public CreatureScript
         }
 };
 
+// 39288, 39289, 39290 - Kargath's Executioner
 class spell_kargath_executioner : public SpellScriptLoader
 {
     public:
@@ -188,6 +191,8 @@ class spell_kargath_executioner : public SpellScriptLoader
 
         class spell_kargath_executioner_AuraScript : public AuraScript
         {
+            PrepareAuraScript(spell_kargath_executioner_AuraScript);
+
             bool AreaCheck(Unit* target)
             {
                 if (target->GetMap()->GetId() != 540)
@@ -203,7 +208,7 @@ class spell_kargath_executioner : public SpellScriptLoader
 
             void Register() override
             {
-                DoCheckAreaTarget.Register(&spell_kargath_executioner_AuraScript::AreaCheck);
+                DoCheckAreaTarget += AuraCheckAreaTargetFn(spell_kargath_executioner_AuraScript::AreaCheck);
             }
         };
 
@@ -213,6 +218,7 @@ class spell_kargath_executioner : public SpellScriptLoader
         }
 };
 
+// 39291 - Remove Kargath's Executioner
 class spell_remove_kargath_executioner : public SpellScriptLoader
 {
     public:
@@ -220,6 +226,8 @@ class spell_remove_kargath_executioner : public SpellScriptLoader
 
         class spell_remove_kargath_executioner_SpellScript : public SpellScript
         {
+            PrepareSpellScript(spell_remove_kargath_executioner_SpellScript);
+
             void HandleScript(SpellEffIndex /*effIndex*/)
             {
                 Unit* target = GetCaster();
@@ -236,7 +244,7 @@ class spell_remove_kargath_executioner : public SpellScriptLoader
 
             void Register() override
             {
-                OnEffectHitTarget.Register(&spell_remove_kargath_executioner_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+                OnEffectHitTarget += SpellEffectFn(spell_remove_kargath_executioner_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
             }
         };
 

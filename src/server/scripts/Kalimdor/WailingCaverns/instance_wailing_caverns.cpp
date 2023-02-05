@@ -25,62 +25,55 @@ EndScriptData */
 #include "ScriptMgr.h"
 #include "Creature.h"
 #include "InstanceScript.h"
+#include "Log.h"
 #include "Map.h"
 #include "wailing_caverns.h"
 
-ObjectData const creatureData[] =
-{
-    { NPC_LADY_ANACONDRA, DATA_LADY_ANACONDRA },
-    { NPC_LORD_COBRAHN,   DATA_LORD_COBRAHN   },
-    { NPC_LORD_PYTHAS,    DATA_LORD_PYTHAS    },
-    { NPC_LORD_SERPENTIS, DATA_LORD_SERPENTIS },
-    { 0,                  0                   } // END
-
-};
+#define MAX_ENCOUNTER   9
 
 class instance_wailing_caverns : public InstanceMapScript
 {
 public:
     instance_wailing_caverns() : InstanceMapScript(WCScriptName, 43) { }
 
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override
+    {
+        return new instance_wailing_caverns_InstanceMapScript(map);
+    }
+
     struct instance_wailing_caverns_InstanceMapScript : public InstanceScript
     {
         instance_wailing_caverns_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
-            SetBossNumber(EncounterCount);
-            LoadObjectData(creatureData, nullptr);
+            SetBossNumber(MAX_ENCOUNTER);
 
             yelled = false;
         }
 
+        bool yelled;
+        ObjectGuid NaralexGUID;
+
         void OnCreatureCreate(Creature* creature) override
         {
-            InstanceScript::OnCreatureCreate(creature);
-
-            switch (creature->GetEntry())
-            {
-                case NPC_LADY_ANACONDRA:
-                case NPC_LORD_COBRAHN:
-                case NPC_LORD_PYTHAS:
-                case NPC_LORD_SERPENTIS:
-                case NPC_MUTANUS_THE_DEVOURER:
-                case NPC_KRESH:
-                case NPC_SKUM:
-                case NPC_VERDAN_THE_EVERLIVING:
-                case NPC_NARALEX:
-                    WailingCavernsGUIDs.emplace_back(creature->GetGUID());
-                    break;
-            }
+            if (creature->GetEntry() == DATA_NARALEX)
+                NaralexGUID = creature->GetGUID();
         }
 
-        void SetData(uint32 type, uint32 /*data*/) override
+        void SetData(uint32 type, uint32 data) override
         {
             switch (type)
             {
-                case DATA_NARALEX_YELLED:
-                    yelled = true;
-                    break;
+                case TYPE_LORD_COBRAHN:         SetBossState(0, EncounterState(data));break;
+                case TYPE_LORD_PYTHAS:          SetBossState(1, EncounterState(data));break;
+                case TYPE_LADY_ANACONDRA:       SetBossState(2, EncounterState(data));break;
+                case TYPE_LORD_SERPENTIS:       SetBossState(3, EncounterState(data));break;
+                case TYPE_NARALEX_EVENT:        SetBossState(4, EncounterState(data));break;
+                case TYPE_NARALEX_PART1:        SetBossState(5, EncounterState(data));break;
+                case TYPE_NARALEX_PART2:        SetBossState(6, EncounterState(data));break;
+                case TYPE_NARALEX_PART3:        SetBossState(7, EncounterState(data));break;
+                case TYPE_MUTANUS_THE_DEVOURER: SetBossState(8, EncounterState(data));break;
+                case TYPE_NARALEX_YELLED:       yelled = true;      break;
             }
         }
 
@@ -88,22 +81,26 @@ public:
         {
             switch (type)
             {
-                case DATA_NARALEX_YELLED:
-                    return yelled;
+                case TYPE_LORD_COBRAHN:         return GetBossState(0);
+                case TYPE_LORD_PYTHAS:          return GetBossState(1);
+                case TYPE_LADY_ANACONDRA:       return GetBossState(2);
+                case TYPE_LORD_SERPENTIS:       return GetBossState(3);
+                case TYPE_NARALEX_EVENT:        return GetBossState(4);
+                case TYPE_NARALEX_PART1:        return GetBossState(5);
+                case TYPE_NARALEX_PART2:        return GetBossState(6);
+                case TYPE_NARALEX_PART3:        return GetBossState(7);
+                case TYPE_MUTANUS_THE_DEVOURER: return GetBossState(8);
+                case TYPE_NARALEX_YELLED:       return yelled;
             }
             return 0;
         }
 
-    private:
-        bool yelled;
-        GuidVector WailingCavernsGUIDs;
-
+        ObjectGuid GetGuidData(uint32 data) const override
+        {
+            if (data == DATA_NARALEX)return NaralexGUID;
+            return ObjectGuid::Empty;
+        }
     };
-
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_wailing_caverns_InstanceMapScript(map);
-    }
 
 };
 

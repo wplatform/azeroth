@@ -23,8 +23,9 @@ SDCategory: Karazhan
 EndScriptData */
 
 #include "ScriptMgr.h"
-#include "InstanceScript.h"
+#include "Containers.h"
 #include "karazhan.h"
+#include "InstanceScript.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
 #include "SpellInfo.h"
@@ -105,6 +106,11 @@ class netherspite_infernal : public CreatureScript
 public:
     netherspite_infernal() : CreatureScript("netherspite_infernal") { }
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<netherspite_infernalAI>(creature);
+    }
+
     struct netherspite_infernalAI : public ScriptedAI
     {
         netherspite_infernalAI(Creature* creature) : ScriptedAI(creature),
@@ -118,7 +124,6 @@ public:
         void Reset() override { }
         void JustEngagedWith(Unit* /*who*/) override { }
         void MoveInLineOfSight(Unit* /*who*/) override { }
-
 
         void UpdateAI(uint32 diff) override
         {
@@ -149,18 +154,18 @@ public:
                     creature->AI()->KilledUnit(who);
         }
 
-        void SpellHit(WorldObject* /*who*/, SpellInfo const* spell) override
+        void SpellHit(WorldObject* /*caster*/, SpellInfo const* spellInfo) override
         {
-            if (spell->Id == SPELL_INFERNAL_RELAY)
+            if (spellInfo->Id == SPELL_INFERNAL_RELAY)
             {
-                me->SetDisplayId(me->GetUInt32Value(UNIT_FIELD_NATIVEDISPLAYID));
-                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                me->SetDisplayId(me->GetNativeDisplayId());
+                me->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                 HellfireTimer = 4000;
                 CleanupTimer = 170000;
             }
         }
 
-        void DamageTaken(Unit* done_by, uint32 &damage) override
+        void DamageTaken(Unit* done_by, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
         {
             if (!done_by || done_by->GetGUID() != malchezaar)
                 damage = 0;
@@ -168,17 +173,17 @@ public:
 
         void Cleanup();
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<netherspite_infernalAI>(creature);
-    }
 };
 
 class boss_malchezaar : public CreatureScript
 {
 public:
     boss_malchezaar() : CreatureScript("boss_malchezaar") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_malchezaarAI>(creature);
+    }
 
     struct boss_malchezaarAI : public ScriptedAI
     {
@@ -244,6 +249,7 @@ public:
                 positions.push_back(&InfernalPoints[i]);
 
             instance->HandleGameObject(instance->GetGuidData(DATA_GO_NETHER_DOOR), true);
+            instance->SetBossState(DATA_MALCHEZZAR, NOT_STARTED);
         }
 
         void KilledUnit(Unit* /*victim*/) override
@@ -264,6 +270,7 @@ public:
                 positions.push_back(&InfernalPoints[i]);
 
             instance->HandleGameObject(instance->GetGuidData(DATA_GO_NETHER_DOOR), true);
+            instance->SetBossState(DATA_MALCHEZZAR, DONE);
         }
 
         void JustEngagedWith(Unit* /*who*/) override
@@ -271,6 +278,7 @@ public:
             Talk(SAY_AGGRO);
 
             instance->HandleGameObject(instance->GetGuidData(DATA_GO_NETHER_DOOR), false); // Open the door leading further in
+            instance->SetBossState(DATA_MALCHEZZAR, IN_PROGRESS);
         }
 
         void InfernalCleanup()
@@ -306,7 +314,7 @@ public:
 
         void EnfeebleHealthEffect()
         {
-            SpellInfo const* info = sSpellMgr->GetSpellInfo(SPELL_ENFEEBLE_EFFECT);
+            SpellInfo const* info = sSpellMgr->GetSpellInfo(SPELL_ENFEEBLE_EFFECT, GetDifficulty());
             if (!info)
                 return;
 
@@ -321,7 +329,7 @@ public:
             }
 
             if (targets.empty())
-                return;
+              return;
 
             //cut down to size if we have more than 5 targets
             while (targets.size() > 5)
@@ -334,7 +342,10 @@ public:
                     enfeeble_targets[i] = target->GetGUID();
                     enfeeble_health[i] = target->GetHealth();
 
-                    target->CastSpell(target, SPELL_ENFEEBLE, me->GetGUID());
+                    CastSpellExtraArgs args;
+                    args.TriggerFlags = TRIGGERED_FULL_MASK;
+                    args.OriginalCaster = me->GetGUID();
+                    target->CastSpell(target, SPELL_ENFEEBLE, args);
                     target->SetHealth(1);
                 }
         }
@@ -353,7 +364,7 @@ public:
 
         void SummonInfernal(const uint32 /*diff*/)
         {
-            InfernalPoint* point = nullptr;
+            InfernalPoint *point = nullptr;
             Position pos;
             if ((me->GetMapId() != 532) || positions.empty())
                 pos = me->GetRandomNearPosition(60);
@@ -363,7 +374,8 @@ public:
                 pos.Relocate(point->x, point->y, INFERNAL_Z, frand(0.0f, float(M_PI * 2)));
             }
 
-            Creature* infernal = me->SummonCreature(NETHERSPITE_INFERNAL, pos, TEMPSUMMON_TIMED_DESPAWN, 180000);
+            Creature* infernal = me->SummonCreature(NETHERSPITE_INFERNAL, pos, TEMPSUMMON_TIMED_DESPAWN, 3min);
+
             if (infernal)
             {
                 infernal->SetDisplayId(INFERNAL_MODEL_INVISIBLE);
@@ -416,7 +428,7 @@ public:
                     //models
                     SetEquipmentSlots(false, EQUIP_ID_AXE, EQUIP_ID_AXE, EQUIP_NO_CHANGE);
 
-                    me->SetAttackTime(OFF_ATTACK, (me->GetAttackTime(BASE_ATTACK)*150)/100);
+                    me->SetBaseAttackTime(OFF_ATTACK, (me->GetBaseAttackTime(BASE_ATTACK)*150)/100);
                     me->SetCanDualWield(true);
                 }
             }
@@ -435,13 +447,13 @@ public:
 
                     Talk(SAY_AXE_TOSS2);
 
-                    Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true);
+                    Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true);
                     for (uint8 i = 0; i < 2; ++i)
                     {
-                        Creature* axe = me->SummonCreature(MALCHEZARS_AXE, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 1000);
+                        Creature* axe = me->SummonCreature(MALCHEZARS_AXE, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 1s);
                         if (axe)
                         {
-                            axe->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                            axe->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                             axe->SetFaction(me->GetFaction());
                             axes[i] = axe->GetGUID();
                             if (target)
@@ -476,7 +488,7 @@ public:
                 {
                     AxesTargetSwitchTimer = urand(7500, 20000);
 
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
                     {
                         for (uint8 i = 0; i < 2; ++i)
                         {
@@ -484,8 +496,7 @@ public:
                             {
                                 if (axe->GetVictim())
                                     ResetThreat(axe->GetVictim(), axe);
-                                if (target)
-                                    AddThreat(target, 1000000.0f, axe);
+                                AddThreat(target, 1000000.0f, axe);
                             }
                         }
                     }
@@ -493,7 +504,7 @@ public:
 
                 if (AmplifyDamageTimer <= diff)
                 {
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
                         DoCast(target, SPELL_AMPLIFY_DAMAGE);
                     AmplifyDamageTimer = urand(20000, 30000);
                 } else AmplifyDamageTimer -= diff;
@@ -520,7 +531,7 @@ public:
                     if (phase == 1)
                         target = me->GetVictim();        // the tank
                     else                                          // anyone but the tank
-                        target = SelectTarget(SELECT_TARGET_RANDOM, 1, 100, true);
+                        target = SelectTarget(SelectTargetMethod::Random, 1, 100, true);
 
                     if (target)
                         DoCast(target, SPELL_SW_PAIN);
@@ -565,7 +576,7 @@ public:
             }
         }
 
-        void Cleanup(Creature* infernal, InfernalPoint* point)
+        void Cleanup(Creature* infernal, InfernalPoint *point)
         {
             for (GuidVector::iterator itr = infernals.begin(); itr!= infernals.end(); ++itr)
             {
@@ -579,11 +590,6 @@ public:
             positions.push_back(point);
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_malchezaarAI>(creature);
-    }
 };
 
 void netherspite_infernal::netherspite_infernalAI::Cleanup()

@@ -15,18 +15,23 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
-#include "Creature.h"
-#include "CreatureAI.h"
-#include "GameObject.h"
 #include "halls_of_reflection.h"
+#include "Containers.h"
 #include "InstanceScript.h"
 #include "Map.h"
 #include "PhasingHandler.h"
 #include "Player.h"
+#include "ScriptedCreature.h"
+#include "ScriptMgr.h"
 #include "TemporarySummon.h"
 #include "Transport.h"
-#include "TransportMgr.h"
+
+DungeonEncounterData const encounters[] =
+{
+    { DATA_FALRIC, {{ 1992 }} },
+    { DATA_MARWYN, {{ 1993 }} },
+    { DATA_THE_LICH_KING_ESCAPE, {{ 1990 }} }
+};
 
 Position const JainaSpawnPos           = { 5236.659f, 1929.894f, 707.7781f, 0.8726646f }; // Jaina Spawn Position
 Position const SylvanasSpawnPos        = { 5236.667f, 1929.906f, 707.7781f, 0.8377581f }; // Sylvanas Spawn Position (sniffed)
@@ -91,6 +96,7 @@ class instance_halls_of_reflection : public InstanceMapScript
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
+                LoadDungeonEncounterData(encounters);
 
                 _teamInInstance           = 0;
                 _waveCount                = 0;
@@ -126,7 +132,7 @@ class instance_halls_of_reflection : public InstanceMapScript
                     case NPC_KORELN:
                     case NPC_LORALEN:
                         if (GetBossState(DATA_MARWYN) != DONE)
-                            creature->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
+                            creature->RemoveNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
                         KorelnOrLoralenGUID = creature->GetGUID();
                         break;
                     case NPC_THE_LICH_KING_INTRO:
@@ -143,8 +149,10 @@ class instance_halls_of_reflection : public InstanceMapScript
                         break;
                     case NPC_FROSTSWORN_GENERAL:
                         FrostswornGeneralGUID = creature->GetGUID();
-                        if (GetBossState(DATA_MARWYN) == DONE)
+                        if (GetBossState(DATA_MARWYN) != DONE)
                             PhasingHandler::AddPhase(creature, 170, true);
+                        else
+                            PhasingHandler::RemovePhase(creature, 170, true);
                         break;
                     case NPC_JAINA_ESCAPE:
                     case NPC_SYLVANAS_ESCAPE:
@@ -304,7 +312,7 @@ class instance_halls_of_reflection : public InstanceMapScript
                         if (state == DONE)
                         {
                             ++_waveCount;
-                            events.ScheduleEvent(EVENT_NEXT_WAVE, 60000);
+                            events.ScheduleEvent(EVENT_NEXT_WAVE, 1min);
                         }
                         break;
                     case DATA_MARWYN:
@@ -314,13 +322,13 @@ class instance_halls_of_reflection : public InstanceMapScript
                                 bunny->CastSpell(bunny, SPELL_START_HALLS_OF_REFLECTION_QUEST_AE, true);
 
                             if (Creature* korelnOrLoralen = instance->GetCreature(KorelnOrLoralenGUID))
-                                korelnOrLoralen->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
+                                korelnOrLoralen->SetNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
 
                             HandleGameObject(EntranceDoorGUID, true);
                             HandleGameObject(ImpenetrableDoorGUID, true);
                             DoUpdateWorldState(WORLD_STATE_HOR_WAVES_ENABLED, 0);
                             if (Creature* general = instance->GetCreature(FrostswornGeneralGUID))
-                                PhasingHandler::AddPhase(general, 170, true);
+                                PhasingHandler::RemovePhase(general, 170, true);
 
                             SpawnGunship();
                             SpawnEscapeEvent();
@@ -337,21 +345,19 @@ class instance_halls_of_reflection : public InstanceMapScript
                                 break;
                             case DONE:
                                 if (GameObject* chest = instance->GetGameObject(CaptainsChestGUID))
-                                    chest->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_LOCKED | GO_FLAG_NOT_SELECTABLE | GO_FLAG_NODESPAWN);
+                                    chest->RemoveFlag(GO_FLAG_LOCKED | GO_FLAG_NOT_SELECTABLE | GO_FLAG_NODESPAWN);
 
                                 DoUseDoorOrButton(CaveInGUID, 15);
 
                                 if (Creature* lichking = instance->GetCreature(TheLichKingEscapeGUID))
                                 {
-                                    lichking->CastSpell((Unit*)nullptr, SPELL_ACHIEV_CHECK, true);
-                                    lichking->DespawnOrUnsummon(1);
+                                    lichking->CastSpell(nullptr, SPELL_ACHIEV_CHECK, true);
+                                    lichking->DespawnOrUnsummon(1ms);
                                 }
                                 break;
                             case FAIL:
-                                DoStopTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, ACHIEV_NOT_RETREATING_EVENT);
-
                                 if (Creature* jainaOrSylvanas = instance->GetCreature(JainaOrSylvanasEscapeGUID))
-                                    jainaOrSylvanas->DespawnOrUnsummon(10000);
+                                    jainaOrSylvanas->DespawnOrUnsummon(10s);
 
                                 if (Creature* icewallTarget = instance->GetCreature(IcewallTargetGUID))
                                     icewallTarget->DespawnOrUnsummon();
@@ -359,7 +365,7 @@ class instance_halls_of_reflection : public InstanceMapScript
                                 if (GameObject* icewall = instance->GetGameObject(IcewallGUID))
                                     icewall->Delete();
 
-                                events.ScheduleEvent(EVENT_SPAWN_ESCAPE_EVENT, 30000);
+                                events.ScheduleEvent(EVENT_SPAWN_ESCAPE_EVENT, 30s);
                                 break;
                             default:
                                 break;
@@ -375,7 +381,7 @@ class instance_halls_of_reflection : public InstanceMapScript
             void SpawnGunship()
             {
                 // don't spawn gunship twice
-                if (GunshipGUID)
+                if (!GunshipGUID.IsEmpty())
                     return;
 
                 if (!_teamInInstance)
@@ -450,8 +456,8 @@ class instance_halls_of_reflection : public InstanceMapScript
                             if (_quelDelarState == NOT_STARTED)
                             {
                                 if (Creature* bunny = instance->GetCreature(FrostmourneAltarBunnyGUID))
-                                    bunny->CastSpell((Unit*)nullptr, SPELL_ESSENCE_OF_CAPTURED);
-                                events.ScheduleEvent(EVENT_QUEL_DELAR_SUMMON_UTHER, 2000);
+                                    bunny->CastSpell(nullptr, SPELL_ESSENCE_OF_CAPTURED);
+                                events.ScheduleEvent(EVENT_QUEL_DELAR_SUMMON_UTHER, 2s);
                             }
                         }
                         _quelDelarState = data;
@@ -459,8 +465,6 @@ class instance_halls_of_reflection : public InstanceMapScript
                     default:
                         break;
                 }
-
-                SaveToDB();
             }
 
             void SetGuidData(uint32 type, ObjectGuid data) override
@@ -499,7 +503,7 @@ class instance_halls_of_reflection : public InstanceMapScript
                         }
 
                         ++_waveCount;
-                        events.ScheduleEvent(EVENT_NEXT_WAVE, 3000);
+                        events.ScheduleEvent(EVENT_NEXT_WAVE, 3s);
                         break;
                     }
                 }
@@ -532,7 +536,7 @@ class instance_halls_of_reflection : public InstanceMapScript
                 {
                     // spawning all wave npcs at once
                     case EVENT_SPAWN_WAVES:
-                        _waveCount = 1;
+                        _waveCount = GetBossState(DATA_FALRIC) == DONE ? 6 : 1;
                         DoUpdateWorldState(WORLD_STATE_HOR_WAVES_ENABLED, 1);
                         DoUpdateWorldState(WORLD_STATE_HOR_WAVE_COUNT, _waveCount);
                         {
@@ -546,7 +550,7 @@ class instance_halls_of_reflection : public InstanceMapScript
                             possibilityList.push_back(NPC_WAVE_MAGE);
 
                             // iterate each wave
-                            for (uint8 i = 0; i < 8; ++i)
+                            for (uint8 i = GetBossState(DATA_FALRIC) == DONE ? 4 : 0; i < 8; ++i)
                             {
                                 tempList = possibilityList;
 
@@ -572,7 +576,7 @@ class instance_halls_of_reflection : public InstanceMapScript
                                 }
                             }
                         }
-                        events.ScheduleEvent(EVENT_NEXT_WAVE, 5000);
+                        events.ScheduleEvent(EVENT_NEXT_WAVE, 5s);
                         break;
                     case EVENT_ADD_WAVE:
                         DoUpdateWorldState(WORLD_STATE_HOR_WAVES_ENABLED, 1);
@@ -587,7 +591,7 @@ class instance_halls_of_reflection : public InstanceMapScript
                                 if (Creature* temp = instance->GetCreature(guid))
                                 {
                                     temp->CastSpell(temp, SPELL_SPIRIT_ACTIVATE, false);
-                                    temp->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                                    temp->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                                     temp->SetImmuneToAll(false);
                                     temp->AI()->DoZoneInCombat(temp);
                                 }
@@ -604,7 +608,7 @@ class instance_halls_of_reflection : public InstanceMapScript
                             else if (_waveCount != 10)
                             {
                                 ++_waveCount;
-                                events.ScheduleEvent(EVENT_NEXT_WAVE, 5000);
+                                events.ScheduleEvent(EVENT_NEXT_WAVE, 5s);
                             }
                         }
                         break;
@@ -624,7 +628,7 @@ class instance_halls_of_reflection : public InstanceMapScript
                         {
                             for (ObjectGuid guid : waveGuidList[i])
                                 if (Creature* creature = instance->GetCreature(guid))
-                                    creature->DespawnOrUnsummon(1);
+                                    creature->DespawnOrUnsummon(1ms);
                             waveGuidList[i].clear();
                         }
                         break;
@@ -730,31 +734,16 @@ class instance_halls_of_reflection : public InstanceMapScript
                 return ObjectGuid::Empty;
             }
 
-            void WriteSaveDataMore(std::ostringstream& data) override
+            void AfterDataLoad() override
             {
-                data << _introState << ' ' << _frostswornGeneralState << ' ' << _quelDelarState;
-            }
+                if (GetBossState(DATA_FALRIC) == DONE)
+                {
+                    _introState = DONE;
+                    _quelDelarState = DONE;
+                }
 
-            void ReadSaveDataMore(std::istringstream& data) override
-            {
-                uint32 temp = 0;
-                data >> temp;
-                if (temp == DONE)
-                    SetData(DATA_INTRO_EVENT, DONE);
-                else
-                    SetData(DATA_INTRO_EVENT, NOT_STARTED);
-
-                data >> temp;
-                if (temp == DONE)
-                    SetData(DATA_FROSTSWORN_GENERAL, DONE);
-                else
-                    SetData(DATA_FROSTSWORN_GENERAL, NOT_STARTED);
-
-                data >> temp;
-                if (temp == DONE)
-                    SetData(DATA_QUEL_DELAR_EVENT, DONE);
-                else
-                    SetData(DATA_QUEL_DELAR_EVENT, NOT_STARTED);
+                if (GetBossState(DATA_THE_LICH_KING_ESCAPE) == DONE)
+                    _frostswornGeneralState = DONE;
             }
 
         private:

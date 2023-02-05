@@ -1,25 +1,24 @@
 /*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "ScriptMgr.h"
 #include "MotionMaster.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
 #include "SpellScript.h"
 
 /*######
@@ -48,12 +47,12 @@ public:
 
         void Reset() override
         {
-            lasher_clicked = false;
+            lasherClicked = false;
         }
 
-        void OnSpellClick(Unit* clicker, bool& result) override
+        void OnSpellClick(Unit* clicker, bool spellClickHandled) override
         {
-            if (!result)
+            if (!spellClickHandled)
                 return;
 
             if (roll_chance_i(CHANCE_HOSTILE))
@@ -64,14 +63,14 @@ public:
             }
             else
             {
-                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                me->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
             }
 
-            me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
+            me->RemoveNpcFlag(UNIT_NPC_FLAG_SPELLCLICK);
             me->CastSpell(me, SPELL_STAND);
             me->GetMotionMaster()->MoveRandom(8.0f);
-            events.ScheduleEvent(EVENT_CHECK_OOC, 20000);
-            lasher_clicked = true;
+            events.ScheduleEvent(EVENT_CHECK_OOC, 20s);
+            lasherClicked = true;
 
             if (Player* player = clicker->ToPlayer())
                 player->KilledMonsterCredit(NPC_WHISPERWIND_LASHER);
@@ -79,7 +78,7 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            if (!lasher_clicked)
+            if (!lasherClicked)
                 return;
 
             events.Update(diff);
@@ -92,7 +91,7 @@ public:
                     if (!me->IsInCombat())
                         me->DespawnOrUnsummon();
                     else
-                        events.ScheduleEvent(EVENT_CHECK_OOC, 5000);
+                        events.ScheduleEvent(EVENT_CHECK_OOC, 5s);
                     break;
                 }
             }
@@ -101,7 +100,7 @@ public:
 
     private:
         EventMap events;
-        bool lasher_clicked;
+        bool lasherClicked = false;
     };
 
     CreatureAI* GetAI(Creature* creature) const override
@@ -128,6 +127,8 @@ public:
 
     class spell_swipe_honey_SpellScript : public SpellScript
     {
+        PrepareSpellScript(spell_swipe_honey_SpellScript);
+
         SpellCastResult CheckTarget()
         {
             if (GetCaster()->FindNearestCreature(NPC_HONEY_BUNNY, 5.0f, true))
@@ -153,8 +154,8 @@ public:
 
         void Register() override
         {
-            OnCheckCast.Register(&spell_swipe_honey_SpellScript::CheckTarget);
-            OnEffectHitTarget.Register(&spell_swipe_honey_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+            OnCheckCast += SpellCheckCastFn(spell_swipe_honey_SpellScript::CheckTarget);
+            OnEffectHitTarget += SpellEffectFn(spell_swipe_honey_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
         }
     };
 
@@ -176,11 +177,12 @@ enum BeesBEES
 
 class spell_beesbees : public SpellScriptLoader
 {
-    public:
-        spell_beesbees() : SpellScriptLoader("spell_beesbees") { }
+public: spell_beesbees() : SpellScriptLoader("spell_beesbees") { }
 
         class spell_beesbees_SpellScript : public SpellScript
         {
+            PrepareSpellScript(spell_beesbees_SpellScript);
+
             void HandleScriptEffect(SpellEffIndex /* effIndex */)
             {
                 if (Creature* honey = GetCaster()->ToCreature())
@@ -196,7 +198,7 @@ class spell_beesbees : public SpellScriptLoader
 
             void Register() override
             {
-                OnEffectHitTarget.Register(&spell_beesbees_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+                OnEffectHitTarget += SpellEffectFn(spell_beesbees_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
             }
         };
 
@@ -222,28 +224,29 @@ Position const FerliSpawnPos = { 3850.44f, -1323.34f, 213.2113f, 5.637414f };
 
 class spell_ruumbos_silly_dance : public SpellScriptLoader
 {
-    public:
-        spell_ruumbos_silly_dance() : SpellScriptLoader("spell_ruumbos_silly_dance") { }
+public: spell_ruumbos_silly_dance() : SpellScriptLoader("spell_ruumbos_silly_dance") { }
 
         class spell_ruumbos_silly_dance_SpellScript : public SpellScript
         {
+            PrepareSpellScript(spell_ruumbos_silly_dance_SpellScript);
+
             void HandleScriptEffect(SpellEffIndex /* effIndex */)
             {
                 if (Player* player = GetHitPlayer())
                 {
-                    player->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_DANCE);
+                    player->SetEmoteState(EMOTE_STATE_DANCE);
 
                     if (player->GetMapId() == MAP_KALIMDOR)
                     {
-                        player->SummonCreature(NPC_DRIZZLE, DrizzleSpawnPos, TEMPSUMMON_TIMED_DESPAWN, 20000);
-                        player->SummonCreature(NPC_FERLI, FerliSpawnPos, TEMPSUMMON_TIMED_DESPAWN, 20000);
+                        player->SummonCreature(NPC_DRIZZLE, DrizzleSpawnPos, TEMPSUMMON_TIMED_DESPAWN, 20s);
+                        player->SummonCreature(NPC_FERLI, FerliSpawnPos, TEMPSUMMON_TIMED_DESPAWN, 20s);
                     }
                 }
             }
 
             void Register() override
             {
-                OnEffectHitTarget.Register(&spell_ruumbos_silly_dance_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+                OnEffectHitTarget += SpellEffectFn(spell_ruumbos_silly_dance_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
             }
         };
 

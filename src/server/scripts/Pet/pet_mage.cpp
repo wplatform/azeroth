@@ -25,118 +25,171 @@
 #include "CombatAI.h"
 #include "GridNotifiersImpl.h"
 #include "MotionMaster.h"
-#include "PetAI.h"
+#include "Pet.h"
 #include "ScriptedCreature.h"
-#include "TemporarySummon.h"
 
-enum Spells
+enum MageSpells
 {
-    SPELL_INHERIT_MASTERS_THREAT_LIST   = 58838,
-    SPELL_PET_HEALTH_SCALING            = 61679,
-    SPELL_CLONE_ME                      = 45204,
-    SPELL_COPY_OFFHAND_WEAPON           = 45206,
-    SPELL_COPY_WEAPON                   = 41055,
-    SPELL_INITIALIZE_IMAGES             = 58836,
-
-    SPELL_FIREBALL                      = 88082,
-    SPELL_FROST_BOLT                    = 59638,
-    SPELL_ARCANE_BLAST                  = 88084
+    SPELL_MAGE_CLONE_ME                 = 45204,
+    SPELL_MAGE_MASTERS_THREAT_LIST      = 58838,
+    SPELL_MAGE_FROST_BOLT               = 59638,
+    SPELL_MAGE_FIRE_BLAST               = 59637
 };
 
-enum CreatureIds
+enum MirrorImageTimers
 {
-    NPC_MIRROR_IMAGE_FIRE   = 47244,
-    NPC_MIRROR_IMAGE_ARCANE = 47243,
-    NPC_MIRROR_IMAGE_FROST  = 31216
-};
-
-enum Events
-{
-    EVENT_CAST_ABILITY = 1
+    TIMER_MIRROR_IMAGE_FIRE_BLAST       = 6500
 };
 
 struct npc_pet_mage_mirror_image : ScriptedAI
 {
-    npc_pet_mage_mirror_image(Creature* creature) : ScriptedAI(creature), _angle(0.f) { }
+    const float CHASE_DISTANCE = 35.0f;
 
-    void AttackStart(Unit* who) override
+    npc_pet_mage_mirror_image(Creature* creature) : ScriptedAI(creature) { }
+
+    void InitializeAI() override
     {
-        AttackStartCaster(who, 20.0f);
+        Unit* owner = me->GetOwner();
+        if (!owner)
+            return;
+
+        // here mirror image casts on summoner spell (not present in client dbc) 49866
+        // here should be auras (not present in client dbc): 35657, 35658, 35659, 35660 selfcast by mirror images (stats related?)
+        // Clone Me!
+        owner->CastSpell(me, SPELL_MAGE_CLONE_ME, true);
     }
 
-    void IsSummonedBy(Unit* summoner) override
+    // custom UpdateVictim implementation to handle special target selection
+    // we prioritize between things that are in combat with owner based on the owner's threat to them
+    bool UpdateVictim()
     {
-        DoCastAOE(SPELL_INHERIT_MASTERS_THREAT_LIST);
-        DoCastSelf(SPELL_PET_HEALTH_SCALING);
-        summoner->CastSpell(me, SPELL_CLONE_ME, true);
-        DoCast(summoner, SPELL_COPY_OFFHAND_WEAPON);
-        DoCast(summoner, SPELL_COPY_WEAPON);
+        Unit* owner = me->GetOwner();
+        if (!owner)
+            return false;
 
-        _angle = summoner->GetAngle(me);
-        me->FollowTarget(summoner);
-    }
+        if (!me->HasUnitState(UNIT_STATE_CASTING) && !me->IsInCombat() && !owner->IsInCombat())
+            return false;
 
-    void SpellHitTarget(WorldObject* target, SpellInfo const* spell) override
-    {
-        if (spell->Id == SPELL_INHERIT_MASTERS_THREAT_LIST && target->IsUnit())
+        Unit* currentTarget = me->GetVictim();
+        if (currentTarget && !CanAIAttack(currentTarget))
         {
-            Unit* summoner = me->ToTempSummon()->GetSummoner();
-            if (!summoner)
-                return;
+            me->InterruptNonMeleeSpells(true); // do not finish casting on invalid targets
+            me->AttackStop();
+            currentTarget = nullptr;
+        }
 
-            Unit* unitTarget = target->ToUnit();
+        // don't reselect if we're currently casting anyway
+        if (currentTarget && me->HasUnitState(UNIT_STATE_CASTING))
+            return true;
 
-            if (unitTarget->IsInCombatWith(summoner))
+        Unit* selectedTarget = nullptr;
+        CombatManager const& mgr = owner->GetCombatManager();
+        if (mgr.HasPvPCombat())
+        { // select pvp target
+            float minDistance = 0.0f;
+            for (auto const& pair : mgr.GetPvPCombatRefs())
             {
-                AddThreat(me, unitTarget->GetThreatManager().GetThreat(summoner), unitTarget);
-                me->EngageWithTarget(unitTarget);
+                Unit* target = pair.second->GetOther(owner);
+                if (target->GetTypeId() != TYPEID_PLAYER)
+                    continue;
+                if (!CanAIAttack(target))
+                    continue;
+
+                float dist = owner->GetDistance(target);
+                if (!selectedTarget || dist < minDistance)
+                {
+                    selectedTarget = target;
+                    minDistance = dist;
+                }
             }
         }
-    }
 
-    void SpellHit(WorldObject* /*caster*/, SpellInfo const* spell) override
-    {
-        if (spell->Id == SPELL_INITIALIZE_IMAGES)
-        {
-            _events.ScheduleEvent(EVENT_CAST_ABILITY, 500ms);
-            if (Unit* target = me->SelectVictim())
-                AttackStart(target);
+        if (!selectedTarget)
+        { // select pve target
+            float maxThreat = 0.0f;
+            for (auto const& pair : mgr.GetPvECombatRefs())
+            {
+                Unit* target = pair.second->GetOther(owner);
+                if (!CanAIAttack(target))
+                    continue;
+
+                float threat = target->GetThreatManager().GetThreat(owner);
+                if (threat >= maxThreat)
+                {
+                    selectedTarget = target;
+                    maxThreat = threat;
+                }
+            }
         }
+
+        if (!selectedTarget)
+        {
+            EnterEvadeMode(EvadeReason::NoHostiles);
+            return false;
+        }
+
+        if (selectedTarget != me->GetVictim())
+            AttackStartCaster(selectedTarget, CHASE_DISTANCE);
+        return true;
     }
 
     void UpdateAI(uint32 diff) override
     {
+        Unit* owner = me->GetOwner();
+        if (!owner)
+        {
+            me->DespawnOrUnsummon();
+            return;
+        }
+
+        if (_fireBlastTimer)
+        {
+            if (_fireBlastTimer <= diff)
+                _fireBlastTimer = 0;
+            else
+                _fireBlastTimer -= diff;
+        }
+
         if (!UpdateVictim())
             return;
-
-        _events.Update(diff);
 
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
-        while (uint32 eventId = _events.ExecuteEvent())
+        if (!_fireBlastTimer)
         {
-            switch (eventId)
-            {
-                case EVENT_CAST_ABILITY:
-                    if (me->GetEntry() == NPC_MIRROR_IMAGE_FROST)
-                        DoCastVictim(SPELL_FROST_BOLT);
-                    if (me->GetEntry() == NPC_MIRROR_IMAGE_FIRE)
-                        DoCastVictim(SPELL_FIREBALL);
-                    else if (me->GetEntry() == NPC_MIRROR_IMAGE_ARCANE)
-                        DoCastVictim(SPELL_ARCANE_BLAST);
+            DoCastVictim(SPELL_MAGE_FIRE_BLAST);
+            _fireBlastTimer = TIMER_MIRROR_IMAGE_FIRE_BLAST;
+        }
+        else
+            DoCastVictim(SPELL_MAGE_FROST_BOLT);
+    }
 
-                    _events.Repeat(3s);
-                    break;
-                default:
-                    break;
-            }
+    bool CanAIAttack(Unit const* who) const override
+    {
+        Unit* owner = me->GetOwner();
+        return owner && who->IsAlive() && me->IsValidAttackTarget(who) &&
+            !who->HasBreakableByDamageCrowdControlAura() &&
+            who->IsInCombatWith(owner) && ScriptedAI::CanAIAttack(who);
+    }
+
+    // Do not reload Creature templates on evade mode enter - prevent visual lost
+    void EnterEvadeMode(EvadeReason /*why*/) override
+    {
+        if (me->IsInEvadeMode() || !me->IsAlive())
+            return;
+
+        Unit* owner = me->GetCharmerOrOwner();
+
+        me->CombatStop(true);
+        if (owner && !me->HasUnitState(UNIT_STATE_FOLLOW))
+        {
+            me->GetMotionMaster()->Clear();
+            me->GetMotionMaster()->MoveFollow(owner, PET_FOLLOW_DIST, me->GetFollowAngle());
         }
     }
 
-private:
-    EventMap _events;
-    float _angle;
+    uint32 _fireBlastTimer = 0;
 };
 
 void AddSC_mage_pet_scripts()

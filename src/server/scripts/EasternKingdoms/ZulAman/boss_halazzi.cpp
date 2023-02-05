@@ -16,15 +16,17 @@
  */
 
 #include "ScriptMgr.h"
-#include "InstanceScript.h"
-#include "MotionMaster.h"
-#include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
-#include "SpellInfo.h"
 #include "zulaman.h"
 
-enum Texts
+enum Says
 {
+    SAY_AGGRO               = 0,
+    SAY_PLAYER_KILL         = 1,
+    SAY_MELEE               = 2,
+    SAY_SPLIT               = 3,
+    SAY_COMBINE             = 4,
+    SAY_DEATH               = 5
 };
 
 enum Spells
@@ -35,44 +37,70 @@ enum Events
 {
 };
 
-struct boss_halazzi : public BossAI
+class boss_halazzi : public CreatureScript
 {
-    boss_halazzi(Creature* creature) : BossAI(creature, DATA_HALAZZI)
-    {
-        Initialize();
-    }
+    public:
 
-    void Initialize()
-    {
-    }
+        boss_halazzi() : CreatureScript("boss_halazzi") { }
 
-    void Reset() override
-    {
-        _Reset();
-    }
+        struct boss_halazziAI : public BossAI
+        {
+            boss_halazziAI(Creature* creature) : BossAI(creature, DATA_HALAZZI) { }
 
-    void JustEngagedWith(Unit* who) override
-    {
-        BossAI::JustEngagedWith(who);
-    }
+            void Reset() override
+            {
+                _Reset();
+            }
 
-    void JustDied(Unit* /*killer*/) override
-    {
-        _JustDied();
-    }
+            void JustEngagedWith(Unit* who) override
+            {
+                Talk(SAY_AGGRO);
+                BossAI::JustEngagedWith(who);
+            }
 
-    void UpdateAI(uint32 diff) override
-    {
-        if (!UpdateVictim())
-            return;
+            void JustDied(Unit* /*killer*/) override
+            {
+                Talk(SAY_DEATH);
+                _JustDied();
+            }
 
-        events.Update(diff);
+            void KilledUnit(Unit* victim) override
+            {
+                if (victim->GetTypeId() == TYPEID_PLAYER)
+                    Talk(SAY_PLAYER_KILL);
+            }
 
-        DoMeleeAttackIfReady();
-    }
+            void UpdateAI(uint32 diff) override
+            {
+                if (!UpdateVictim())
+                    return;
+
+                events.Update(diff);
+
+                if (me->HasUnitState(UNIT_STATE_CASTING))
+                    return;
+                /*
+                while (uint32 eventId = events.ExecuteEvent())
+                {
+                    switch (eventId)
+                    {
+                        default:
+                            break;
+                    }
+                }
+                */
+
+                DoMeleeAttackIfReady();
+            }
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return GetZulAmanAI<boss_halazziAI>(creature);
+        }
 };
 
 void AddSC_boss_halazzi()
 {
-    RegisterZulAamanCreatureAI(boss_halazzi);
+    new boss_halazzi();
 }

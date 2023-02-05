@@ -16,17 +16,43 @@
  */
 
 #include "ScriptMgr.h"
-#include "Creature.h"
-#include "CreatureAI.h"
+#include "molten_core.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Map.h"
-#include "molten_core.h"
+#include "ScriptedCreature.h"
 #include "TemporarySummon.h"
 
-Position const MajodoSummonPos   = { 737.850f, -1145.35f, -120.288f, 4.71368f };
-Position const RagnarosTelePos   = { 829.159f, -815.773f, -228.972f, 5.30500f };
-Position const RagnarosSummonPos = { 838.510f, -829.840f, -232.000f, 2.00000f };
+Position const SummonPositions[10] =
+{
+    {737.850f, -1145.35f, -120.288f, 4.71368f},
+    {744.162f, -1151.63f, -119.726f, 4.58204f},
+    {751.247f, -1152.82f, -119.744f, 4.49673f},
+    {759.206f, -1155.09f, -120.051f, 4.30104f},
+    {755.973f, -1152.33f, -120.029f, 4.25588f},
+    {731.712f, -1147.56f, -120.195f, 4.95955f},
+    {726.499f, -1149.80f, -120.156f, 5.24055f},
+    {722.408f, -1152.41f, -120.029f, 5.33087f},
+    {718.994f, -1156.36f, -119.805f, 5.75738f},
+    {838.510f, -829.840f, -232.000f, 2.00000f},
+};
+
+Position const RagnarosTelePos   = {829.159f, -815.773f, -228.972f, 5.30500f};
+Position const RagnarosSummonPos = {838.510f, -829.840f, -232.000f, 2.00000f};
+
+DungeonEncounterData const encounters[] =
+{
+    { BOSS_LUCIFRON, {{ 663 }} },
+    { BOSS_MAGMADAR, {{ 664 }} },
+    { BOSS_GEHENNAS, {{ 665 }} },
+    { BOSS_GARR, {{ 666 }} },
+    { BOSS_SHAZZRAH, {{ 667 }} },
+    { BOSS_BARON_GEDDON, {{ 668 }} },
+    { BOSS_SULFURON_HARBINGER, {{ 669 }} },
+    { BOSS_GOLEMAGG_THE_INCINERATOR, {{ 670 }} },
+    { BOSS_MAJORDOMO_EXECUTUS, {{ 671 }} },
+    { BOSS_RAGNAROS, {{ 672 }} }
+};
 
 class instance_molten_core : public InstanceMapScript
 {
@@ -39,6 +65,7 @@ class instance_molten_core : public InstanceMapScript
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(MAX_ENCOUNTER);
+                LoadDungeonEncounterData(encounters);
                 _executusSchedule = false;
                 _ragnarosAddDeaths = 0;
             }
@@ -121,7 +148,7 @@ class instance_molten_core : public InstanceMapScript
                         SummonMajordomoExecutus();
 
                 if (bossId == BOSS_MAJORDOMO_EXECUTUS && state == DONE)
-                    DoRespawnGameObject(_cacheOfTheFirelordGUID, 7 * DAY);
+                    DoRespawnGameObject(_cacheOfTheFirelordGUID, 7_days);
 
                 return true;
             }
@@ -129,11 +156,21 @@ class instance_molten_core : public InstanceMapScript
             void SummonMajordomoExecutus()
             {
                 _executusSchedule = false;
-                if (_majordomoExecutusGUID)
+                if (!_majordomoExecutusGUID.IsEmpty())
                     return;
 
                 if (GetBossState(BOSS_MAJORDOMO_EXECUTUS) != DONE)
-                    instance->SummonCreature(NPC_MAJORDOMO_EXECUTUS, MajodoSummonPos);
+                {
+                    instance->SummonCreature(NPC_MAJORDOMO_EXECUTUS, SummonPositions[0]);
+                    instance->SummonCreature(NPC_FLAMEWAKER_HEALER, SummonPositions[1]);
+                    instance->SummonCreature(NPC_FLAMEWAKER_HEALER, SummonPositions[2]);
+                    instance->SummonCreature(NPC_FLAMEWAKER_HEALER, SummonPositions[3]);
+                    instance->SummonCreature(NPC_FLAMEWAKER_HEALER, SummonPositions[4]);
+                    instance->SummonCreature(NPC_FLAMEWAKER_ELITE, SummonPositions[5]);
+                    instance->SummonCreature(NPC_FLAMEWAKER_ELITE, SummonPositions[6]);
+                    instance->SummonCreature(NPC_FLAMEWAKER_ELITE, SummonPositions[7]);
+                    instance->SummonCreature(NPC_FLAMEWAKER_ELITE, SummonPositions[8]);
+                }
                 else if (TempSummon* summon = instance->SummonCreature(NPC_MAJORDOMO_EXECUTUS, RagnarosTelePos))
                     summon->AI()->DoAction(ACTION_START_RAGNAROS_ALT);
             }
@@ -150,7 +187,7 @@ class instance_molten_core : public InstanceMapScript
                 return true;
             }
 
-            void ReadSaveDataMore(std::istringstream& /*data*/) override
+            void AfterDataLoad() override
             {
                 if (CheckMajordomoExecutus())
                     _executusSchedule = true;

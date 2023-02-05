@@ -71,7 +71,7 @@ public:
                 case GO_GONG:
                     goGongGUID = gameObject->GetGUID();
                     if (GetBossState(DATA_TUTEN_KASH) == DONE)
-                        gameObject->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                        gameObject->SetFlag(GO_FLAG_NOT_SELECTABLE);
                     break;
                 case GO_IDOL_OVEN_FIRE:
                 case GO_IDOL_CUP_FIRE:
@@ -114,7 +114,7 @@ public:
                     case IN_PROGRESS:
                     {
                         if (GameObject* go = instance->GetGameObject(goGongGUID))
-                            go->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                            go->SetFlag(GO_FLAG_NOT_SELECTABLE);
 
                         switch (gongWave)
                         {
@@ -136,13 +136,9 @@ public:
                         }
 
                         if (GameObject* go = instance->GetGameObject(goGongGUID))
-                        {
                             for (uint8 i = summonLowRange; i < summonHighRange; ++i)
-                            {
-                                Creature* creature = go->SummonCreature(summonCreature, PosSummonTutenkash[i]);
+                                if (Creature* creature = go->SummonCreature(summonCreature, PosSummonTutenkash[i]))
                                     creature->GetMotionMaster()->MovePoint(0, 2533.479f + float(irand(-5, 5)), 870.020f + float(irand(-5, 5)), 47.678f);
-                            }
-                        }
 
                         ++gongWave;
                         break;
@@ -152,7 +148,7 @@ public:
                         {
                             fiendsKilled = 0;
                             if (GameObject* go = instance->GetGameObject(goGongGUID))
-                                go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                go->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                         }
                         break;
                     case NPC_TOMB_REAVER:
@@ -160,7 +156,7 @@ public:
                         {
                             reaversKilled = 0;
                             if (GameObject* go = instance->GetGameObject(goGongGUID))
-                                go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                go->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                         }
                         break;
                 }

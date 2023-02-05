@@ -20,7 +20,7 @@
 
 #include "ScriptedCreature.h"
 
- // Base class for FALRIC and MARWYN
+// Base class for FALRIC and MARWYN
 struct boss_horAI : BossAI
 {
     boss_horAI(Creature* creature, uint32 bossId);

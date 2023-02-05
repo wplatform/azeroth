@@ -34,16 +34,10 @@ enum BHDataTypes
 
 enum BHCreatureIds
 {
-    // Bosses
     BOSS_ARGALOTH           = 47120,
     BOSS_OCCUTHAR           = 52363,
     BOSS_ALIZABAL           = 55869,
 
-    // Encounter Related
-    /*Argaloth*/
-    NPC_FEL_FLAMES          = 47829,
-
-    /*Occu'thar*/
     NPC_EYE_OF_OCCUTHAR     = 52389,
     NPC_FOCUS_FIRE_DUMMY    = 52369,
     NPC_OCCUTHAR_EYE        = 52368
@@ -56,12 +50,10 @@ enum BHGameObjectIds
     GO_ALIZABAL_DOOR        = 209849
 };
 
-template <class AI, class T>
-inline AI* GetBaradinHoldAI(T* obj)
+template<typename AI>
+CreatureAI* GetBaradinHoldAI(Creature* creature)
 {
-    return GetInstanceAI<AI>(obj, BHScriptName);
+    return GetInstanceAI<AI>(creature, BHScriptName);
 }
-
-#define RegisterBaradinHoldCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetBaradinHoldAI)
 
 #endif

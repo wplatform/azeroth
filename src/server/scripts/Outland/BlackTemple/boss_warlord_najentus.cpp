@@ -19,6 +19,7 @@
 #include "black_temple.h"
 #include "GameObjectAI.h"
 #include "GridNotifiers.h"
+#include "GameObject.h"
 #include "InstanceScript.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -150,12 +151,12 @@ struct boss_najentus : public BossAI
                 DoCastSelf(SPELL_BERSERK, true);
                 break;
             case EVENT_SPINE:
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 200.0f, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1, 200.0f, true))
                 {
                     DoCast(target, SPELL_IMPALING_SPINE, true);
                     _spineTargetGUID = target->GetGUID();
                     //must let target summon, otherwise you cannot click the spine
-                    target->SummonGameObject(GO_NAJENTUS_SPINE, target->GetPosition(), QuaternionData(), 30 * IN_MILLISECONDS);
+                    target->SummonGameObject(GO_NAJENTUS_SPINE, *target, QuaternionData(), 30s);
                     Talk(SAY_NEEDLE);
                 }
                 events.Repeat(Seconds(20), Seconds(25));
@@ -181,7 +182,7 @@ struct go_najentus_spine : public GameObjectAI
 {
     go_najentus_spine(GameObject* go) : GameObjectAI(go), _instance(go->GetInstanceScript()) { }
 
-    bool GossipHello(Player* player) override
+    bool OnGossipHello(Player* player) override
     {
         if (!_instance)
             return false;
@@ -202,6 +203,8 @@ private:
 // 39992 - Needle Spine Targeting
 class spell_najentus_needle_spine : public SpellScript
 {
+    PrepareSpellScript(spell_najentus_needle_spine);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_NEEDLE_SPINE });
@@ -219,8 +222,8 @@ class spell_najentus_needle_spine : public SpellScript
 
     void Register() override
     {
-        OnObjectAreaTargetSelect.Register(&spell_najentus_needle_spine::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-        OnEffectHitTarget.Register(&spell_najentus_needle_spine::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_najentus_needle_spine::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+        OnEffectHitTarget += SpellEffectFn(spell_najentus_needle_spine::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 

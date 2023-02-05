@@ -31,34 +31,35 @@
 //go_shadowforge_brazier
 class go_shadowforge_brazier : public GameObjectScript
 {
-public:
-    go_shadowforge_brazier() : GameObjectScript("go_shadowforge_brazier") { }
+    public:
+        go_shadowforge_brazier() : GameObjectScript("go_shadowforge_brazier") { }
 
-    struct go_shadowforge_brazierAI : public GameObjectAI
-    {
-        go_shadowforge_brazierAI(GameObject* go) : GameObjectAI(go), instance(go->GetInstanceScript()) { }
-
-        InstanceScript* instance;
-
-        bool GossipHello(Player* /*player*/) override
+        struct go_shadowforge_brazierAI : public GameObjectAI
         {
-            if (instance->GetData(TYPE_LYCEUM) == IN_PROGRESS)
-                instance->SetData(TYPE_LYCEUM, DONE);
-            else
-                instance->SetData(TYPE_LYCEUM, IN_PROGRESS);
-            // If used brazier open linked doors (North or South)
-            if (me->GetGUID() == instance->GetGuidData(DATA_SF_BRAZIER_N))
-                instance->HandleGameObject(instance->GetGuidData(DATA_GOLEM_DOOR_N), true);
-            else if (me->GetGUID() == instance->GetGuidData(DATA_SF_BRAZIER_S))
-                instance->HandleGameObject(instance->GetGuidData(DATA_GOLEM_DOOR_S), true);
-            return false;
-        }
-    };
+            go_shadowforge_brazierAI(GameObject* go) : GameObjectAI(go), instance(go->GetInstanceScript()) { }
 
-    GameObjectAI* GetAI(GameObject* go) const override
-    {
-        return GetBlackrockDepthsAI<go_shadowforge_brazierAI>(go);
-    }
+            InstanceScript* instance;
+
+            bool OnGossipHello(Player* /*player*/) override
+            {
+                if (instance->GetData(TYPE_LYCEUM) == IN_PROGRESS)
+                    instance->SetData(TYPE_LYCEUM, DONE);
+                else
+                    instance->SetData(TYPE_LYCEUM, IN_PROGRESS);
+                // If used brazier open linked doors (North or South)
+                if (me->GetGUID() == instance->GetGuidData(DATA_SF_BRAZIER_N))
+                    instance->HandleGameObject(instance->GetGuidData(DATA_GOLEM_DOOR_N), true);
+                else if (me->GetGUID() == instance->GetGuidData(DATA_SF_BRAZIER_S))
+                    instance->HandleGameObject(instance->GetGuidData(DATA_GOLEM_DOOR_S), true);
+
+                return false;
+            }
+        };
+
+        GameObjectAI* GetAI(GameObject* go) const override
+        {
+            return GetBlackrockDepthsAI<go_shadowforge_brazierAI>(go);
+        }
 };
 
 // npc_grimstone
@@ -96,7 +97,7 @@ class at_ring_of_law : public AreaTriggerScript
 public:
     at_ring_of_law() : AreaTriggerScript("at_ring_of_law") { }
 
-    bool OnTrigger(Player* player, AreaTriggerEntry const* /*at*/) override
+    bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
     {
         if (InstanceScript* instance = player->GetInstanceScript())
         {
@@ -104,7 +105,7 @@ public:
                 return false;
 
             instance->SetData(TYPE_RING_OF_LAW, IN_PROGRESS);
-            player->SummonCreature(NPC_GRIMSTONE, 625.559f, -205.618f, -52.735f, 2.609f, TEMPSUMMON_DEAD_DESPAWN, 0);
+            player->SummonCreature(NPC_GRIMSTONE, 625.559f, -205.618f, -52.735f, 2.609f, TEMPSUMMON_DEAD_DESPAWN);
 
             return false;
         }
@@ -128,6 +129,11 @@ class npc_grimstone : public CreatureScript
 {
 public:
     npc_grimstone() : CreatureScript("npc_grimstone") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetBlackrockDepthsAI<npc_grimstoneAI>(creature);
+    }
 
     struct npc_grimstoneAI : public EscortAI
     {
@@ -171,14 +177,12 @@ public:
         void Reset() override
         {
             Initialize();
-
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
         }
 
         /// @todo move them to center
         void SummonRingMob()
         {
-            if (Creature* tmp = me->SummonCreature(RingMob[MobSpawnId], 608.960f, -235.322f, -53.907f, 1.857f, TEMPSUMMON_DEAD_DESPAWN, 0))
+            if (Creature* tmp = me->SummonCreature(RingMob[MobSpawnId], 608.960f, -235.322f, -53.907f, 1.857f, TEMPSUMMON_DEAD_DESPAWN))
                 RingMobGUID[MobCount] = tmp->GetGUID();
 
             ++MobCount;
@@ -190,7 +194,7 @@ public:
         /// @todo move them to center
         void SummonRingBoss()
         {
-            if (Creature* tmp = me->SummonCreature(RingBoss[rand32() % 6], 644.300f, -175.989f, -53.739f, 3.418f, TEMPSUMMON_DEAD_DESPAWN, 0))
+            if (Creature* tmp = me->SummonCreature(RingBoss[rand32() % 6], 644.300f, -175.989f, -53.739f, 3.418f, TEMPSUMMON_DEAD_DESPAWN))
                 RingBossGUID = tmp->GetGUID();
 
             MobDeath_Timer = 2500;
@@ -242,7 +246,7 @@ public:
                 {
                     MobDeath_Timer = 2500;
 
-                    if (RingBossGUID)
+                    if (!RingBossGUID.IsEmpty())
                     {
                         Creature* boss = ObjectAccessor::GetCreature(*me, RingBossGUID);
                         if (boss && !boss->IsAlive() && boss->isDead())
@@ -311,14 +315,14 @@ public:
                         break;
                     case 6:
                         SummonRingMob();
-                        Event_Timer = 0;
+                        Event_Timer = 5000;
                         break;
                     case 7:
                         me->SetVisible(true);
                         HandleGameObject(DATA_ARENA1, false);
                         Talk(SAY_TEXT6);
                         CanWalk = true;
-                        Event_Timer = 0;
+                        Event_Timer = 5000;
                         break;
                     case 8:
                         HandleGameObject(DATA_ARENA2, true);
@@ -346,11 +350,6 @@ public:
                 EscortAI::UpdateAI(diff);
            }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetBlackrockDepthsAI<npc_grimstoneAI>(creature);
-    }
 };
 
 // npc_phalanx
@@ -365,6 +364,11 @@ class npc_phalanx : public CreatureScript
 {
 public:
     npc_phalanx() : CreatureScript("npc_phalanx") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetBlackrockDepthsAI<npc_phalanxAI>(creature);
+    }
 
     struct npc_phalanxAI : public ScriptedAI
     {
@@ -422,11 +426,6 @@ public:
             DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetBlackrockDepthsAI<npc_phalanxAI>(creature);
-    }
 };
 
 // npc_lokhtos_darkbargainer
@@ -435,11 +434,12 @@ enum Lokhtos
     QUEST_A_BINDING_CONTRACT                               = 7604,
     ITEM_SULFURON_INGOT                                    = 17203,
     ITEM_THRORIUM_BROTHERHOOD_CONTRACT                     = 18628,
-    SPELL_CREATE_THORIUM_BROTHERHOOD_CONTRACT_DND          = 23059
+    SPELL_CREATE_THORIUM_BROTHERHOOD_CONTRACT_DND          = 23059,
+    GOSSIP_ITEM_SHOW_ACCESS_MID                            = 4781,       // Show me what I have access to, Lokhtos.
+    GOSSIP_ITEM_SHOW_ACCESS_OID                            = 0,
 };
 
-#define GOSSIP_ITEM_SHOW_ACCESS     "Show me what I have access to, Lothos."
-#define GOSSIP_ITEM_GET_CONTRACT    "Get Thorium Brotherhood Contract"
+#define GOSSIP_ITEM_GET_CONTRACT    "Get Thorium Brotherhood Contract"  // miss in db,maybe wrong
 
 class npc_lokhtos_darkbargainer : public CreatureScript
 {
@@ -450,7 +450,7 @@ class npc_lokhtos_darkbargainer : public CreatureScript
         {
             npc_lokhtos_darkbargainerAI(Creature* creature) : ScriptedAI(creature) { }
 
-            bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+            bool OnGossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
             {
                 uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
 
@@ -466,19 +466,20 @@ class npc_lokhtos_darkbargainer : public CreatureScript
                 return true;
             }
 
-            bool GossipHello(Player* player) override
+            bool OnGossipHello(Player* player) override
             {
+                InitGossipMenuFor(player, GOSSIP_ITEM_SHOW_ACCESS_MID);
                 if (me->IsQuestGiver())
                     player->PrepareQuestMenu(me->GetGUID());
 
                 if (me->IsVendor() && player->GetReputationRank(59) >= REP_FRIENDLY)
-                    AddGossipItemFor(player, GOSSIP_ICON_VENDOR, GOSSIP_ITEM_SHOW_ACCESS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRADE);
+                    AddGossipItemFor(player, GOSSIP_ITEM_SHOW_ACCESS_MID, GOSSIP_ITEM_SHOW_ACCESS_OID, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRADE);
 
-                if (player->GetQuestRewardStatus(QUEST_A_BINDING_CONTRACT) != 1 &&
+                if (!player->GetQuestRewardStatus(QUEST_A_BINDING_CONTRACT) &&
                     !player->HasItemCount(ITEM_THRORIUM_BROTHERHOOD_CONTRACT, 1, true) &&
                     player->HasItemCount(ITEM_SULFURON_INGOT))
                 {
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_GET_CONTRACT, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                    AddGossipItemFor(player, GossipOptionNpc::None, GOSSIP_ITEM_GET_CONTRACT, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
                 }
 
                 if (player->GetReputationRank(59) < REP_FRIENDLY)
@@ -506,133 +507,127 @@ enum Rocknot
 
 class npc_rocknot : public CreatureScript
 {
-    public:
-        npc_rocknot() : CreatureScript("npc_rocknot") { }
+public:
+    npc_rocknot() : CreatureScript("npc_rocknot") { }
 
-        struct npc_rocknotAI : public EscortAI
+    struct npc_rocknotAI : public EscortAI
+    {
+        npc_rocknotAI(Creature* creature) : EscortAI(creature)
         {
-            npc_rocknotAI(Creature* creature) : EscortAI(creature)
-            {
-                Initialize();
-                instance = creature->GetInstanceScript();
-            }
-
-            void Initialize()
-            {
-                BreakKeg_Timer = 0;
-                BreakDoor_Timer = 0;
-            }
-
-            InstanceScript* instance;
-
-            uint32 BreakKeg_Timer;
-            uint32 BreakDoor_Timer;
-
-            void Reset() override
-            {
-                if (HasEscortState(STATE_ESCORT_ESCORTING))
-                    return;
-
-                Initialize();
-            }
-
-            void DoGo(uint32 id, uint32 state)
-            {
-                if (GameObject* go = ObjectAccessor::GetGameObject(*me, instance->GetGuidData(id)))
-                    go->SetGoState((GOState)state);
-            }
-
-            void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
-            {
-                switch (waypointId)
-                {
-                    case 1:
-                        me->HandleEmoteCommand(EMOTE_ONESHOT_KICK);
-                        break;
-                    case 2:
-                        me->HandleEmoteCommand(EMOTE_ONESHOT_ATTACK_UNARMED);
-                        break;
-                    case 3:
-                        me->HandleEmoteCommand(EMOTE_ONESHOT_ATTACK_UNARMED);
-                        break;
-                    case 4:
-                        me->HandleEmoteCommand(EMOTE_ONESHOT_KICK);
-                        break;
-                    case 5:
-                        me->HandleEmoteCommand(EMOTE_ONESHOT_KICK);
-                        BreakKeg_Timer = 2000;
-                        break;
-                }
-            }
-
-            void UpdateAI(uint32 diff) override
-            {
-                if (BreakKeg_Timer)
-                {
-                    if (BreakKeg_Timer <= diff)
-                    {
-                        DoGo(DATA_GO_BAR_KEG, 0);
-                        BreakKeg_Timer = 0;
-                        BreakDoor_Timer = 1000;
-                    }
-                    else BreakKeg_Timer -= diff;
-                }
-
-                if (BreakDoor_Timer)
-                {
-                    if (BreakDoor_Timer <= diff)
-                    {
-                        DoGo(DATA_GO_BAR_DOOR, 2);
-                        DoGo(DATA_GO_BAR_KEG_TRAP, 0);               //doesn't work very well, leaving code here for future
-                                                                     //spell by trap has effect61, this indicate the bar go hostile
-
-                        if (Unit* tmp = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_PHALANX)))
-                            tmp->SetFaction(FACTION_MONSTER);
-
-                        //for later, this event(s) has alot more to it.
-                        //optionally, DONE can trigger bar to go hostile.
-                        instance->SetData(TYPE_BAR, DONE);
-
-                        BreakDoor_Timer = 0;
-                    }
-                    else BreakDoor_Timer -= diff;
-                }
-
-                EscortAI::UpdateAI(diff);
-            }
-
-            void QuestReward(Player* /*player*/, Quest const* quest, uint32 /*opt*/) override
-            {
-                InstanceScript* instance = me->GetInstanceScript();
-                if (!instance)
-                    return;
-
-                if (instance->GetData(TYPE_BAR) == DONE || instance->GetData(TYPE_BAR) == SPECIAL)
-                    return;
-
-                if (quest->GetQuestId() == QUEST_ALE)
-                {
-                    if (instance->GetData(TYPE_BAR) != IN_PROGRESS)
-                        instance->SetData(TYPE_BAR, IN_PROGRESS);
-
-                    instance->SetData(TYPE_BAR, SPECIAL);
-
-                    //keep track of amount in instance script, returns SPECIAL if amount ok and event in progress
-                    if (instance->GetData(TYPE_BAR) == SPECIAL)
-                    {
-                        me->AI()->Talk(SAY_GOT_BEER);
-                        me->CastSpell(me, SPELL_DRUNKEN_RAGE, false);
-
-                        Start(false, false);
-                    }
-                }
-            }
-        };
-
-        CreatureAI* GetAI(Creature* creature) const override
-        {
-            return GetBlackrockDepthsAI<npc_rocknotAI>(creature);
+            Initialize();
+            instance = creature->GetInstanceScript();
         }
+
+        void Initialize()
+        {
+            BreakKeg_Timer = 0;
+            BreakDoor_Timer = 0;
+        }
+
+        InstanceScript* instance;
+
+        uint32 BreakKeg_Timer;
+        uint32 BreakDoor_Timer;
+
+        void Reset() override
+        {
+            if (HasEscortState(STATE_ESCORT_ESCORTING))
+                return;
+
+            Initialize();
+        }
+
+        void DoGo(uint32 id, uint32 state)
+        {
+            if (GameObject* go = ObjectAccessor::GetGameObject(*me, instance->GetGuidData(id)))
+                go->SetGoState((GOState)state);
+        }
+
+        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        {
+            switch (waypointId)
+            {
+                case 1:
+                    me->HandleEmoteCommand(EMOTE_ONESHOT_KICK);
+                    break;
+                case 2:
+                    me->HandleEmoteCommand(EMOTE_ONESHOT_ATTACK_UNARMED);
+                    break;
+                case 3:
+                    me->HandleEmoteCommand(EMOTE_ONESHOT_ATTACK_UNARMED);
+                    break;
+                case 4:
+                    me->HandleEmoteCommand(EMOTE_ONESHOT_KICK);
+                    break;
+                case 5:
+                    me->HandleEmoteCommand(EMOTE_ONESHOT_KICK);
+                    BreakKeg_Timer = 2000;
+                    break;
+            }
+        }
+
+        void UpdateAI(uint32 diff) override
+        {
+            if (BreakKeg_Timer)
+            {
+                if (BreakKeg_Timer <= diff)
+                {
+                    DoGo(DATA_GO_BAR_KEG, 0);
+                    BreakKeg_Timer = 0;
+                    BreakDoor_Timer = 1000;
+                } else BreakKeg_Timer -= diff;
+            }
+
+            if (BreakDoor_Timer)
+            {
+                if (BreakDoor_Timer <= diff)
+                {
+                    DoGo(DATA_GO_BAR_DOOR, 2);
+                    DoGo(DATA_GO_BAR_KEG_TRAP, 0);               //doesn't work very well, leaving code here for future
+                    //spell by trap has effect61, this indicate the bar go hostile
+
+                    if (Unit* tmp = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_PHALANX)))
+                        tmp->SetFaction(FACTION_MONSTER);
+
+                    //for later, this event(s) has alot more to it.
+                    //optionally, DONE can trigger bar to go hostile.
+                    instance->SetData(TYPE_BAR, DONE);
+
+                    BreakDoor_Timer = 0;
+                } else BreakDoor_Timer -= diff;
+            }
+
+            EscortAI::UpdateAI(diff);
+        }
+
+        void OnQuestReward(Player* /*player*/, Quest const* quest, LootItemType /*type*/, uint32 /*item*/) override
+        {
+            if (instance->GetData(TYPE_BAR) == DONE || instance->GetData(TYPE_BAR) == SPECIAL)
+                return;
+
+            if (quest->GetQuestId() == QUEST_ALE)
+            {
+                if (instance->GetData(TYPE_BAR) != IN_PROGRESS)
+                    instance->SetData(TYPE_BAR, IN_PROGRESS);
+
+                instance->SetData(TYPE_BAR, SPECIAL);
+
+                //keep track of amount in instance script, returns SPECIAL if amount ok and event in progress
+                if (instance->GetData(TYPE_BAR) == SPECIAL)
+                {
+                    Talk(SAY_GOT_BEER);
+                    DoCastSelf(SPELL_DRUNKEN_RAGE, false);
+
+                    Start(false, false);
+                }
+            }
+        }
+    };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetBlackrockDepthsAI<npc_rocknotAI>(creature);
+    }
 };
 
 void AddSC_blackrock_depths()

@@ -26,17 +26,18 @@
 enum Spells
 {
     SPELL_CURSE_OF_EXERTION = 52772,
-    SPELL_TIME_WARP         = 52766,
-    SPELL_TIME_STOP         = 58848,
-    SPELL_WOUNDING_STRIKE   = 52771,
-    SPELL_TIME_STEP_DUMMY   = 52736,
-    SPELL_TIME_STEP_CHARGE  = 52737
+    SPELL_TIME_WARP = 52766,
+    SPELL_TIME_STOP = 58848,
+    SPELL_TIME_STEP_DUMMY = 52736,
 };
+
+#define SPELL_TIME_STEP_CHARGE DUNGEON_MODE(52737,58829)
+#define SPELL_WOUNDING_STRIKE DUNGEON_MODE(52771,58830)
 
 enum Yells
 {
-    SAY_TIME_WARP   = 2,
-    SAY_SLAY        = 3,
+    SAY_TIME_WARP = 2,
+    SAY_SLAY = 3,
 };
 
 enum Events
@@ -81,9 +82,9 @@ class boss_epoch : public CreatureScript
                 switch (eventId)
                 {
                     case EVENT_CURSE_OF_EXERTION:
-                        if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true))
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
                             DoCast(target, SPELL_CURSE_OF_EXERTION);
-                        events.ScheduleEvent(EVENT_CURSE_OF_EXERTION, 9300);
+                        events.ScheduleEvent(EVENT_CURSE_OF_EXERTION, 9300ms);
                         break;
                     case EVENT_TIME_WARP:
                         Talk(SAY_TIME_WARP);
@@ -127,9 +128,9 @@ class boss_epoch : public CreatureScript
                 }
             }
 
-            void SpellHitTarget(WorldObject* target, SpellInfo const* info) override
+            void SpellHitTarget(WorldObject* target, SpellInfo const* spellInfo) override
             {
-                if (info->Id == SPELL_TIME_STEP_DUMMY && me->IsHostileTo(target))
+                if (spellInfo->Id == SPELL_TIME_STEP_DUMMY && me->IsHostileTo(target))
                 {
                     _stepTargets.push_back(target->GetGUID());
                     events.RescheduleEvent(EVENT_TIME_STEP, Milliseconds(500));

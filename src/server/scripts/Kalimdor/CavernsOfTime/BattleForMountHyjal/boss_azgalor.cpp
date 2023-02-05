@@ -16,10 +16,10 @@
  */
 
 #include "ScriptMgr.h"
+#include "hyjal.h"
 #include "hyjal_trash.h"
 #include "InstanceScript.h"
 #include "ObjectAccessor.h"
-#include "ScriptedCreature.h"
 
 enum Spells
 {
@@ -46,6 +46,11 @@ class boss_azgalor : public CreatureScript
 {
 public:
     boss_azgalor() : CreatureScript("boss_azgalor") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<boss_azgalorAI>(creature);
+    }
 
     struct boss_azgalorAI : public hyjal_trashAI
     {
@@ -81,13 +86,13 @@ public:
             Initialize();
 
             if (IsEvent)
-                instance->SetData(DATA_AZGALOREVENT, NOT_STARTED);
+                instance->SetBossState(DATA_AZGALOR, NOT_STARTED);
         }
 
         void JustEngagedWith(Unit* /*who*/) override
         {
             if (IsEvent)
-                instance->SetData(DATA_AZGALOREVENT, IN_PROGRESS);
+                instance->SetBossState(DATA_AZGALOR, IN_PROGRESS);
 
             Talk(SAY_ONAGGRO);
         }
@@ -101,7 +106,7 @@ public:
         {
             if (waypointId == 7 && instance)
             {
-                Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
+                Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
                 if (target && target->IsAlive())
                     AddThreat(target, 0.0f);
             }
@@ -111,7 +116,7 @@ public:
         {
             hyjal_trashAI::JustDied(killer);
             if (IsEvent)
-                instance->SetData(DATA_AZGALOREVENT, DONE);
+                instance->SetBossState(DATA_AZGALOR, DONE);
             Talk(SAY_ONDEATH);
         }
 
@@ -143,13 +148,13 @@ public:
 
             if (RainTimer <= diff)
             {
-                DoCast(SelectTarget(SELECT_TARGET_RANDOM, 0, 30, true), SPELL_RAIN_OF_FIRE);
+                DoCast(SelectTarget(SelectTargetMethod::Random, 0, 30, true), SPELL_RAIN_OF_FIRE);
                 RainTimer = 20000 + rand32() % 15000;
             } else RainTimer -= diff;
 
             if (DoomTimer <= diff)
             {
-                DoCast(SelectTarget(SELECT_TARGET_RANDOM, 1, 100, true), SPELL_DOOM);//never on tank
+                DoCast(SelectTarget(SelectTargetMethod::Random, 1, 100, true), SPELL_DOOM);//never on tank
                 DoomTimer = 45000 + rand32() % 5000;
             } else DoomTimer -= diff;
 
@@ -177,16 +182,17 @@ public:
         }
     };
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<boss_azgalorAI>(creature);
-    }
 };
 
 class npc_lesser_doomguard : public CreatureScript
 {
 public:
     npc_lesser_doomguard() : CreatureScript("npc_lesser_doomguard") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_lesser_doomguardAI>(creature);
+    }
 
     struct npc_lesser_doomguardAI : public hyjal_trashAI
     {
@@ -234,7 +240,7 @@ public:
         {
             if (CheckTimer <= diff)
             {
-                if (AzgalorGUID)
+                if (!AzgalorGUID.IsEmpty())
                 {
                     Creature* boss = ObjectAccessor::GetCreature(*me, AzgalorGUID);
                     if (!boss || boss->isDead())
@@ -258,7 +264,7 @@ public:
 
             if (CrippleTimer <= diff)
             {
-                DoCast(SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true), SPELL_CRIPPLE);
+                DoCast(SelectTarget(SelectTargetMethod::Random, 0, 100, true), SPELL_CRIPPLE);
                 CrippleTimer = 25000 + rand32() % 5000;
             } else CrippleTimer -= diff;
 
@@ -266,10 +272,6 @@ public:
         }
     };
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_lesser_doomguardAI>(creature);
-    }
 };
 
 void AddSC_boss_azgalor()

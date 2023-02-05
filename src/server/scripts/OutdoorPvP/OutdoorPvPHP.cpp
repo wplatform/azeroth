@@ -15,31 +15,21 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
+#include "OutdoorPvPHP.h"
 #include "GameObject.h"
 #include "Map.h"
-#include "OutdoorPvP.h"
-#include "OutdoorPvPHP.h"
-#include "OutdoorPvPMgr.h"
 #include "Player.h"
-#include "WorldPacket.h"
+#include "ScriptMgr.h"
 #include "WorldStatePackets.h"
 
 uint32 const OutdoorPvPHPBuffZonesNum = 6;
-                                                         //  HP, citadel, ramparts, blood furnace, shattered halls, mag's lair
-uint32 const OutdoorPvPHPBuffZones[OutdoorPvPHPBuffZonesNum] = { 3483, 3563, 3562, 3713, 3714, 3836 };
-
+uint32 const OutdoorPvPHPBuffZones[OutdoorPvPHPBuffZonesNum] = { 3483, 3563, 3562, 3713, 3714, 3836 }; //  HP, citadel, ramparts, blood furnace, shattered halls, mag's lair
 uint32 const HP_CREDITMARKER[HP_TOWER_NUM] = { 19032, 19028, 19029 };
-
-/*
-uint32 const HP_CapturePointEvent_Enter[HP_TOWER_NUM] = { 11404, 11396, 11388 };
-uint32 const HP_CapturePointEvent_Leave[HP_TOWER_NUM] = { 11403, 11395, 11387 };
-*/
-
+//uint32 const HP_CapturePointEvent_Enter[HP_TOWER_NUM] = { 11404, 11396, 11388 };
+//uint32 const HP_CapturePointEvent_Leave[HP_TOWER_NUM] = { 11403, 11395, 11387 };
 uint32 const HP_MAP_N[HP_TOWER_NUM] = { 2485, 2482, 2472 };
 uint32 const HP_MAP_A[HP_TOWER_NUM] = { 2483, 2480, 2471 };
 uint32 const HP_MAP_H[HP_TOWER_NUM] = { 2484, 2481, 2470 };
-
 uint32 const HP_TowerArtKit_A[HP_TOWER_NUM] = { 65, 62, 67 };
 uint32 const HP_TowerArtKit_H[HP_TOWER_NUM] = { 64, 61, 68 };
 uint32 const HP_TowerArtKit_N[HP_TOWER_NUM] = { 66, 63, 69 };
@@ -73,7 +63,6 @@ bool OutdoorPvPHP::SetupOutdoorPvP()
 
     return true;
 }
-
 
 void OutdoorPvPHP::OnGameObjectCreate(GameObject* go)
 {

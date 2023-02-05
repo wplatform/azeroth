@@ -18,6 +18,7 @@
 #include "ScriptMgr.h"
 #include "black_temple.h"
 #include "CellImpl.h"
+#include "Containers.h"
 #include "GridNotifiersImpl.h"
 #include "InstanceScript.h"
 #include "PassiveAI.h"
@@ -153,7 +154,10 @@ struct boss_illidari_council : public BossAI
             for (uint32 bossData : CouncilData)
             {
                 if (Creature* council = instance->GetCreature(bossData))
+                {
+                    instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, council);
                     DoZoneInCombat(council);
+                }
             }
             events.ScheduleEvent(EVENT_EMPYREAL_EQUIVALENCY, 2s);
             events.ScheduleEvent(EVENT_BERSERK, 15min);
@@ -167,6 +171,10 @@ struct boss_illidari_council : public BossAI
         if (!me->IsInEvadeMode())
         {
             _inCombat = false;
+            for (uint32 bossData : CouncilData)
+                if (Creature* council = instance->GetCreature(bossData))
+                    instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, council);
+
             summons.DespawnAll();
             _DespawnAtEvade();
         }
@@ -183,6 +191,7 @@ struct boss_illidari_council : public BossAI
             if (Creature* council = instance->GetCreature(bossData))
             {
                 // Allow loot
+                instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, council);
                 council->LowerPlayerDamageReq(council->GetMaxHealth());
                 council->CastSpell(council, SPELL_QUIET_SUICIDE, true);
             }
@@ -230,7 +239,6 @@ private:
     bool _inCombat;
 };
 
-
 struct IllidariCouncilBossAI : public BossAI
 {
     IllidariCouncilBossAI(Creature* creature, uint32 bossId) : BossAI(creature, bossId), _bossId(bossId)
@@ -267,7 +275,7 @@ struct IllidariCouncilBossAI : public BossAI
             illidari->AI()->EnterEvadeMode(why);
     }
 
-    void DamageTaken(Unit* who, uint32 &damage) override
+    void DamageTaken(Unit* who, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         if (damage >= me->GetHealth() && (!who || who->GetGUID() != me->GetGUID()))
             damage = me->GetHealth() - 1;
@@ -339,7 +347,7 @@ struct boss_gathios_the_shatterer : public IllidariCouncilBossAI
                 events.Repeat(Seconds(30));
                 break;
             case EVENT_HAMMER_OF_JUSTICE:
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, HammerTargetSelector(me)))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1, HammerTargetSelector(me)))
                     DoCast(target, SPELL_HAMMER_OF_JUSTICE);
                 events.Repeat(Seconds(20));
                 break;
@@ -386,13 +394,13 @@ struct boss_high_nethermancer_zerevor : public IllidariCouncilBossAI
         switch (eventId)
         {
             case EVENT_FLAMESTRIKE:
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                     DoCast(target, SPELL_FLAMESTRIKE);
                 Talk(SAY_COUNCIL_SPECIAL);
                 events.Repeat(Seconds(40));
                 break;
             case EVENT_BLIZZARD:
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                     DoCast(target, SPELL_BLIZZARD);
                 events.Repeat(Seconds(15), Seconds(40));
                 break;
@@ -400,7 +408,7 @@ struct boss_high_nethermancer_zerevor : public IllidariCouncilBossAI
                 _canUseArcaneExplosion = true;
                 break;
             case EVENT_ARCANE_EXPLOSION:
-                if (_canUseArcaneExplosion && SelectTarget(SELECT_TARGET_RANDOM, 0, 10.0f))
+                if (_canUseArcaneExplosion && SelectTarget(SelectTargetMethod::Random, 0, 10.0f))
                 {
                     DoCastSelf(SPELL_ARCANE_EXPLOSION);
                     _canUseArcaneExplosion = false;
@@ -555,6 +563,8 @@ private:
 // 41499 - Empyreal Balance
 class spell_illidari_council_empyreal_balance : public SpellScript
 {
+    PrepareSpellScript(spell_illidari_council_empyreal_balance);
+
     void HandleDummy(SpellEffIndex /*effIndex*/)
     {
         Unit* target = GetHitUnit();
@@ -565,13 +575,15 @@ class spell_illidari_council_empyreal_balance : public SpellScript
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_illidari_council_empyreal_balance::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnEffectHitTarget += SpellEffectFn(spell_illidari_council_empyreal_balance::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
 // 41333 - Empyreal Equivalency
 class spell_illidari_council_empyreal_equivalency : public SpellScript
 {
+    PrepareSpellScript(spell_illidari_council_empyreal_equivalency);
+
     void HandleScript(SpellEffIndex /*effIndex*/)
     {
         GetHitUnit()->SetHealth(GetCaster()->CountPctFromCurHealth(25));
@@ -579,14 +591,16 @@ class spell_illidari_council_empyreal_equivalency : public SpellScript
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_illidari_council_empyreal_equivalency::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnEffectHitTarget += SpellEffectFn(spell_illidari_council_empyreal_equivalency::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
 // 41341 - Balance of Power
 class spell_illidari_council_balance_of_power : public AuraScript
 {
-    bool Validate(SpellInfo const* /*spell*/) override
+    PrepareAuraScript(spell_illidari_council_balance_of_power);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_SHARED_RULE });
     }
@@ -599,13 +613,15 @@ class spell_illidari_council_balance_of_power : public AuraScript
 
     void Register() override
     {
-        OnEffectAbsorb.Register(&spell_illidari_council_balance_of_power::Absorb, EFFECT_0);
+        OnEffectAbsorb += AuraEffectAbsorbFn(spell_illidari_council_balance_of_power::Absorb, EFFECT_0);
     }
 };
 
 // 41480 - Deadly Strike
 class spell_illidari_council_deadly_strike : public AuraScript
 {
+    PrepareAuraScript(spell_illidari_council_deadly_strike);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_DEADLY_POISON });
@@ -615,19 +631,21 @@ class spell_illidari_council_deadly_strike : public AuraScript
     {
         PreventDefaultAction();
 
-        if (Unit* victim = GetTarget()->GetAI()->SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true, true))
+        if (Unit* victim = GetTarget()->GetAI()->SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true, true))
             GetTarget()->CastSpell(victim, SPELL_DEADLY_POISON, aurEff);
     }
 
     void Register() override
     {
-        OnEffectPeriodic.Register(&spell_illidari_council_deadly_strike::OnTrigger, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_illidari_council_deadly_strike::OnTrigger, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
     }
 };
 
 // 41485 - Deadly Poison
 class spell_illidari_council_deadly_poison : public AuraScript
 {
+    PrepareAuraScript(spell_illidari_council_deadly_poison);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_ENVENOM, SPELL_ENVENOM_VISUAL });
@@ -645,13 +663,15 @@ class spell_illidari_council_deadly_poison : public AuraScript
 
     void Register() override
     {
-        OnEffectRemove.Register(&spell_illidari_council_deadly_poison::OnRemove, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
+        OnEffectRemove += AuraEffectRemoveFn(spell_illidari_council_deadly_poison::OnRemove, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
 // 41476 - Vanish
 class spell_illidari_council_vanish : public AuraScript
 {
+    PrepareAuraScript(spell_illidari_council_vanish);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_VANISH_TELEPORT });
@@ -664,13 +684,15 @@ class spell_illidari_council_vanish : public AuraScript
 
     void Register() override
     {
-        AfterEffectRemove.Register(&spell_illidari_council_vanish::OnRemove, EFFECT_0, SPELL_AURA_MOD_ROOT, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_illidari_council_vanish::OnRemove, EFFECT_0, SPELL_AURA_MOD_ROOT, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
 // 41475 - Reflective Shield
 class spell_illidari_council_reflective_shield : public AuraScript
 {
+    PrepareAuraScript(spell_illidari_council_reflective_shield);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_REFLECTIVE_SHIELD_DAMAGE });
@@ -687,13 +709,15 @@ class spell_illidari_council_reflective_shield : public AuraScript
 
     void Register() override
     {
-        AfterEffectAbsorb.Register(&spell_illidari_council_reflective_shield::OnAbsorb, EFFECT_0);
+        AfterEffectAbsorb += AuraEffectAbsorbFn(spell_illidari_council_reflective_shield::OnAbsorb, EFFECT_0);
     }
 };
 
 // 41467 - Judgement
 class spell_illidari_council_judgement : public SpellScript
 {
+    PrepareSpellScript(spell_illidari_council_judgement);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
@@ -721,8 +745,8 @@ class spell_illidari_council_judgement : public SpellScript
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_illidari_council_judgement::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-        AfterCast.Register(&spell_illidari_council_judgement::OnFinishCast);
+        OnEffectHitTarget += SpellEffectFn(spell_illidari_council_judgement::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+        AfterCast += SpellCastFn(spell_illidari_council_judgement::OnFinishCast);
     }
 };
 
@@ -730,6 +754,8 @@ class spell_illidari_council_judgement : public SpellScript
    41459 - Seal of Blood */
 class spell_illidari_council_seal : public AuraScript
 {
+    PrepareAuraScript(spell_illidari_council_seal);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
@@ -751,26 +777,28 @@ class spell_illidari_council_seal : public AuraScript
 
     void Register() override
     {
-        OnEffectRemove.Register(&spell_illidari_council_seal::OnRemove, EFFECT_2, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        OnEffectRemove += AuraEffectRemoveFn(spell_illidari_council_seal::OnRemove, EFFECT_2, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
 // 41478 - Dampen Magic
 class spell_illidari_dampen_magic : public AuraScript
 {
+    PrepareAuraScript(spell_illidari_dampen_magic);
+
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         if (Creature* target = GetTarget()->ToCreature())
         {
-            auto mode = GetTargetApplication()->GetRemoveMode();
-            if (mode.HasFlag(AuraRemoveFlags::ByEnemySpell | AuraRemoveFlags::Expired))
+            AuraRemoveMode mode = GetTargetApplication()->GetRemoveMode();
+            if (mode == AURA_REMOVE_BY_ENEMY_SPELL || mode == AURA_REMOVE_BY_EXPIRE)
                 target->AI()->DoAction(ACTION_REFRESH_DAMPEN);
         }
     }
 
     void Register() override
     {
-        OnEffectRemove.Register(&spell_illidari_dampen_magic::OnRemove, EFFECT_0, SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, AURA_EFFECT_HANDLE_REAL);
+        OnEffectRemove += AuraEffectRemoveFn(spell_illidari_dampen_magic::OnRemove, EFFECT_0, SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, AURA_EFFECT_HANDLE_REAL);
     }
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -65,6 +65,7 @@ public:
         std::vector<Condition*> const* AreaConditions;
         bool operator<(PhaseRef const& right) const { return Id < right.Id; }
         bool operator==(PhaseRef const& right) const { return Id == right.Id; }
+        bool IsPersonal() const { return Flags.HasFlag(PhaseFlags::Personal); }
     };
     struct VisibleMapIdRef
     {

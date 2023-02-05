@@ -15,46 +15,53 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
-#include "InstanceScript.h"
-#include "ObjectAccessor.h"
 #include "scarlet_monastery.h"
+#include "InstanceScript.h"
 #include "ScriptedCreature.h"
+#include "ScriptMgr.h"
 
-enum Says
+enum InterrogatorVishasSays
 {
-    SAY_AGGRO               = 0,
-    SAY_HEALTH_BELOW_75     = 1,
-    SAY_HEALTH_BELOW_25     = 2,
-    SAY_KILL                = 3
+    SAY_AGGRO = 0,
+    SAY_HEALTH1 = 1,
+    SAY_HEALTH2 = 2,
+    SAY_KILL = 3,
+    SAY_TRIGGER_VORREL = 0
 };
 
-enum Spells
+enum InterrogatorVishasSpells
 {
-    SPELL_SHADOW_WORD_PAIN  = 14032
+    SPELL_SHADOW_WORD_PAIN = 2767
 };
 
-enum Events
+enum InterrogatorVishasEvents
 {
-    EVENT_SHADOW_WORD_PAIN  = 1
+    EVENT_SHADOW_WORD_PAIN = 1
 };
 
 struct boss_interrogator_vishas : public BossAI
 {
-    boss_interrogator_vishas(Creature* creature) : BossAI(creature, DATA_INTERROGATOR_VISHAS), _textCount(0) { }
+    boss_interrogator_vishas(Creature* creature) : BossAI(creature, DATA_INTERROGATOR_VISHAS)
+    {
+        Initialize();
+    }
+
+    void Initialize()
+    {
+        _yellCount = 0;
+    }
 
     void Reset() override
     {
-        _textCount = 0;
+        Initialize();
         _Reset();
     }
 
     void JustEngagedWith(Unit* who) override
     {
-        BossAI::JustEngagedWith(who);
         Talk(SAY_AGGRO);
-
-        events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 6s, 8s);
+        BossAI::JustEngagedWith(who);
+        events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 5s);
     }
 
     void KilledUnit(Unit* victim) override
@@ -63,47 +70,46 @@ struct boss_interrogator_vishas : public BossAI
             Talk(SAY_KILL);
     }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+    void JustDied(Unit* /*killer*/) override
     {
-        if (me->HealthBelowPctDamaged(75, damage) && _textCount == 0)
+        _JustDied();
+        if (Creature* vorrel = instance->GetCreature(DATA_VORREL))
         {
-            Talk(SAY_HEALTH_BELOW_75);
-            ++_textCount;
-        }
-
-        if (me->HealthBelowPctDamaged(25, damage) && _textCount == 1)
-        {
-            Talk(SAY_HEALTH_BELOW_25);
-            ++_textCount;
+            if (vorrel->AI())
+                vorrel->AI()->Talk(SAY_TRIGGER_VORREL);
         }
     }
 
-    void UpdateAI(uint32 diff) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
-        if (!UpdateVictim())
-            return;
-
-        events.Update(diff);
-
-        while (uint32 eventId = events.ExecuteEvent())
+        if (me->HealthBelowPctDamaged(60, damage) && _yellCount < 1)
         {
-            switch (eventId)
-            {
-                case EVENT_SHADOW_WORD_PAIN:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 30.f, true, true, -SPELL_SHADOW_WORD_PAIN))
-                        DoCast(target, SPELL_SHADOW_WORD_PAIN);
-                    events.Repeat(7s, 11s);
-                    break;
-                default:
-                    break;
-            }
+            Talk(SAY_HEALTH1);
+            ++_yellCount;
         }
 
-        DoMeleeAttackIfReady();
+        if (me->HealthBelowPctDamaged(30, damage) && _yellCount < 2)
+        {
+            Talk(SAY_HEALTH2);
+            ++_yellCount;
+        }
+    }
+
+    void ExecuteEvent(uint32 eventId) override
+    {
+        switch (eventId)
+        {
+            case EVENT_SHADOW_WORD_PAIN:
+                DoCastVictim(SPELL_SHADOW_WORD_PAIN);
+                events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 5s, 15s);
+                break;
+            default:
+                break;
+        }
     }
 
 private:
-    uint8 _textCount;
+    uint8 _yellCount;
 };
 
 void AddSC_boss_interrogator_vishas()

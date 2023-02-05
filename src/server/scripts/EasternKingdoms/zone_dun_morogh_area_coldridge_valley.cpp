@@ -18,6 +18,7 @@
 #include "ScriptMgr.h"
 #include "CombatAI.h"
 #include "MotionMaster.h"
+#include "MoveSplineInit.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
@@ -67,8 +68,8 @@ public:
                 {
                     _tapped = true;
                     _playerGUID = caster->GetGUID();
-                    me->SetUInt32Value(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
-                    me->SetUInt32Value(UNIT_FIELD_BYTES_1, UNIT_STAND_STATE_STAND);
+                    me->SetUnitFlag(UNIT_FLAG_IMMUNE_TO_NPC);
+                    me->SetStandState(UNIT_STAND_STATE_STAND);
                     _events.ScheduleEvent(EVENT_TURN_TO_PLAYER, Seconds(2));
                 }
             }
@@ -157,6 +158,7 @@ public:
                 _hitBySpell = true;
                 _events.ScheduleEvent(EVENT_RESET_HEALTH, Seconds(30));
             }
+
             if (spell->Id == SPELL_FLASH_HEAL)
                 if (Player* player = caster->ToPlayer())
                     player->KilledMonsterCredit(QUEST_KILL_CREDIT);
@@ -184,7 +186,7 @@ public:
         }
     private:
         EventMap _events;
-        int8 _percentHP;
+        uint8 _percentHP;
         bool _hitBySpell;
     };
 
@@ -248,7 +250,7 @@ Position const kharanosPath[] =
     { -5603.897f, -466.3438f, 409.8931f },
     { -5566.957f, -472.5642f, 399.0056f }
 };
-uint32 const pathSize = std::extent<decltype(kharanosPath)>::value;
+size_t const pathSize = std::extent<decltype(kharanosPath)>::value;
 
 class npc_milos_gyro : public CreatureScript
 {
@@ -270,7 +272,7 @@ public:
         {
             if (apply && passenger->GetTypeId() == TYPEID_PLAYER)
             {
-                if (Creature* milo = passenger->SummonCreature(NPC_MILO, me->GetPosition(), TEMPSUMMON_CORPSE_DESPAWN, 0))
+                if (Creature* milo = passenger->SummonCreature(NPC_MILO, me->GetPosition(), TEMPSUMMON_CORPSE_DESPAWN, 0s))
                 {
                     _waitBeforePath = false;
                     _miloGUID = milo->GetGUID();
@@ -301,7 +303,7 @@ public:
                 switch (eventId)
                 {
                     case EVENT_START_PATH:
-                        me->GetMotionMaster()->MoveSmoothPath(pathSize, kharanosPath, pathSize, false, true);
+                        me->GetMotionMaster()->MoveSmoothPath(uint32(pathSize), kharanosPath, pathSize, false, true);
                         _events.ScheduleEvent(EVENT_MILO_SAY_0, Seconds(5));
                         break;
                     case EVENT_MILO_SAY_0:
@@ -373,15 +375,17 @@ public:
 
     class spell_a_trip_to_ironforge_quest_complete_SpellScript : public SpellScript
     {
+        PrepareSpellScript(spell_a_trip_to_ironforge_quest_complete_SpellScript);
+
         void HandleForceCast(SpellEffIndex effIndex)
         {
             PreventHitDefaultEffect(effIndex);
-            GetHitUnit()->CastSpell(GetHitUnit(), GetSpellInfo()->Effects[effIndex].TriggerSpell, true);
+            GetHitUnit()->CastSpell(GetHitUnit(), GetEffectInfo().TriggerSpell, true);
         }
 
         void Register() override
         {
-            OnEffectHitTarget.Register(&spell_a_trip_to_ironforge_quest_complete_SpellScript::HandleForceCast, EFFECT_0, SPELL_EFFECT_FORCE_CAST);
+            OnEffectHitTarget += SpellEffectFn(spell_a_trip_to_ironforge_quest_complete_SpellScript::HandleForceCast, EFFECT_0, SPELL_EFFECT_FORCE_CAST);
         }
     };
 
@@ -403,15 +407,17 @@ public:
 
     class spell_follow_that_gyrocopter_quest_start_SpellScript : public SpellScript
     {
+        PrepareSpellScript(spell_follow_that_gyrocopter_quest_start_SpellScript);
+
         void HandleForceCast(SpellEffIndex effIndex)
         {
             PreventHitDefaultEffect(effIndex);
-            GetHitUnit()->CastSpell(GetHitUnit(), GetSpellInfo()->Effects[effIndex].TriggerSpell, true);
+            GetHitUnit()->CastSpell(GetHitUnit(), GetEffectInfo().TriggerSpell, true);
         }
 
         void Register() override
         {
-            OnEffectHitTarget.Register(&spell_follow_that_gyrocopter_quest_start_SpellScript::HandleForceCast, EFFECT_1, SPELL_EFFECT_FORCE_CAST);
+            OnEffectHitTarget += SpellEffectFn(spell_follow_that_gyrocopter_quest_start_SpellScript::HandleForceCast, EFFECT_1, SPELL_EFFECT_FORCE_CAST);
         }
     };
 
@@ -433,18 +439,20 @@ public:
 
     class spell_low_health_SpellScript : public SpellScript
     {
+        PrepareSpellScript(spell_low_health_SpellScript);
+
         void HandleDummyEffect(SpellEffIndex /*eff*/)
         {
             if (Creature* target = GetHitCreature())
             {
-                target->setRegeneratingHealth(false);
+                target->SetRegenerateHealth(false);
                 target->SetHealth(target->CountPctFromMaxHealth(10));
             }
         }
 
         void Register() override
         {
-            OnEffectHitTarget.Register(&spell_low_health_SpellScript::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
+            OnEffectHitTarget += SpellEffectFn(spell_low_health_SpellScript::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
         }
     };
 

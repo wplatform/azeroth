@@ -22,17 +22,18 @@
 
 enum Spells
 {
-    SPELL_CONSTRICTING_CHAINS   = 52696,
-    SPELL_DISEASE_EXPULSION     = 52666,
-    SPELL_FRENZY                = 58841
+    SPELL_FRENZY = 58841
 };
+
+#define SPELL_CONSTRICTING_CHAINS DUNGEON_MODE(52696,58823)
+#define SPELL_DISEASE_EXPULSION DUNGEON_MODE(52666,58824)
 
 enum Yells
 {
-    SAY_AGGRO   = 0,
-    SAY_SLAY    = 1,
-    SAY_SPAWN   = 2,
-    SAY_DEATH   = 3
+    SAY_AGGRO = 0,
+    SAY_SLAY = 1,
+    SAY_SPAWN = 2,
+    SAY_DEATH = 3
 };
 
 enum Events
@@ -72,9 +73,9 @@ class boss_meathook : public CreatureScript
                 switch (eventId)
                 {
                     case EVENT_CHAIN:
-                        if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, -20.0f, true))
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, -20.0f, true))
                             DoCast(target, SPELL_CONSTRICTING_CHAINS);
-                        else if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 100.0f, true))
+                        else if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1, 100.0f, true))
                             DoCast(target, SPELL_CONSTRICTING_CHAINS);
                         else
                             DoCastVictim(SPELL_CONSTRICTING_CHAINS);

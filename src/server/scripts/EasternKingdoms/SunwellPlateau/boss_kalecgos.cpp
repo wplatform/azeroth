@@ -26,7 +26,6 @@
 #include "SpellScript.h"
 #include "sunwell_plateau.h"
 #include "TemporarySummon.h"
-#include "WorldSession.h"
 
 enum Yells
 {
@@ -61,7 +60,7 @@ enum Spells
     SPELL_WILD_MAGIC_4            = 45006,
     SPELL_WILD_MAGIC_5            = 45010,
     SPELL_WILD_MAGIC_6            = 44978,
-    SPELL_BANISH                  = 44836,
+    SPELL_BANISH                  = 136466,          // Changed in MoP  - Patch 5.3 for solo player.
     SPELL_ENRAGE                  = 44807,
     SPELL_DEMONIC_VISUAL          = 44800,
     SPELL_CORRUPTION_STRIKE       = 45029,
@@ -152,22 +151,22 @@ struct boss_kalecgos : public BossAI
         _isEnraged = false;
         _isBanished = false;
         _Reset();
-        events.ScheduleEvent(EVENT_ARCANE_BUFFET, Seconds(8));
-        events.ScheduleEvent(EVENT_FROST_BREATH, Seconds(15));
-        events.ScheduleEvent(EVENT_WILD_MAGIC, Seconds(10));
-        events.ScheduleEvent(EVENT_TAIL_LASH, Seconds(25));
-        events.ScheduleEvent(EVENT_SPECTRAL_BLAST, Seconds(20), Seconds(25));
-        events.ScheduleEvent(EVENT_CHECK_TIMER, Seconds(1));
+        events.ScheduleEvent(EVENT_ARCANE_BUFFET, 8s);
+        events.ScheduleEvent(EVENT_FROST_BREATH, 15s);
+        events.ScheduleEvent(EVENT_WILD_MAGIC, 10s);
+        events.ScheduleEvent(EVENT_TAIL_LASH, 25s);
+        events.ScheduleEvent(EVENT_SPECTRAL_BLAST, 20s, 25s);
+        events.ScheduleEvent(EVENT_CHECK_TIMER, 1s);
     }
 
     void EnterEvadeMode(EvadeReason /*why*/) override
     {
-        if (events.IsInPhase(PHASE_OUTRO))
+        if (events.IsInPhase(PHASE_OUTRO) || me->HasAura(SPELL_BANISH))
             return;
 
         _EnterEvadeMode();
         instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
-        instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_SPECTRAL_REALM_AURA);
+        instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_SPECTRAL_REALM_AURA, true, true);
         summons.DespawnAll();
         DespawnPortals();
 
@@ -190,7 +189,7 @@ struct boss_kalecgos : public BossAI
         switch (action)
         {
             case ACTION_START_OUTRO:
-                events.ScheduleEvent(EVENT_OUTRO_START, Seconds(1));
+                events.ScheduleEvent(EVENT_OUTRO_START, 1s);
                 break;
             case ACTION_ENRAGE:
                 _isEnraged = true;
@@ -202,7 +201,7 @@ struct boss_kalecgos : public BossAI
         }
     }
 
-    void DamageTaken(Unit* who, uint32 &damage) override
+    void DamageTaken(Unit* who, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         if (damage >= me->GetHealth() && (!who || who->GetGUID() != me->GetGUID()))
             damage = 0;
@@ -214,7 +213,7 @@ struct boss_kalecgos : public BossAI
         Talk(SAY_EVIL_AGGRO);
         BossAI::JustEngagedWith(who);
 
-        if (Creature* kalecgosHuman = me->SummonCreature(NPC_KALEC, KalecgosSummonPos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 1000))
+        if (Creature* kalecgosHuman = me->SummonCreature(NPC_KALECGOS_HUMAN, KalecgosSummonPos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 1s))
             if (Creature* sathrovar = instance->GetCreature(DATA_SATHROVARR))
             {
                 sathrovar->SetInCombatWith(kalecgosHuman);
@@ -311,7 +310,7 @@ struct boss_kalecgos : public BossAI
                 case EVENT_OUTRO_START:
                     events.Reset();
                     events.SetPhase(PHASE_OUTRO);
-                    me->setRegeneratingHealth(false);
+                    me->SetRegenerateHealth(false);
                     me->SetReactState(REACT_PASSIVE);
                     me->InterruptNonMeleeSpells(true);
                     me->RemoveAllAttackers();
@@ -361,8 +360,8 @@ struct boss_kalecgos_human : public ScriptedAI
         if (Creature* sath = _instance->GetCreature(DATA_SATHROVARR))
             _sathGUID = sath->GetGUID();
 
-        _events.ScheduleEvent(EVENT_REVITALIZE, Seconds(5));
-        _events.ScheduleEvent(EVENT_HEROIC_STRIKE, Seconds(3));
+        _events.ScheduleEvent(EVENT_REVITALIZE, 5s);
+        _events.ScheduleEvent(EVENT_HEROIC_STRIKE, 3s);
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -370,7 +369,7 @@ struct boss_kalecgos_human : public ScriptedAI
         Talk(SAY_GOOD_DEATH);
     }
 
-    void DamageTaken(Unit* who, uint32 &damage) override
+    void DamageTaken(Unit* who, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         if (!who || who->GetGUID() != _sathGUID)
             damage = 0;
@@ -440,8 +439,9 @@ public:
     {
         if (Unit* unitTarget = target->ToUnit())
             return !NonTankTargetSelector::operator()(unitTarget)
-            || unitTarget->HasAura(SPELL_AGONY_CURSE) || unitTarget->HasAura(SPELL_AGONY_CURSE_ALLY)
-            || !unitTarget->HasAura(SPELL_SPECTRAL_REALM_AURA);
+            && !unitTarget->HasAura(SPELL_AGONY_CURSE)
+            && !unitTarget->HasAura(SPELL_AGONY_CURSE_ALLY)
+            && unitTarget->HasAura(SPELL_SPECTRAL_REALM_AURA);
         return false;
     }
 };
@@ -455,10 +455,10 @@ struct boss_sathrovarr : public BossAI
         _isEnraged = false;
         _isBanished = false;
         _Reset();
-        events.ScheduleEvent(EVENT_SHADOWBOLT, Seconds(7), Seconds(10));
-        events.ScheduleEvent(EVENT_AGONY_CURSE, Seconds(20));
-        events.ScheduleEvent(EVENT_CORRUPTION_STRIKE, Seconds(13));
-        events.ScheduleEvent(EVENT_CHECK_TIMER, Seconds(1));
+        events.ScheduleEvent(EVENT_SHADOWBOLT, 7s, 10s);
+        events.ScheduleEvent(EVENT_AGONY_CURSE, 20s);
+        events.ScheduleEvent(EVENT_CORRUPTION_STRIKE, 13s);
+        events.ScheduleEvent(EVENT_CHECK_TIMER, 1s);
     }
 
     void JustEngagedWith(Unit* who) override
@@ -473,19 +473,20 @@ struct boss_sathrovarr : public BossAI
             kalecgos->AI()->EnterEvadeMode(why);
     }
 
-    void SpellHit(WorldObject* caster, SpellInfo const* spell) override
+    void SpellHit(WorldObject* caster, SpellInfo const* spellInfo) override
     {
-        if (!caster || !caster->IsUnit())
+        Unit* unitCaster = caster->ToUnit();
+        if (!unitCaster)
             return;
 
-        if (spell->Id == SPELL_TAP_CHECK_DAMAGE)
+        if (spellInfo->Id == SPELL_TAP_CHECK_DAMAGE)
         {
             DoCastSelf(SPELL_TELEPORT_BACK, true);
-            Unit::Kill(caster->ToUnit(), me);
+            Unit::Kill(unitCaster, me);
         }
     }
 
-    void DamageTaken(Unit* who, uint32 &damage) override
+    void DamageTaken(Unit* who, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         if (damage >= me->GetHealth() && (!who || who->GetGUID() != me->GetGUID()))
             damage = 0;
@@ -498,7 +499,7 @@ struct boss_sathrovarr : public BossAI
         else if (Creature* kalecgosHuman = instance->GetCreature(DATA_KALECGOS_HUMAN))
         {
             if (kalecgosHuman->GetGUID() == target->GetGUID())
-                EnterEvadeMode(EVADE_REASON_OTHER);
+                EnterEvadeMode(EvadeReason::Other);
         }
     }
 
@@ -506,7 +507,7 @@ struct boss_sathrovarr : public BossAI
     {
         _JustDied();
         Talk(SAY_SATH_DEATH);
-        instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_SPECTRAL_REALM_AURA);
+        instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_SPECTRAL_REALM_AURA, true, true);
         if (Creature* kalecgos = instance->GetCreature(DATA_KALECGOS_DRAGON))
             kalecgos->AI()->DoAction(ACTION_START_OUTRO);
     }
@@ -523,10 +524,12 @@ struct boss_sathrovarr : public BossAI
                 break;
             case EVENT_AGONY_CURSE:
             {
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, CurseAgonySelector(me)))
-                    DoCast(target, SPELL_AGONY_CURSE);
+                CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
+                args.AddSpellMod(SPELLVALUE_MAX_TARGETS, 1);
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, CurseAgonySelector(me)))
+                    DoCast(target, SPELL_AGONY_CURSE, args);
                 else
-                    DoCastVictim(SPELL_AGONY_CURSE);
+                    DoCastVictim(SPELL_AGONY_CURSE, args);
                 events.Repeat(Seconds(20));
                 break;
             }
@@ -583,7 +586,7 @@ class go_kalecgos_spectral_rift : public GameObjectScript
         {
             go_kalecgos_spectral_riftAI(GameObject* go) : GameObjectAI(go) { }
 
-            bool GossipHello(Player* player) override
+            bool OnGossipHello(Player* player) override
             {
                 if (!player->HasAura(SPELL_SPECTRAL_EXHAUSTION))
                     player->CastSpell(player, SPELL_SPECTRAL_REALM_TRIGGER, true);
@@ -600,19 +603,21 @@ class go_kalecgos_spectral_rift : public GameObjectScript
 // 46732 - Tap Check
 class spell_kalecgos_tap_check : public SpellScript
 {
+    PrepareSpellScript(spell_kalecgos_tap_check);
+
     bool Validate(SpellInfo const* spellInfo) override
     {
-        return ValidateSpellInfo({ uint32(spellInfo->Effects[EFFECT_0].CalcValue()) });
+        return !spellInfo->GetEffects().empty() && ValidateSpellInfo({ uint32(spellInfo->GetEffect(EFFECT_0).CalcValue()) });
     }
 
     void HandleDummy(SpellEffIndex /*effIndex*/)
     {
-        GetHitUnit()->CastSpell(GetCaster(), (uint32)GetSpellInfo()->Effects[EFFECT_0].CalcValue(), true);
+        GetHitUnit()->CastSpell(GetCaster(), GetEffectInfo().CalcValue(), true);
     }
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_kalecgos_tap_check::HandleDummy, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+        OnEffectHitTarget += SpellEffectFn(spell_kalecgos_tap_check::HandleDummy, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
 
@@ -624,8 +629,9 @@ class SpectralBlastSelector : NonTankTargetSelector
         bool operator()(WorldObject* target) const
         {
             if (Unit* unitTarget = target->ToUnit())
-                return !NonTankTargetSelector::operator()(unitTarget) ||
-                unitTarget->HasAura(SPELL_SPECTRAL_EXHAUSTION) || unitTarget->HasAura(SPELL_SPECTRAL_REALM_AURA);
+                return !NonTankTargetSelector::operator()(unitTarget)
+                && !unitTarget->HasAura(SPELL_SPECTRAL_EXHAUSTION)
+                && !unitTarget->HasAura(SPELL_SPECTRAL_REALM_AURA);
             return false;
         }
 };
@@ -633,6 +639,8 @@ class SpectralBlastSelector : NonTankTargetSelector
 // 44869 - Spectral Blast
 class spell_kalecgos_spectral_blast : public SpellScript
 {
+    PrepareSpellScript(spell_kalecgos_spectral_blast);
+
     bool Validate(SpellInfo const* /*spell*/) override
     {
         return ValidateSpellInfo(
@@ -660,14 +668,16 @@ class spell_kalecgos_spectral_blast : public SpellScript
 
     void Register() override
     {
-        OnObjectAreaTargetSelect.Register(&spell_kalecgos_spectral_blast::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-        OnEffectHitTarget.Register(&spell_kalecgos_spectral_blast::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_kalecgos_spectral_blast::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+        OnEffectHitTarget += SpellEffectFn(spell_kalecgos_spectral_blast::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
 // 44811 - Spectral Realm
 class spell_kalecgos_spectral_realm_trigger : public SpellScript
 {
+    PrepareSpellScript(spell_kalecgos_spectral_realm_trigger);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
@@ -690,13 +700,15 @@ class spell_kalecgos_spectral_realm_trigger : public SpellScript
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_kalecgos_spectral_realm_trigger::HandleDummy, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+        OnEffectHitTarget += SpellEffectFn(spell_kalecgos_spectral_realm_trigger::HandleDummy, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
 
 // 46021 - Spectral Realm
 class spell_kalecgos_spectral_realm_aura : public AuraScript
 {
+    PrepareAuraScript(spell_kalecgos_spectral_realm_aura);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
@@ -717,13 +729,15 @@ class spell_kalecgos_spectral_realm_aura : public AuraScript
 
     void Register() override
     {
-        AfterEffectRemove.Register(&spell_kalecgos_spectral_realm_aura::OnRemove, EFFECT_0, SPELL_AURA_MOD_INVISIBILITY_DETECT, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_kalecgos_spectral_realm_aura::OnRemove, EFFECT_0, SPELL_AURA_MOD_INVISIBILITY_DETECT, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
 // 45032, 45034 - Curse of Boundless Agony
 class spell_kalecgos_curse_of_boundless_agony : public AuraScript
 {
+    PrepareAuraScript(spell_kalecgos_curse_of_boundless_agony);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
@@ -741,7 +755,7 @@ class spell_kalecgos_curse_of_boundless_agony : public AuraScript
             if (instance->GetBossState(DATA_KALECGOS) == IN_PROGRESS)
                 return;
 
-        Remove(AuraRemoveFlags::ByCancel);
+        Remove(AURA_REMOVE_BY_CANCEL);
     }
 
     void OnPeriodic(AuraEffect const* aurEff)
@@ -762,16 +776,20 @@ class spell_kalecgos_curse_of_boundless_agony : public AuraScript
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        if (!GetTargetApplication()->GetRemoveMode().HasFlag(AuraRemoveFlags::ByCancel))
-            GetTarget()->CastSpell(GetTarget(), SPELL_AGONY_CURSE_ALLY, true);
+        if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_CANCEL)
+            return;
+
+        CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
+        args.AddSpellMod(SPELLVALUE_MAX_TARGETS, 1);
+        GetTarget()->CastSpell(GetTarget(), SPELL_AGONY_CURSE_ALLY, args);
     }
 
     void Register() override
     {
-        AfterEffectApply.Register(&spell_kalecgos_curse_of_boundless_agony::OnApply, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
-        OnEffectPeriodic.Register(&spell_kalecgos_curse_of_boundless_agony::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE);
-        OnEffectUpdatePeriodic.Register(&spell_kalecgos_curse_of_boundless_agony::HandleEffectPeriodicUpdate, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE);
-        AfterEffectRemove.Register(&spell_kalecgos_curse_of_boundless_agony::OnRemove, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectApply += AuraEffectApplyFn(spell_kalecgos_curse_of_boundless_agony::OnApply, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_kalecgos_curse_of_boundless_agony::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE);
+        OnEffectUpdatePeriodic += AuraEffectUpdatePeriodicFn(spell_kalecgos_curse_of_boundless_agony::HandleEffectPeriodicUpdate, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_kalecgos_curse_of_boundless_agony::OnRemove, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
     }
 };
 

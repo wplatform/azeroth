@@ -15,42 +15,32 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
-#include "AreaBoundary.h"
-#include "Creature.h"
-#include "GameObject.h"
-#include "InstanceScript.h"
-#include "CreatureAI.h"
-#include "Map.h"
 #include "zulgurub.h"
-
-ObjectData const creatureData[] =
-{
-    { BOSS_HIGH_PRIEST_VENOXIS,         DATA_HIGH_PRIEST_VENOXIS                },
-    { BOSS_BLOODLORD_MANDOKIR,          DATA_BLOODLORD_MANDOKIR                 },
-    { BOSS_HIGH_PRIESTESS_KILNARA,      DATA_HIGH_PRIESTESS_KILNARA             },
-    { BOSS_ZANZIL,                      DATA_ZANZIL                             },
-    { BOSS_JINDO_THE_GODBREAKER,        DATA_JINDO_THE_GODBREAKER               },
-    { NPC_OHGAN,                        DATA_OHGAN                              },
-    { NPC_SPIRIT_OF_HAKKAR,             DATA_SPIRIT_OF_HAKKAR                   },
-    { NPC_SHADOW_OF_HAKKAR,             DATA_SHADOW_OF_HAKKAR                   },
-    { NPC_JINDO_THE_GODBREAKER,         DATA_JINDO_THE_GODBREAKER_SPIRIT_WORLD  },
-    { 0,                                0                                       }  // END
-};
+#include "Creature.h"
+#include "InstanceScript.h"
+#include "ScriptMgr.h"
 
 DoorData const doorData[] =
 {
-    { GO_VENOXIS_COIL,                  DATA_HIGH_PRIEST_VENOXIS,       DOOR_TYPE_ROOM },
-    { GO_ARENA_DOOR_1,                  DATA_BLOODLORD_MANDOKIR,        DOOR_TYPE_ROOM },
-    { GO_FORCEFIELD,                    DATA_HIGH_PRIESTESS_KILNARA,    DOOR_TYPE_ROOM },
-    { GO_ZANZIL_DOOR,                   DATA_ZANZIL,                    DOOR_TYPE_ROOM },
-    //{ GO_THE_CACHE_OF_MADNESS_DOOR,     DATA_xxxxxxx,                     DOOR_TYPE_ROOM },
-    { 0,                                0,                              DOOR_TYPE_ROOM }  // END
+    { GO_VENOXIS_COIL,                  DATA_VENOXIS,   DOOR_TYPE_ROOM },
+    { GO_ARENA_DOOR_1,                  DATA_MANDOKIR,  DOOR_TYPE_ROOM },
+    { GO_FORCEFIELD,                    DATA_KILNARA,   DOOR_TYPE_ROOM },
+    { GO_ZANZIL_DOOR,                   DATA_ZANZIL,    DOOR_TYPE_ROOM },
+    //{ GO_THE_CACHE_OF_MADNESS_DOOR,     DATA_xxxxxxx,   DOOR_TYPE_ROOM },
+    { 0,                                0,              DOOR_TYPE_ROOM }
 };
 
-BossBoundaryData const boundaries =
+DungeonEncounterData const encounters[] =
 {
-    { DATA_HIGH_PRIEST_VENOXIS,  new CircleBoundary(Position(-12000.50f, -1695.389f), 38.0f) }
+    { DATA_VENOXIS, {{ 1178 }} },
+    { DATA_MANDOKIR, {{ 1179 }} },
+    { DATA_KILNARA, {{ 1180 }} },
+    { DATA_ZANZIL, {{ 1181 }} },
+    { DATA_JINDO, {{ 1182 }} },
+    { DATA_HAZZARAH, {{ 1188 }} },
+    { DATA_RENATAKI, {{ 1188 }} },
+    { DATA_WUSHOOLAY, {{ 1188 }} },
+    { DATA_GRILEK, {{ 1188 }} }
 };
 
 class instance_zulgurub : public InstanceMapScript
@@ -64,79 +54,43 @@ class instance_zulgurub : public InstanceMapScript
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
-                LoadObjectData(creatureData, nullptr);
                 LoadDoorData(doorData);
-                LoadBossBoundaries(boundaries);
-                _defeatedBossesCount = 0;
-                _killedGurubashiSpiritWarriorMask = 0;
+                LoadDungeonEncounterData(encounters);
             }
 
             void OnCreatureCreate(Creature* creature) override
             {
-                InstanceScript::OnCreatureCreate(creature);
-
                 switch (creature->GetEntry())
                 {
-                    case NPC_VENOMOUS_EFFUSION:
-                    case NPC_BLOODVENOM:
-                        if (Creature* venoxis = GetCreature(DATA_HIGH_PRIEST_VENOXIS))
-                            venoxis->AI()->JustSummoned(creature);
+                    case NPC_VENOXIS:
+                        venoxisGUID = creature->GetGUID();
                         break;
-                    case NPC_DEVASTATING_SLAM:
-                        if (Creature* mandokir = GetCreature(DATA_BLOODLORD_MANDOKIR))
-                            mandokir->AI()->JustSummoned(creature);
+                    case NPC_MANDOKIR:
+                        mandokirGUID = creature->GetGUID();
                         break;
-                    case NPC_CAVE_IN_STALKER:
-                        _caveInStalkerGUIDs.push_back(creature->GetGUID());
+                    case NPC_KILNARA:
+                        kilnaraGUID = creature->GetGUID();
                         break;
-                    case NPC_TOXIC_VENOMSPITTER:
-                    case NPC_MUTATED_OVERGROWTH:
-                        _poisonPlantGUIDs.push_back(creature->GetGUID());
-                        if (GetBossState(DATA_HIGH_PRIEST_VENOXIS) != DONE)
-                            creature->CastSpell(creature, SPELL_POISON_CLOUD);
+                    case NPC_ZANZIL:
+                        zanzilGUID = creature->GetGUID();
                         break;
-                    case BOSS_JINDO_THE_GODBREAKER:
-                        creature->setActive(true);
-
-                        if (_defeatedBossesCount >= 2)
-                        {
-                            creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
-                            creature->RemoveAurasDueToSpell(SPELL_COSMETIC_ALPHA_STATE_25_PCT);
-                        }
+                    case NPC_JINDO:
+                        jindoGUID = creature->GetGUID();
                         break;
-                    case NPC_JINDO_THE_GODBREAKER:
-                    case NPC_SPIRIT_OF_HAKKAR:
-                    case NPC_SHADOW_OF_HAKKAR:
-                    case NPC_HAKKARS_CHAINS:
-                    case NPC_TWISTED_SPIRIT:
-                    case NPC_TWISTED_SHADOW:
-                    case NPC_GURUBASHI_SPIRIT_WARRIOR:
-                    case NPC_GURUBASHI_SHADOW:
-                    case NPC_GURUBASHI_SPIRIT:
-                    case NPC_SPIRIT_PORTAL:
-                        if (Creature* jindo = GetCreature(DATA_JINDO_THE_GODBREAKER))
-                            jindo->AI()->JustSummoned(creature);
+                    case NPC_HAZZARAH:
+                        hazzarahGUID = creature->GetGUID();
                         break;
-                    default:
+                    case NPC_RENATAKI:
+                        renatakiGUID = creature->GetGUID();
                         break;
-                }
-            }
-
-            void OnGameObjectCreate(GameObject* go) override
-            {
-                InstanceScript::OnGameObjectCreate(go);
-            }
-
-            void OnUnitDeath(Unit* unit) override
-            {
-                if (unit->GetTypeId() != TYPEID_UNIT)
-                    return;
-
-                switch (unit->GetEntry())
-                {
-                    case NPC_HAKKARS_CHAINS:
-                        if (Creature* jindo = GetCreature(DATA_JINDO_THE_GODBREAKER))
-                            jindo->AI()->SummonedCreatureDies(unit->ToCreature(), nullptr);
+                    case NPC_WUSHOOLAY:
+                        wushoolayGUID = creature->GetGUID();
+                        break;
+                    case NPC_GRILEK:
+                        grilekGUID = creature->GetGUID();
+                        break;
+                    case NPC_JINDO_TRIGGER:
+                        jindoTiggerGUID = creature->GetGUID();
                         break;
                     default:
                         break;
@@ -150,45 +104,28 @@ class instance_zulgurub : public InstanceMapScript
 
                 switch (type)
                 {
-                    case DATA_HIGH_PRIEST_VENOXIS:
-                        if (state == DONE)
-                            for (ObjectGuid guid : _poisonPlantGUIDs)
-                                if (Creature* plant = instance->GetCreature(guid))
-                                    plant->RemoveAurasDueToSpell(SPELL_POISON_CLOUD);
+                    case DATA_VENOXIS:
+                    case DATA_MANDOKIR:
+                    case DATA_KILNARA:
+                    case DATA_ZANZIL:
+                    case DATA_JINDO:
+                    case DATA_HAZZARAH:
+                    case DATA_RENATAKI:
+                    case DATA_WUSHOOLAY:
+                    case DATA_GRILEK:
                         break;
                     default:
                         break;
-                }
-
-                if (state == DONE)
-                {
-                    _defeatedBossesCount++;
-
-                    if (_defeatedBossesCount >= 2)
-                        if (Creature* jindo = GetCreature(DATA_JINDO_THE_GODBREAKER))
-                            jindo->AI()->DoAction(ACTION_TRIGGER_JINDO_INTRO);
-
-                    SaveToDB();
                 }
 
                 return true;
             }
 
+            /*
             void SetData(uint32 type, uint32 data) override
             {
                 switch (type)
                 {
-                    case DATA_CAST_CAVE_IN_VISUAL:
-                        for (ObjectGuid guid : _caveInStalkerGUIDs)
-                            if (Creature* stalker = instance->GetCreature(guid))
-                                stalker->CastSpell(stalker, SPELL_CAVE_IN_VISUAL, false);
-                        break;
-                    case DATA_KILLED_GURUBASHI_SPIRIT_WARRIORS:
-                        _killedGurubashiSpiritWarriorMask = data;
-                        SaveToDB();
-                        break;
-                    default:
-                        break;
                 }
             }
 
@@ -196,31 +133,54 @@ class instance_zulgurub : public InstanceMapScript
             {
                 switch (type)
                 {
-                    case DATA_KILLED_GURUBASHI_SPIRIT_WARRIORS:
-                        return _killedGurubashiSpiritWarriorMask;
-                    default:
-                        return 0;
                 }
+
                 return 0;
             }
+            */
 
-            void WriteSaveDataMore(std::ostringstream& data) override
+            ObjectGuid GetGuidData(uint32 type) const override
             {
-                data << _defeatedBossesCount << ' '
-                    << _killedGurubashiSpiritWarriorMask;
+                switch (type)
+                {
+                    case DATA_VENOXIS:
+                        return venoxisGUID;
+                    case DATA_MANDOKIR:
+                        return mandokirGUID;
+                    case DATA_KILNARA:
+                        return kilnaraGUID;
+                    case DATA_ZANZIL:
+                        return zanzilGUID;
+                    case DATA_JINDO:
+                        return jindoGUID;
+                    case DATA_HAZZARAH:
+                        return hazzarahGUID;
+                    case DATA_RENATAKI:
+                        return renatakiGUID;
+                    case DATA_WUSHOOLAY:
+                        return wushoolayGUID;
+                    case DATA_GRILEK:
+                        return grilekGUID;
+                    case DATA_JINDOR_TRIGGER:
+                        return jindoTiggerGUID;
+                    default:
+                        break;
+                }
+
+                return ObjectGuid::Empty;
             }
 
-            void ReadSaveDataMore(std::istringstream& data) override
-            {
-                data >> _defeatedBossesCount;
-                data >> _killedGurubashiSpiritWarriorMask;
-            }
-
-        private:
-            GuidVector _caveInStalkerGUIDs;
-            GuidVector _poisonPlantGUIDs;
-            uint8 _defeatedBossesCount;
-            uint8 _killedGurubashiSpiritWarriorMask;
+        protected:
+            ObjectGuid venoxisGUID;
+            ObjectGuid mandokirGUID;
+            ObjectGuid kilnaraGUID;
+            ObjectGuid zanzilGUID;
+            ObjectGuid jindoGUID;
+            ObjectGuid hazzarahGUID;
+            ObjectGuid renatakiGUID;
+            ObjectGuid wushoolayGUID;
+            ObjectGuid grilekGUID;
+            ObjectGuid jindoTiggerGUID;
         };
 
         InstanceScript* GetInstanceScript(InstanceMap* map) const override

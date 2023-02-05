@@ -19,6 +19,9 @@
 #define DEF_ULDUAR_H
 
 #include "CreatureAIImpl.h"
+#include "EventProcessor.h"
+
+struct Position;
 
 #define UlduarScriptName "instance_ulduar"
 #define DataHeader "UU"
@@ -31,23 +34,23 @@ static constexpr uint8 const MAX_ENCOUNTER = 17;
 
 enum UlduarBosses
 {
-    DATA_FLAME_LEVIATHAN    = 0,
-    DATA_IGNIS              = 1,
-    DATA_RAZORSCALE         = 2,
-    DATA_XT002              = 3,
-    DATA_ASSEMBLY_OF_IRON   = 4,
-    DATA_KOLOGARN           = 5,
-    DATA_AURIAYA            = 6,
-    DATA_HODIR              = 7,
-    DATA_THORIM             = 8,
-    DATA_FREYA              = 9,
-    DATA_MIMIRON            = 10,
-    DATA_VEZAX              = 11,
-    DATA_YOGG_SARON         = 12,
-    DATA_ALGALON            = 13,
-    DATA_BRIGHTLEAF         = 14,
-    DATA_IRONBRANCH         = 15,
-    DATA_STONEBARK          = 16
+    DATA_FLAME_LEVIATHAN     = 0,
+    DATA_IGNIS               = 1,
+    DATA_RAZORSCALE          = 2,
+    DATA_XT002               = 3,
+    DATA_ASSEMBLY_OF_IRON    = 4,
+    DATA_KOLOGARN            = 5,
+    DATA_AURIAYA             = 6,
+    DATA_HODIR               = 7,
+    DATA_THORIM              = 8,
+    DATA_FREYA               = 9,
+    DATA_MIMIRON             = 10,
+    DATA_VEZAX               = 11,
+    DATA_YOGG_SARON          = 12,
+    DATA_ALGALON             = 13,
+    DATA_BRIGHTLEAF          = 14,
+    DATA_IRONBRANCH          = 15,
+    DATA_STONEBARK           = 16,
 };
 
 enum UlduarNPCs
@@ -59,11 +62,12 @@ enum UlduarNPCs
     NPC_SALVAGED_CHOPPER                    = 33062,
     NPC_IGNIS                               = 33118,
     NPC_RAZORSCALE                          = 33186,
-    NPC_RAZORSCALE_CONTROLLER               = 33233,
     NPC_STEELFORGED_DEFFENDER               = 33236,
-    NPC_EXPEDITION_COMMANDER                = 33210,
     NPC_XT002                               = 33293,
     NPC_XT_TOY_PILE                         = 33337,
+    NPC_STEELBREAKER                        = 32867,
+    NPC_MOLGEIM                             = 32927,
+    NPC_BRUNDIR                             = 32857,
     NPC_KOLOGARN                            = 32930,
     NPC_FOCUSED_EYEBEAM                     = 33632,
     NPC_FOCUSED_EYEBEAM_RIGHT               = 33802,
@@ -79,14 +83,21 @@ enum UlduarNPCs
     NPC_YOGG_SARON                          = 33288,
     NPC_ALGALON                             = 32871,
 
-    // Assembly of Iron
-    BOSS_STEELBREAKER                       = 32867,
-    BOSS_RUNEMASTER_MOLGEIM                 = 32927,
-    BOSS_STORMCALLER_BRUNDIR                = 32857,
-    NPC_RUNE_OF_POWER                       = 33705,
+    // Razorscale
+    NPC_DARK_RUNE_GUARDIAN                  = 33388,
+    NPC_DARK_RUNE_SENTINEL                  = 33846,
+    NPC_DARK_RUNE_WATCHER                   = 33453,
+    NPC_RAZORSCALE_SPAWNER                  = 33245,
+    NPC_EXPEDITION_COMMANDER                = 33210,
+    NPC_EXPEDITION_ENGINEER                 = 33287,
+    NPC_EXPEDITION_DEFENDER                 = 33816,
+    NPC_EXPEDITION_TRAPPER                  = 33259,
+    NPC_RAZORSCALE_CONTROLLER               = 33233,
+    NPC_RAZORSCALE_HARPOON_FIRE_STATE       = 33282,
 
     //XT002
     NPC_XS013_SCRAPBOT                      = 33343,
+    NPC_HEART_OF_DECONSTRUCTOR              = 33329,
 
     // Flame Leviathan
     NPC_ULDUAR_COLOSSUS                     = 33237,
@@ -392,11 +403,12 @@ enum UlduarData
     DATA_TOY_PILE_1,
     DATA_TOY_PILE_2,
     DATA_TOY_PILE_3,
+    DATA_XT002_HEART,
 
     // Assembly of Iron
     DATA_STEELBREAKER,
-    DATA_RUNEMASTER_MOLGEIM,
-    DATA_STORMCALLER_BRUNDIR,
+    DATA_MOLGEIM,
+    DATA_BRUNDIR,
 
     // Hodir
     DATA_HODIR_RARE_CACHE,
@@ -433,6 +445,8 @@ enum UlduarData
     DATA_UNIVERSE_GLOBE,
     DATA_ALGALON_TRAPDOOR,
     DATA_BRANN_BRONZEBEARD_ALG,
+    DATA_GIFT_OF_THE_OBSERVER,
+    DATA_AZEROTH,
 
     // Thorim
     DATA_SIF,
@@ -456,15 +470,15 @@ enum UlduarWorldStates
     WORLD_STATE_FLAME_LEVIATHAN_DESTROYED_TOWERS    = 4129,
     WORLD_STATE_YOGG_SARON_KEEPERS                  = 4116,
     WORLD_STATE_ALGALON_DESPAWN_TIMER               = 4131,
-    WORLD_STATE_ALGALON_TIMER_ENABLED               = 5636
+    WORLD_STATE_ALGALON_TIMER_ENABLED               = 5636,
 };
 
 enum UlduarAchievementData
 {
     // FL Achievement boolean
     DATA_UNBROKEN               = 29052906, // 2905, 2906 are achievement IDs,
-    MAX_HERALD_ARMOR_ITEMLEVEL  = 226,
-    MAX_HERALD_WEAPON_ITEMLEVEL = 232
+    MAX_HERALD_ARMOR_ITEMLEVEL  = 35,
+    MAX_HERALD_WEAPON_ITEMLEVEL = 35
 };
 
 enum UlduarSharedSpells
@@ -475,17 +489,9 @@ enum UlduarSharedSpells
 
 enum UlduarEvents
 {
-    EVENT_DESPAWN_ALGALON               = 1,
-    EVENT_UPDATE_ALGALON_TIMER          = 2,
-    ACTION_INIT_ALGALON                 = 6,
-    EVENT_DESPAWN_LEVIATHAN_VEHICLES    = 7,
-    EVENT_LEVIATHAN_BREAK_DOOR          = 8,
-    EVENT_RESPAWN_ASSEMBLY_OF_IRON      = 9
-};
-
-enum UlduarSpawnGroups
-{
-    SPAWN_GROUP_ASSEMBLY_OF_IRON = 67
+    ACTION_INIT_ALGALON         = 6,
+    EVENT_DESPAWN_LEVIATHAN_VEHICLES = 7,
+    EVENT_LEVIATHAN_BREAK_DOOR   = 8
 };
 
 enum YoggSaronIllusions
@@ -495,6 +501,20 @@ enum YoggSaronIllusions
     STORMWIND_ILLUSION          = 2,
 };
 
+class Creature;
+
+class UlduarKeeperDespawnEvent : public BasicEvent
+{
+    public:
+        UlduarKeeperDespawnEvent(Creature* owner, Milliseconds despawnTimerOffset = 500ms);
+
+        bool Execute(uint64 /*eventTime*/, uint32 /*updateTime*/) override;
+
+    private:
+        Creature* _owner;
+        Milliseconds _despawnTimer;
+};
+
 template <class AI, class T>
 inline AI* GetUlduarAI(T* obj)
 {
@@ -502,37 +522,5 @@ inline AI* GetUlduarAI(T* obj)
 }
 
 #define RegisterUlduarCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetUlduarAI)
-
-class KeeperDespawnEvent : public BasicEvent
-{
-    public:
-        KeeperDespawnEvent(Creature* owner, uint32 despawnTimerOffset = 500) : _owner(owner), _despawnTimer(despawnTimerOffset) { }
-
-        bool Execute(uint64 /*eventTime*/, uint32 /*updateTime*/) override
-        {
-            _owner->CastSpell(_owner, SPELL_TELEPORT_KEEPER_VISUAL);
-            _owner->DespawnOrUnsummon(1000 + _despawnTimer);
-            return true;
-        }
-
-    private:
-        Creature* _owner;
-        uint32 _despawnTimer;
-};
-
-class PlayerOrPetCheck
-{
-    public:
-        bool operator()(WorldObject* object) const
-        {
-            if (object->GetTypeId() == TYPEID_PLAYER)
-                return false;
-
-            if (Creature* creature = object->ToCreature())
-                return !creature->IsPet();
-
-            return true;
-        }
-};
 
 #endif

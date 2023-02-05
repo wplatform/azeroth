@@ -70,15 +70,14 @@ public:
             me->setActive(true);
             me->SetFarVisible(true);
             me->SetVisible(false);
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
             me->SetCanFly(true);
 
             me->GetPosition(x, y, z);
             z += 4.0f;
             x -= 3.5f;
             y -= 5.0f;
-            me->GetMotionMaster()->Clear(false);
-            me->SetPosition(x, y, z, 0.0f);
+            me->GetMotionMaster()->Clear();
+            me->UpdatePosition(x, y, z, 0.0f);
         }
 
         void UpdateAI(uint32 diff) override
@@ -87,7 +86,7 @@ public:
             {
                 Player* player = nullptr;
                 if (me->IsSummon())
-                    if (Unit* summoner = me->ToTempSummon()->GetSummoner())
+                    if (Unit* summoner = me->ToTempSummon()->GetSummonerUnit())
                         player = summoner->ToPlayer();
 
                 if (!player)
@@ -131,10 +130,11 @@ public:
                         break;
                 }
                 ++phase;
-            } else FlyBackTimer-=diff;
+            }
+            else
+                FlyBackTimer -= diff;
         }
     };
-
 };
 
 void AddSC_the_scarlet_enclave()

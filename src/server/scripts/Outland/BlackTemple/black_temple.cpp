@@ -159,7 +159,7 @@ struct npc_wrathbone_flayer : public ScriptedAI
                     _events.ScheduleEvent(EVENT_CLEAVE, 1s, 2s);
                     break;
                 case EVENT_IGNORED:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                         DoCast(target, SPELL_IGNORED);
                     _events.ScheduleEvent(EVENT_IGNORED, 10s);
                     break;
@@ -236,6 +236,8 @@ private:
 // 41986 - Anger
 class spell_soul_fragment_anger : public SpellScript
 {
+    PrepareSpellScript(spell_soul_fragment_anger);
+
     void HandleKill()
     {
         if (Creature* caster = GetCaster()->ToCreature())
@@ -244,13 +246,15 @@ class spell_soul_fragment_anger : public SpellScript
 
     void Register() override
     {
-        AfterCast.Register(&spell_soul_fragment_anger::HandleKill);
+        AfterCast += SpellCastFn(spell_soul_fragment_anger::HandleKill);
     }
 };
 
 // 39645 - Shadow Inferno
 class spell_illidari_nightlord_shadow_inferno : public AuraScript
 {
+    PrepareAuraScript(spell_illidari_nightlord_shadow_inferno);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_SHADOW_INFERNO_DAMAGE });
@@ -265,7 +269,7 @@ class spell_illidari_nightlord_shadow_inferno : public AuraScript
 
     void Register() override
     {
-        OnEffectPeriodic.Register(&spell_illidari_nightlord_shadow_inferno::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_illidari_nightlord_shadow_inferno::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
     }
 };
 

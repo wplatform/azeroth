@@ -20,48 +20,23 @@
 
 #include "CreatureAIImpl.h"
 
-#define DataHeader "WC"
 #define WCScriptName "instance_wailing_caverns"
+#define DataHeader "WC"
 
-uint32 const EncounterCount = 8;
-
-enum Data
+enum WCDataTypes
 {
-    DATA_LORD_COBRAHN          = 1,
-    DATA_LORD_PYTHAS           = 2,
-    DATA_LADY_ANACONDRA        = 3,
-    DATA_LORD_SERPENTIS        = 4,
-    DATA_NARALEX_EVENT         = 5,
-    DATA_NARALEX_PART1         = 6,
-    DATA_NARALEX_PART2         = 7,
-    DATA_NARALEX_PART3         = 8,
-    DATA_MUTANUS_THE_DEVOURER  = 9,
-    DATA_NARALEX_YELLED        = 10,
-    DATA_NARALEX               = 11,
-    DATA_SKUM                  = 12,
-    DATA_KRESH                 = 13,
-    DATA_VERDAN_THE_EVERLIVING = 14
-};
+    TYPE_LORD_COBRAHN         = 1,
+    TYPE_LORD_PYTHAS          = 2,
+    TYPE_LADY_ANACONDRA       = 3,
+    TYPE_LORD_SERPENTIS       = 4,
+    TYPE_NARALEX_EVENT        = 5,
+    TYPE_NARALEX_PART1        = 6,
+    TYPE_NARALEX_PART2        = 7,
+    TYPE_NARALEX_PART3        = 8,
+    TYPE_MUTANUS_THE_DEVOURER = 9,
+    TYPE_NARALEX_YELLED       = 10,
 
-enum Creatures
-{
-    // Bosses
-    NPC_LADY_ANACONDRA           = 3671,
-    NPC_LORD_COBRAHN             = 3669,
-    NPC_KRESH                    = 3653,
-    NPC_LORD_PYTHAS              = 3670,
-    NPC_SKUM                     = 3674,
-    NPC_LORD_SERPENTIS           = 3673,
-    NPC_VERDAN_THE_EVERLIVING    = 5775,
-    NPC_MUTANUS_THE_DEVOURER     = 3654,
-    NPC_NARALEX                  = 3679,
-
-    // Adds
-    NPC_DEVIATE_RAVAGER          = 3636,
-    NPC_DEVIATE_VIPER            = 5755,
-    NPC_DEVIATE_MOCCASIN         = 5762,
-    NPC_NIGHTMARE_ECTOPLASM      = 5763,
-    NPC_DRUID_OF_THE_FANG        = 3840,
+    DATA_NARALEX              = 3679,
 };
 
 template <class AI, class T>
@@ -70,4 +45,4 @@ inline AI* GetWailingCavernsAI(T* obj)
     return GetInstanceAI<AI>(obj, WCScriptName);
 }
 
-#endif // WAILING_CAVERNS_H
+#endif

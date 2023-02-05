@@ -71,13 +71,13 @@ enum OCCreatureActions
     ACTION_CALL_DRAGON_EVENT    = 1
 };
 
-enum OCOculusWorldStates
+enum OCWorldStates
 {
     WORLD_STATE_CENTRIFUGE_CONSTRUCT_SHOW   = 3524,
     WORLD_STATE_CENTRIFUGE_CONSTRUCT_AMOUNT = 3486
 };
 
-enum OCOculusSpells
+enum OCSpells
 {
     SPELL_CENTRIFUGE_SHIELD     = 50053,
     SPELL_DEATH_SPELL           = 50415
@@ -112,5 +112,7 @@ inline AI* GetOculusAI(T* obj)
 {
     return GetInstanceAI<AI>(obj, OculusScriptName);
 }
+
+#define RegisterOculusCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetOculusAI)
 
 #endif // OCULUS_H_

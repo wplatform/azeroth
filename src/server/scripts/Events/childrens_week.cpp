@@ -16,6 +16,7 @@
  */
 
 #include "ScriptMgr.h"
+#include "Containers.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -178,7 +179,7 @@ class npc_winterfin_playmate : public CreatureScript
                         {
                             playerGUID = player->GetGUID();
                             orphanGUID = getOrphanGUID(player, ORPHAN_ORACLE);
-                            if (orphanGUID)
+                            if (!orphanGUID.IsEmpty())
                                 phase = 1;
                         }
             }
@@ -224,7 +225,7 @@ class npc_winterfin_playmate : public CreatureScript
                             orphan->AI()->Talk(TEXT_ORACLE_ORPHAN_3);
                             me->HandleEmoteCommand(EMOTE_STATE_NONE);
                             player->GroupEventHappens(QUEST_PLAYMATE_ORACLE, me);
-                            orphan->FollowTarget(player);
+                            orphan->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
                             Reset();
                             return;
                     }
@@ -285,7 +286,7 @@ class npc_snowfall_glade_playmate : public CreatureScript
                         {
                             playerGUID = player->GetGUID();
                             orphanGUID = getOrphanGUID(player, ORPHAN_WOLVAR);
-                            if (orphanGUID)
+                            if (!orphanGUID.IsEmpty())
                                 phase = 1;
                         }
             }
@@ -331,7 +332,7 @@ class npc_snowfall_glade_playmate : public CreatureScript
                         case 5:
                             orphan->AI()->Talk(TEXT_WOLVAR_ORPHAN_3);
                             player->GroupEventHappens(QUEST_PLAYMATE_WOLVAR, me);
-                            orphan->FollowTarget(player);
+                            orphan->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
                             Reset();
                             return;
                     }
@@ -391,7 +392,7 @@ class npc_the_biggest_tree : public CreatureScript
                         {
                             playerGUID = player->GetGUID();
                             orphanGUID = getOrphanGUID(player, ORPHAN_ORACLE);
-                            if (orphanGUID)
+                            if (!orphanGUID.IsEmpty())
                                 phase = 1;
                         }
             }
@@ -425,7 +426,7 @@ class npc_the_biggest_tree : public CreatureScript
                             break;
                         case 3:
                             player->GroupEventHappens(QUEST_THE_BIGGEST_TREE_EVER, me);
-                            orphan->FollowTarget(player);
+                            orphan->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
                             Reset();
                             return;
                     }
@@ -486,7 +487,7 @@ class npc_high_oracle_soo_roo : public CreatureScript
                         {
                             playerGUID = player->GetGUID();
                             orphanGUID = getOrphanGUID(player, ORPHAN_ORACLE);
-                            if (orphanGUID)
+                            if (!orphanGUID.IsEmpty())
                                 phase = 1;
                         }
             }
@@ -522,7 +523,7 @@ class npc_high_oracle_soo_roo : public CreatureScript
                         case 3:
                             orphan->AI()->Talk(TEXT_ORACLE_ORPHAN_6);
                             player->GroupEventHappens(QUEST_THE_BRONZE_DRAGONSHRINE_ORACLE, me);
-                            orphan->FollowTarget(player);
+                            orphan->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
                             Reset();
                             return;
                     }
@@ -582,7 +583,7 @@ class npc_elder_kekek : public CreatureScript
                         {
                             playerGUID = player->GetGUID();
                             orphanGUID = getOrphanGUID(player, ORPHAN_WOLVAR);
-                            if (orphanGUID)
+                            if (!orphanGUID.IsEmpty())
                                 phase = 1;
                         }
             }
@@ -617,7 +618,7 @@ class npc_elder_kekek : public CreatureScript
                         case 3:
                             orphan->AI()->Talk(TEXT_WOLVAR_ORPHAN_5);
                             player->GroupEventHappens(QUEST_THE_BRONZE_DRAGONSHRINE_WOLVAR, me);
-                            orphan->FollowTarget(player);
+                            orphan->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
                             Reset();
                             return;
                     }
@@ -676,7 +677,7 @@ class npc_the_etymidian : public CreatureScript
                 Initialize();
             }
 
-            void QuestReward(Player* /*player*/, Quest const* quest, uint32 /*opt*/) override
+            void OnQuestReward(Player* /*player*/, Quest const* quest, LootItemType /*type*/, uint32 /*opt*/) override
             {
                 if (quest->GetQuestId() != QUEST_THE_ACTIVATION_RUNE)
                     return;
@@ -684,6 +685,8 @@ class npc_the_etymidian : public CreatureScript
                 Talk(SAY_ACTIVATION);
             }
 
+            // doesn't trigger if creature is stunned. Restore aura 25900 when it will be possible or
+            // find another way to start event(from orphan script)
             void MoveInLineOfSight(Unit* who) override
             {
                 if (!phase && who && who->GetDistance2d(me) < 10.0f)
@@ -694,7 +697,7 @@ class npc_the_etymidian : public CreatureScript
                         {
                             playerGUID = player->GetGUID();
                             orphanGUID = getOrphanGUID(player, ORPHAN_ORACLE);
-                            if (orphanGUID)
+                            if (!orphanGUID.IsEmpty())
                                 phase = 1;
                         }
                     }
@@ -738,7 +741,7 @@ class npc_the_etymidian : public CreatureScript
                             timer = 5000;
                             break;
                         case 5:
-                            orphan->FollowTarget(player);
+                            orphan->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
                             player->GroupEventHappens(QUEST_MEETING_A_GREAT_ONE, me);
                             Reset();
                             return;
@@ -816,14 +819,14 @@ class npc_alexstraza_the_lifebinder : public CreatureScript
                         {
                             playerGUID = player->GetGUID();
                             orphanGUID = getOrphanGUID(player, ORPHAN_ORACLE);
-                            if (orphanGUID)
+                            if (!orphanGUID.IsEmpty())
                                 phase = 1;
                         }
                         else if (player->GetQuestStatus(QUEST_THE_DRAGON_QUEEN_WOLVAR) == QUEST_STATUS_INCOMPLETE)
                         {
                             playerGUID = player->GetGUID();
                             orphanGUID = getOrphanGUID(player, ORPHAN_WOLVAR);
-                            if (orphanGUID)
+                            if (!orphanGUID.IsEmpty())
                                 phase = 7;
                         }
                     }
@@ -875,7 +878,7 @@ class npc_alexstraza_the_lifebinder : public CreatureScript
                             me->SetStandState(UNIT_STAND_STATE_STAND);
                             me->SetOrientation(me->GetHomePosition().GetOrientation());
                             player->GroupEventHappens(QUEST_THE_DRAGON_QUEEN_ORACLE, me);
-                            orphan->FollowTarget(player);
+                            orphan->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
                             Reset();
                             return;
                         case 7:
@@ -906,7 +909,7 @@ class npc_alexstraza_the_lifebinder : public CreatureScript
                             break;
                         case 12:
                             player->GroupEventHappens(QUEST_THE_DRAGON_QUEEN_WOLVAR, me);
-                            orphan->FollowTarget(player);
+                            orphan->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
                             Reset();
                             return;
                     }
@@ -979,7 +982,7 @@ class at_bring_your_orphan_to : public AreaTriggerScript
                     break;
             }
 
-            if (questId && orphanId && getOrphanGUID(player, orphanId) && player->GetQuestStatus(questId) == QUEST_STATUS_INCOMPLETE)
+            if (questId && orphanId && !getOrphanGUID(player, orphanId).IsEmpty() && player->GetQuestStatus(questId) == QUEST_STATUS_INCOMPLETE)
                 player->AreaExploredOrEventHappens(questId);
 
             return true;
@@ -1040,37 +1043,26 @@ class npc_cw_area_trigger : public CreatureScript
                                     orphanId = ORPHAN_BLOOD_ELF;
                                     break;
                                 case NPC_SILVERMOON_01_CW_TRIGGER:
-                                    if (player->GetQuestStatus(QUEST_NOW_WHEN_I_GROW_UP) == QUEST_STATUS_INCOMPLETE && getOrphanGUID(player, ORPHAN_BLOOD_ELF))
+                                    if (player->GetQuestStatus(QUEST_NOW_WHEN_I_GROW_UP) == QUEST_STATUS_INCOMPLETE && !getOrphanGUID(player, ORPHAN_BLOOD_ELF).IsEmpty())
                                     {
                                         player->AreaExploredOrEventHappens(QUEST_NOW_WHEN_I_GROW_UP);
                                         if (player->GetQuestStatus(QUEST_NOW_WHEN_I_GROW_UP) == QUEST_STATUS_COMPLETE)
                                             if (Creature* samuro = me->FindNearestCreature(25151, 20.0f))
                                             {
-                                                uint32 emote = 0;
-                                                switch (urand(1, 5))
-                                                {
-                                                    case 1:
-                                                        emote = EMOTE_ONESHOT_WAVE;
-                                                        break;
-                                                    case 2:
-                                                        emote = EMOTE_ONESHOT_ROAR;
-                                                        break;
-                                                    case 3:
-                                                        emote = EMOTE_ONESHOT_FLEX;
-                                                        break;
-                                                    case 4:
-                                                        emote = EMOTE_ONESHOT_SALUTE;
-                                                        break;
-                                                    case 5:
-                                                        emote = EMOTE_ONESHOT_DANCE;
-                                                        break;
-                                                }
-                                                samuro->HandleEmoteCommand(emote);
+                                                Emote const emotes[] =
+                                                    {
+                                                        EMOTE_ONESHOT_WAVE,
+                                                        EMOTE_ONESHOT_ROAR,
+                                                        EMOTE_ONESHOT_FLEX,
+                                                        EMOTE_ONESHOT_SALUTE,
+                                                        EMOTE_ONESHOT_DANCE
+                                                    };
+                                                samuro->HandleEmoteCommand(Trinity::Containers::SelectRandomContainerElement(emotes));
                                             }
                                     }
                                     break;
                             }
-                            if (questId && orphanId && getOrphanGUID(player, orphanId) && player->GetQuestStatus(questId) == QUEST_STATUS_INCOMPLETE)
+                            if (questId && orphanId && !getOrphanGUID(player, orphanId).IsEmpty() && player->GetQuestStatus(questId) == QUEST_STATUS_INCOMPLETE)
                                 player->AreaExploredOrEventHappens(questId);
                         }
             }

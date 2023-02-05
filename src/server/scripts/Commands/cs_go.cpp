@@ -24,59 +24,55 @@ EndScriptData */
 
 #include "ScriptMgr.h"
 #include "Chat.h"
-#include "DatabaseEnv.h"
-#include "DBCStores.h"
+#include "ChatCommand.h"
+#include "Containers.h"
+#include "DB2Stores.h"
 #include "Language.h"
 #include "MapManager.h"
-#include "MotionMaster.h"
 #include "ObjectMgr.h"
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "RBAC.h"
+#include "SupportMgr.h"
 #include "TerrainMgr.h"
-#include "TicketMgr.h"
 #include "Transport.h"
 #include "Util.h"
 #include "WorldSession.h"
+#include <sstream>
 
 using namespace Trinity::ChatCommands;
+
 class go_commandscript : public CommandScript
 {
 public:
     go_commandscript() : CommandScript("go_commandscript") { }
 
-    std::vector<ChatCommand> GetCommands() const override
+    ChatCommandTable GetCommands() const override
     {
-        static std::vector<ChatCommand> goCreatureCommandTable =
+        static ChatCommandTable goCommandTable =
         {
-            { "id",     rbac::RBAC_PERM_COMMAND_GO,     false,      &HandleGoCreatureCIdCommand,            "" },
-            { "",       rbac::RBAC_PERM_COMMAND_GO,     false,      &HandleGoCreatureSpawnIdCommand,        "" }
+            { "creature",           HandleGoCreatureSpawnIdCommand,         rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "creature id",        HandleGoCreatureCIdCommand,             rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "gameobject",         HandleGoGameObjectSpawnIdCommand,       rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "gameobject id",      HandleGoGameObjectGOIdCommand,          rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "graveyard",          HandleGoGraveyardCommand,               rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "grid",               HandleGoGridCommand,                    rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "quest",              HandleGoQuestCommand,                   rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "taxinode",           HandleGoTaxinodeCommand,                rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "areatrigger",        HandleGoAreaTriggerCommand,             rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "zonexy",             HandleGoZoneXYCommand,                  rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "xyz",                HandleGoXYZCommand,                     rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "bugticket",          HandleGoTicketCommand<BugTicket>,       rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "complaintticket",    HandleGoTicketCommand<ComplaintTicket>, rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "suggestionticket",   HandleGoTicketCommand<SuggestionTicket>,rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "offset",             HandleGoOffsetCommand,                  rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "instance",           HandleGoInstanceCommand,                rbac::RBAC_PERM_COMMAND_GO,             Console::No },
+            { "boss",               HandleGoBossCommand,                    rbac::RBAC_PERM_COMMAND_GO,             Console::No }
         };
 
-        static std::vector<ChatCommand> goGameObjectCommandTable =
+        static ChatCommandTable commandTable =
         {
-            { "id",     rbac::RBAC_PERM_COMMAND_GO,     false,      &HandleGoGameObjectGOIdCommand,         "" },
-            { "",       rbac::RBAC_PERM_COMMAND_GO,     false,      &HandleGoGameObjectSpawnIdCommand,      "" }
-        };
-
-        static std::vector<ChatCommand> goCommandTable =
-        {
-            { "creature",           rbac::RBAC_PERM_COMMAND_GO,             false, nullptr,                                     "", goCreatureCommandTable },
-            { "gameobject",         rbac::RBAC_PERM_COMMAND_GO,             false, nullptr,                                     "", goGameObjectCommandTable },
-            { "graveyard",          rbac::RBAC_PERM_COMMAND_GO,             false, &HandleGoGraveyardCommand,                   "" },
-            { "grid",               rbac::RBAC_PERM_COMMAND_GO,             false, &HandleGoGridCommand,                        "" },
-            { "taxinode",           rbac::RBAC_PERM_COMMAND_GO,             false, &HandleGoTaxinodeCommand,                    "" },
-            { "areatrigger",        rbac::RBAC_PERM_COMMAND_GO,             false, &HandleGoAreaTriggerCommand,                 "" },
-            { "zonexy",             rbac::RBAC_PERM_COMMAND_GO,             false, &HandleGoZoneXYCommand,                      "" },
-            { "xyz",                rbac::RBAC_PERM_COMMAND_GO,             false, &HandleGoXYZCommand,                         "" },
-            { "ticket",             rbac::RBAC_PERM_COMMAND_GO,             false, &HandleGoTicketCommand,                      "" },
-            { "offset",             rbac::RBAC_PERM_COMMAND_GO,             false, &HandleGoOffsetCommand,                      "" },
-            { "instance",           rbac::RBAC_PERM_COMMAND_GO,             false, &HandleGoInstanceCommand,                    "" }
-        };
-
-        static std::vector<ChatCommand> commandTable =
-        {
-            { "go", rbac::RBAC_PERM_COMMAND_GO, false, nullptr, "", goCommandTable },
+            { "go", goCommandTable },
         };
         return commandTable;
     }
@@ -93,13 +89,10 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-         // stop flight if need
-        if (player->IsInFlight())
-        {
-            player->GetMotionMaster()->MovementExpired();
-            player->CleanupAfterTaxiFlight();
-        }
 
+        // stop flight if need
+        if (player->IsInFlight())
+            player->FinishTaxiFlight();
         else
             player->SaveRecallPosition(); // save only in non-flight case
 
@@ -119,6 +112,7 @@ public:
 
         return DoTeleport(handler, spawnpoint->spawnPoint, spawnpoint->mapId);
     }
+
     static bool HandleGoCreatureCIdCommand(ChatHandler* handler, Variant<Hyperlink<creature_entry>, uint32> cId)
     {
         CreatureData const* spawnpoint = nullptr;
@@ -146,7 +140,7 @@ public:
         return DoTeleport(handler, spawnpoint->spawnPoint, spawnpoint->mapId);
     }
 
-    static bool HandleGoGameObjectSpawnIdCommand(ChatHandler* handler, uint32 spawnId)
+    static bool HandleGoGameObjectSpawnIdCommand(ChatHandler* handler, Variant<Hyperlink<gameobject>, ObjectGuid::LowType> spawnId)
     {
         GameObjectData const* spawnpoint = sObjectMgr->GetGameObjectData(spawnId);
         if (!spawnpoint)
@@ -159,12 +153,12 @@ public:
         return DoTeleport(handler, spawnpoint->spawnPoint, spawnpoint->mapId);
     }
 
-    static bool HandleGoGameObjectGOIdCommand(ChatHandler* handler, uint32 goId)
+    static bool HandleGoGameObjectGOIdCommand(ChatHandler* handler, Variant<Hyperlink<gameobject_entry>, uint32> goId)
     {
         GameObjectData const* spawnpoint = nullptr;
         for (auto const& pair : sObjectMgr->GetAllGameObjectData())
         {
-            if (pair.second.id != goId)
+            if (pair.second.id != *goId)
                 continue;
 
             if (!spawnpoint)
@@ -188,7 +182,7 @@ public:
 
     static bool HandleGoGraveyardCommand(ChatHandler* handler, uint32 gyId)
     {
-        WorldSafeLocsEntry const* gy = sWorldSafeLocsStore.LookupEntry(gyId);
+        WorldSafeLocsEntry const* gy = sObjectMgr->GetWorldSafeLoc(gyId);
         if (!gy)
         {
             handler->PSendSysMessage(LANG_COMMAND_GRAVEYARDNOEXIST, gyId);
@@ -196,9 +190,9 @@ public:
             return false;
         }
 
-        if (!MapManager::IsValidMapCoord(gy->Continent, gy->Loc.X, gy->Loc.Y, gy->Loc.Z))
+        if (!MapManager::IsValidMapCoord(gy->Loc))
         {
-            handler->PSendSysMessage(LANG_INVALID_TARGET_COORD, gy->Loc.X, gy->Loc.Y, gy->Continent);
+            handler->PSendSysMessage(LANG_INVALID_TARGET_COORD, gy->Loc.GetPositionX(), gy->Loc.GetPositionY(), gy->Loc.GetMapId());
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -206,15 +200,11 @@ public:
         Player* player = handler->GetSession()->GetPlayer();
         // stop flight if need
         if (player->IsInFlight())
-        {
-            player->GetMotionMaster()->MovementExpired();
-            player->CleanupAfterTaxiFlight();
-        }
-        // save only in non-flight case
+            player->FinishTaxiFlight();
         else
-            player->SaveRecallPosition();
+            player->SaveRecallPosition(); // save only in non-flight case
 
-        player->TeleportTo(gy->Continent, gy->Loc.X, gy->Loc.Y, gy->Loc.Z, player->GetOrientation());
+        player->TeleportTo(gy->Loc);
         return true;
     }
 
@@ -222,7 +212,6 @@ public:
     static bool HandleGoGridCommand(ChatHandler* handler, float gridX, float gridY, Optional<uint32> oMapId)
     {
         Player* player = handler->GetSession()->GetPlayer();
-
         uint32 mapId = oMapId.value_or(player->GetMapId());
 
         // center of grid
@@ -238,18 +227,73 @@ public:
 
         // stop flight if need
         if (player->IsInFlight())
-        {
-            player->GetMotionMaster()->MovementExpired();
-            player->CleanupAfterTaxiFlight();
-        }
-        // save only in non-flight case
+            player->FinishTaxiFlight();
         else
-            player->SaveRecallPosition();
+            player->SaveRecallPosition(); // save only in non-flight case
 
         std::shared_ptr<TerrainInfo> terrain = sTerrainMgr.LoadTerrain(mapId);
         float z = std::max(terrain->GetStaticHeight(PhasingHandler::GetEmptyPhaseShift(), mapId, x, y, MAX_HEIGHT), terrain->GetWaterLevel(PhasingHandler::GetEmptyPhaseShift(), mapId, x, y));
 
         player->TeleportTo(mapId, x, y, z, player->GetOrientation());
+        return true;
+    }
+
+    static bool HandleGoQuestCommand(ChatHandler* handler, Variant<Hyperlink<quest>, uint32> questData)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+
+        uint32 questID;
+        if (questData.holds_alternative<uint32>())
+        {
+            questID = questData.get<uint32>();
+
+            if (!sObjectMgr->GetQuestTemplate(questID))
+            {
+                handler->PSendSysMessage(LANG_COMMAND_QUEST_NOTFOUND, questID);
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+        }
+        else
+            questID = questData.get<Hyperlink<quest>>()->Quest->GetQuestId();
+
+        float x, y, z;
+        uint32 mapId;
+
+        if (QuestPOIData const* poiData = sObjectMgr->GetQuestPOIData(questID))
+        {
+            QuestPOIBlobData const& data = poiData->Blobs.front();
+
+            mapId = data.MapID;
+
+            x = data.Points.front().X;
+            y = data.Points.front().Y;
+            z = data.Points.front().Z;
+        }
+        else
+        {
+            handler->PSendSysMessage(LANG_COMMAND_QUEST_NOTFOUND, questID);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (!MapManager::IsValidMapCoord(mapId, x, y) || sObjectMgr->IsTransportMap(mapId))
+        {
+            handler->PSendSysMessage(LANG_INVALID_TARGET_COORD, x, y, mapId);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        // stop flight if need
+        if (player->IsInFlight())
+            player->FinishTaxiFlight();
+        else
+            player->SaveRecallPosition(); // save only in non-flight case
+
+        std::shared_ptr<TerrainInfo> terrain = sTerrainMgr.LoadTerrain(mapId);
+        z = std::max(terrain->GetStaticHeight(PhasingHandler::GetEmptyPhaseShift(), mapId, x, y, MAX_HEIGHT), terrain->GetWaterLevel(PhasingHandler::GetEmptyPhaseShift(), mapId, x, y));
+
+        player->TeleportTo(mapId, x, y, z, 0.0f);
         return true;
     }
 
@@ -262,7 +306,6 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-
         return DoTeleport(handler, { node->Pos.X, node->Pos.Y, node->Pos.Z }, node->ContinentID);
     }
 
@@ -275,35 +318,15 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-
         return DoTeleport(handler, { at->Pos.X, at->Pos.Y, at->Pos.Z }, at->ContinentID);
     }
 
     //teleport at coordinates
-    static bool HandleGoZoneXYCommand(ChatHandler* handler, char const* args)
+    static bool HandleGoZoneXYCommand(ChatHandler* handler, float x, float y, Optional<Variant<Hyperlink<area>, uint32>> areaIdArg)
     {
-        if (!*args)
-            return false;
-
         Player* player = handler->GetSession()->GetPlayer();
 
-        char* zoneX = strtok((char*)args, " ");
-        char* zoneY = strtok(nullptr, " ");
-        char* tail = strtok(nullptr, "");
-
-        char* id = handler->extractKeyFromLink(tail, "Harea");       // string or [name] Shift-click form |color|Harea:area_id|h[name]|h|r
-
-        if (!zoneX || !zoneY)
-            return false;
-
-        float x = (float)atof(zoneX);
-        float y = (float)atof(zoneY);
-
-        // prevent accept wrong numeric args
-        if ((x == 0.0f && *zoneX != '0') || (y == 0.0f && *zoneY != '0'))
-            return false;
-
-        uint32 areaId = id ? atoul(id) : player->GetZoneId();
+        uint32 areaId = areaIdArg ? *areaIdArg : player->GetZoneId();
 
         AreaTableEntry const* areaEntry = sAreaTableStore.LookupEntry(areaId);
 
@@ -318,30 +341,29 @@ public:
         AreaTableEntry const* zoneEntry = areaEntry->ParentAreaID ? sAreaTableStore.LookupEntry(areaEntry->ParentAreaID) : areaEntry;
         ASSERT(zoneEntry);
 
+        x /= 100.0f;
+        y /= 100.0f;
+
         std::shared_ptr<TerrainInfo> terrain = sTerrainMgr.LoadTerrain(zoneEntry->ContinentID);
-        if (!sDBCManager.Zone2MapCoordinates(x, y, zoneEntry->ID))
+        if (!sDB2Manager.Zone2MapCoordinates(areaEntry->ParentAreaID ? uint32(areaEntry->ParentAreaID) : areaId, x, y))
         {
-            handler->PSendSysMessage(LANG_INVALID_ZONE_MAP, areaEntry->ID, areaEntry->AreaName, terrain->GetId(), terrain->GetMapName());
+            handler->PSendSysMessage(LANG_INVALID_ZONE_MAP, areaId, areaEntry->AreaName[handler->GetSessionDbcLocale()], terrain->GetId(), terrain->GetMapName());
             handler->SetSentErrorMessage(true);
             return false;
         }
 
         if (!MapManager::IsValidMapCoord(zoneEntry->ContinentID, x, y))
         {
-            handler->PSendSysMessage(LANG_INVALID_TARGET_COORD, x, y, zoneEntry->ContinentID);
+            handler->PSendSysMessage(LANG_INVALID_TARGET_COORD, x, y, uint32(zoneEntry->ContinentID));
             handler->SetSentErrorMessage(true);
             return false;
         }
 
         // stop flight if need
         if (player->IsInFlight())
-        {
-            player->GetMotionMaster()->MovementExpired();
-            player->CleanupAfterTaxiFlight();
-        }
-        // save only in non-flight case
+            player->FinishTaxiFlight();
         else
-            player->SaveRecallPosition();
+            player->SaveRecallPosition(); // save only in non-flight case
 
         float z = std::max(terrain->GetStaticHeight(PhasingHandler::GetEmptyPhaseShift(), zoneEntry->ContinentID, x, y, MAX_HEIGHT), terrain->GetWaterLevel(PhasingHandler::GetEmptyPhaseShift(), zoneEntry->ContinentID, x, y));
 
@@ -353,7 +375,6 @@ public:
     static bool HandleGoXYZCommand(ChatHandler* handler, float x, float y, Optional<float> z, Optional<uint32> id, Optional<float> o)
     {
         Player* player = handler->GetSession()->GetPlayer();
-
         uint32 mapId = id.value_or(player->GetMapId());
         if (z)
         {
@@ -379,9 +400,10 @@ public:
         return DoTeleport(handler, { x, y, *z, o.value_or(0.0f) }, mapId);
     }
 
+    template<typename T>
     static bool HandleGoTicketCommand(ChatHandler* handler, uint32 ticketId)
     {
-        GmTicket* ticket = sTicketMgr->GetTicket(ticketId);
+        T* ticket = sSupportMgr->GetTicket<T>(ticketId);
         if (!ticket)
         {
             handler->SendSysMessage(LANG_COMMAND_TICKETNOTEXIST);
@@ -389,13 +411,12 @@ public:
         }
 
         Player* player = handler->GetSession()->GetPlayer();
+
+        // stop flight if need
         if (player->IsInFlight())
-        {
-            player->GetMotionMaster()->MovementExpired();
-            player->CleanupAfterTaxiFlight();
-        }
+            player->FinishTaxiFlight();
         else
-            player->SaveRecallPosition();
+            player->SaveRecallPosition(); // save only in non-flight case
 
         ticket->TeleportTo(player);
         return true;
@@ -409,86 +430,191 @@ public:
         return DoTeleport(handler, loc);
     }
 
-    static bool HandleGoInstanceCommand(ChatHandler* handler, std::vector<std::string> const& labels)
+    static bool HandleGoInstanceCommand(ChatHandler* handler, std::vector<std::string_view> labels)
     {
-        uint32 mapid = 0;
+        if (labels.empty())
+            return false;
 
-        std::multimap<uint32, std::pair<uint16, std::string>> matches;
+        // #matched labels -> (mapid, scriptname)
+        std::multimap<uint32, std::tuple<uint16, char const*, char const*>> matches;
         for (auto const& pair : sObjectMgr->GetInstanceTemplates())
         {
             uint32 count = 0;
             std::string const& scriptName = sObjectMgr->GetScriptName(pair.second.ScriptId);
-            for (auto const& label : labels)
+            char const* mapName = ASSERT_NOTNULL(sMapStore.LookupEntry(pair.first))->MapName[handler->GetSessionDbcLocale()];
+            for (std::string_view label : labels)
                 if (StringContainsStringI(scriptName, label))
                     ++count;
-             if (count)
-                matches.emplace(count, decltype(matches)::mapped_type({ pair.first, scriptName }));
-        }
 
+            if (count)
+                matches.emplace(count, decltype(matches)::mapped_type(pair.first, mapName, scriptName.c_str()));
+        }
         if (matches.empty())
         {
             handler->SendSysMessage(LANG_COMMAND_NO_INSTANCES_MATCH);
+            handler->SetSentErrorMessage(true);
             return false;
         }
-        auto it = matches.rbegin();
-        uint32 maxCount = it->first;
-        mapid = it->second.first;
-        if (++it != matches.rend() && it->first == maxCount)
+
+        auto it = matches.crbegin(), end = matches.crend();
+        uint32 const maxCount = it->first;
+        if ((++it) != end && it->first == maxCount)
         {
             handler->SendSysMessage(LANG_COMMAND_MULTIPLE_INSTANCES_MATCH);
             --it;
             do
-                handler->PSendSysMessage(LANG_COMMAND_MULTIPLE_INSTANCES_ENTRY, it->second.first, it->second.second);
-            while (++it != matches.rend() && it->first == maxCount);
+                handler->PSendSysMessage(LANG_COMMAND_MULTIPLE_INSTANCES_ENTRY, std::get<1>(it->second), std::get<0>(it->second), std::get<2>(it->second));
+            while (((++it) != end) && (it->first == maxCount));
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        ASSERT(mapid);
-
-        InstanceTemplate const* temp = sObjectMgr->GetInstanceTemplate(mapid);
-        if (!temp)
-        {
-            handler->PSendSysMessage(LANG_COMMAND_MAP_NOT_INSTANCE, mapid);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-        std::string const& scriptname = sObjectMgr->GetScriptName(temp->ScriptId);
+        it = matches.crbegin();
+        uint32 const mapId = std::get<0>(it->second);
+        char const* const mapName = std::get<1>(it->second);
 
         Player* player = handler->GetSession()->GetPlayer();
         if (player->IsInFlight())
-        {
-            player->GetMotionMaster()->MovementExpired();
-            player->CleanupAfterTaxiFlight();
-        }
+            player->FinishTaxiFlight();
         else
             player->SaveRecallPosition();
 
         // try going to entrance
-        AreaTriggerStruct const* exit = sObjectMgr->GetGoBackTrigger(mapid);
-        if (!exit)
-            handler->PSendSysMessage(LANG_COMMAND_INSTANCE_NO_EXIT, mapid, scriptname);
-
-        if (exit && player->TeleportTo(exit->target_mapId, exit->target_X, exit->target_Y, exit->target_Z, exit->target_Orientation + M_PI))
+        if (AreaTriggerStruct const* exit = sObjectMgr->GetGoBackTrigger(mapId))
         {
-            handler->PSendSysMessage(LANG_COMMAND_WENT_TO_INSTANCE_GATE, mapid, scriptname);
-            return true;
+            if (player->TeleportTo(exit->target_mapId, exit->target_X, exit->target_Y, exit->target_Z, exit->target_Orientation + M_PI))
+            {
+                handler->PSendSysMessage(LANG_COMMAND_WENT_TO_INSTANCE_GATE, mapName, mapId);
+                return true;
+            }
+            else
+            {
+                uint32 const parentMapId = exit->target_mapId;
+                char const* const parentMapName = ASSERT_NOTNULL(sMapStore.LookupEntry(parentMapId))->MapName[handler->GetSessionDbcLocale()];
+                handler->PSendSysMessage(LANG_COMMAND_GO_INSTANCE_GATE_FAILED, mapName, mapId, parentMapName, parentMapId);
+            }
         }
+        else
+            handler->PSendSysMessage(LANG_COMMAND_INSTANCE_NO_EXIT, mapName, mapId);
 
         // try going to start
-        AreaTriggerStruct const* entrance = sObjectMgr->GetMapEntranceTrigger(mapid);
-        if (!entrance)
-            handler->PSendSysMessage(LANG_COMMAND_INSTANCE_NO_ENTRANCE, mapid, scriptname);
-
-        if (entrance && player->TeleportTo(entrance->target_mapId, entrance->target_X, entrance->target_Y, entrance->target_Z, entrance->target_Orientation))
+        if (AreaTriggerStruct const* entrance = sObjectMgr->GetMapEntranceTrigger(mapId))
         {
-            handler->PSendSysMessage(LANG_COMMAND_WENT_TO_INSTANCE_START, mapid, scriptname);
-            return true;
+            if (player->TeleportTo(entrance->target_mapId, entrance->target_X, entrance->target_Y, entrance->target_Z, entrance->target_Orientation))
+            {
+                handler->PSendSysMessage(LANG_COMMAND_WENT_TO_INSTANCE_START, mapName, mapId);
+                return true;
+            }
+            else
+                handler->PSendSysMessage(LANG_COMMAND_GO_INSTANCE_START_FAILED, mapName, mapId);
         }
+        else
+            handler->PSendSysMessage(LANG_COMMAND_INSTANCE_NO_ENTRANCE, mapName, mapId);
 
-        handler->PSendSysMessage(LANG_COMMAND_GO_INSTANCE_FAILED, mapid, scriptname, exit ? exit->target_mapId : uint32(-1));
         handler->SetSentErrorMessage(true);
         return false;
+    }
+
+    static bool HandleGoBossCommand(ChatHandler* handler, std::vector<std::string_view> needles)
+    {
+        if (needles.empty())
+            return false;
+
+        std::multimap<uint32, CreatureTemplate const*> matches;
+        std::unordered_map<uint32, std::vector<CreatureData const*>> spawnLookup;
+
+        // find all boss flagged mobs that match our needles
+        for (auto const& pair : sObjectMgr->GetCreatureTemplates())
+        {
+            CreatureTemplate const& data = pair.second;
+            if (!(data.flags_extra & CREATURE_FLAG_EXTRA_DUNGEON_BOSS))
+                continue;
+
+            uint32 count = 0;
+            std::string const& scriptName = sObjectMgr->GetScriptName(data.ScriptID);
+            for (std::string_view label : needles)
+                if (StringContainsStringI(scriptName, label) || StringContainsStringI(data.Name, label))
+                    ++count;
+
+            if (count)
+            {
+                matches.emplace(count, &data);
+                (void)spawnLookup[data.Entry]; // inserts default-constructed vector
+            }
+        }
+
+        if (!matches.empty())
+        {
+            // find the spawn points of any matches
+            for (auto const& pair : sObjectMgr->GetAllCreatureData())
+            {
+                CreatureData const& data = pair.second;
+                auto it = spawnLookup.find(data.id);
+                if (it != spawnLookup.end())
+                    it->second.push_back(&data);
+            }
+
+            // remove any matches without spawns
+            Trinity::Containers::EraseIf(matches, [&spawnLookup](decltype(matches)::value_type const& pair) { return spawnLookup[pair.second->Entry].empty(); });
+        }
+
+        // check if we even have any matches left
+        if (matches.empty())
+        {
+            handler->SendSysMessage(LANG_COMMAND_NO_BOSSES_MATCH);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        // see if we have multiple equal matches left
+        auto it = matches.crbegin(), end = matches.crend();
+        uint32 const maxCount = it->first;
+        if ((++it) != end && it->first == maxCount)
+        {
+            handler->SendSysMessage(LANG_COMMAND_MULTIPLE_BOSSES_MATCH);
+            --it;
+            do
+                handler->PSendSysMessage(LANG_COMMAND_MULTIPLE_BOSSES_ENTRY, it->second->Entry, it->second->Name.c_str(), sObjectMgr->GetScriptName(it->second->ScriptID).c_str());
+            while (((++it) != end) && (it->first == maxCount));
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        CreatureTemplate const* const boss = matches.crbegin()->second;
+        std::vector<CreatureData const*> const& spawns = spawnLookup[boss->Entry];
+        ASSERT(!spawns.empty());
+
+        if (spawns.size() > 1)
+        {
+            handler->PSendSysMessage(LANG_COMMAND_BOSS_MULTIPLE_SPAWNS, boss->Name.c_str(), boss->Entry);
+            for (CreatureData const* spawn : spawns)
+            {
+                uint32 const mapId = spawn->mapId;
+                MapEntry const* const map = ASSERT_NOTNULL(sMapStore.LookupEntry(mapId));
+                handler->PSendSysMessage(LANG_COMMAND_BOSS_MULTIPLE_SPAWN_ETY, spawn->spawnId, mapId, map->MapName[handler->GetSessionDbcLocale()], spawn->spawnPoint.ToString().c_str());
+            }
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        Player* player = handler->GetSession()->GetPlayer();
+        if (player->IsInFlight())
+            player->FinishTaxiFlight();
+        else
+            player->SaveRecallPosition();
+
+        CreatureData const* const spawn = spawns.front();
+        uint32 const mapId = spawn->mapId;
+        if (!player->TeleportTo({ mapId, spawn->spawnPoint }))
+        {
+            char const* const mapName = ASSERT_NOTNULL(sMapStore.LookupEntry(mapId))->MapName[handler->GetSessionDbcLocale()];
+            handler->PSendSysMessage(LANG_COMMAND_GO_BOSS_FAILED, spawn->spawnId, boss->Name.c_str(), boss->Entry, mapName);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        handler->PSendSysMessage(LANG_COMMAND_WENT_TO_BOSS, boss->Name.c_str(), boss->Entry, spawn->spawnId);
+        return true;
     }
 };
 

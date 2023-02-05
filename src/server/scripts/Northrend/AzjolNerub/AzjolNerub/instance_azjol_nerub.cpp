@@ -24,11 +24,11 @@
 
 DoorData const doorData[] =
 {
-    { GO_KRIKTHIR_DOOR,     DATA_KRIKTHIR, DOOR_TYPE_PASSAGE },
-    { GO_ANUBARAK_DOOR_1,   DATA_ANUBARAK, DOOR_TYPE_ROOM    },
-    { GO_ANUBARAK_DOOR_2,   DATA_ANUBARAK, DOOR_TYPE_ROOM    },
-    { GO_ANUBARAK_DOOR_3,   DATA_ANUBARAK, DOOR_TYPE_ROOM    },
-    { 0,                    0,             DOOR_TYPE_ROOM    } // END
+    { GO_KRIKTHIR_DOOR,     DATA_KRIKTHIR,                  DOOR_TYPE_PASSAGE },
+    { GO_ANUBARAK_DOOR_1,   DATA_ANUBARAK,                  DOOR_TYPE_ROOM    },
+    { GO_ANUBARAK_DOOR_2,   DATA_ANUBARAK,                  DOOR_TYPE_ROOM    },
+    { GO_ANUBARAK_DOOR_3,   DATA_ANUBARAK,                  DOOR_TYPE_ROOM    },
+    { 0,                    0,                              DOOR_TYPE_ROOM    } // END
 };
 
 ObjectData const creatureData[] =
@@ -51,9 +51,16 @@ ObjectData const gameobjectData[] =
 
 BossBoundaryData const boundaries =
 {
-    { DATA_KRIKTHIR, new RectangleBoundary(400.0f, 580.0f, 623.5f, 810.0f) },
-    { DATA_HADRONOX, new ZRangeBoundary(666.0f, 776.0f) },
+    { DATA_KRIKTHIR, new RectangleBoundary(400.0f, 580.0f, 623.5f, 810.0f)     },
+    { DATA_HADRONOX, new ZRangeBoundary(666.0f, 776.0f)                        },
     { DATA_ANUBARAK, new CircleBoundary(Position(550.6178f, 253.5917f), 26.0f) }
+};
+
+DungeonEncounterData const encounters[] =
+{
+    { DATA_KRIKTHIR, {{ 1971 }} },
+    { DATA_HADRONOX, {{ 1972 }} },
+    { DATA_ANUBARAK, {{ 1973 }} }
 };
 
 class instance_azjol_nerub : public InstanceMapScript
@@ -70,6 +77,7 @@ class instance_azjol_nerub : public InstanceMapScript
                 LoadBossBoundaries(boundaries);
                 LoadDoorData(doorData);
                 LoadObjectData(creatureData, gameobjectData);
+                LoadDungeonEncounterData(encounters);
                 GateWatcherGreet = 0;
             }
 

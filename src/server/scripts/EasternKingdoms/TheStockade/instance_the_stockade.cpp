@@ -15,14 +15,15 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
 #include "InstanceScript.h"
-#include "Map.h"
+#include "ScriptMgr.h"
 #include "the_stockade.h"
 
-enum SpawnGroups
+DungeonEncounterData const encounters[] =
 {
-    SPAWN_GROUP_ALLIANCE_ENTRANCE = 450
+    { DATA_RANDOLPH_MOLOCH, {{ 1146 }} },
+    { DATA_LORD_OVERHEAT, {{ 1145 }} },
+    { DATA_HOGGER, {{ 1144 }} }
 };
 
 class instance_the_stockade : public InstanceMapScript
@@ -36,18 +37,7 @@ public:
         {
             SetHeaders(DataHeader);
             SetBossNumber(EncounterCount);
-        }
-
-        void Create() override
-        {
-            if (instance->GetTeamInInstance() == ALLIANCE)
-                instance->SpawnGroupSpawn(SPAWN_GROUP_ALLIANCE_ENTRANCE);
-        }
-
-        void Load(char const* /*data*/) override
-        {
-            if (instance->GetTeamInInstance() == ALLIANCE)
-                instance->SpawnGroupSpawn(SPAWN_GROUP_ALLIANCE_ENTRANCE);
+            LoadDungeonEncounterData(encounters);
         }
     };
 

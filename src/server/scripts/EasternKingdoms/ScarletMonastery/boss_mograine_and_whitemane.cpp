@@ -15,320 +15,197 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
-#include "GameObject.h"
-#include "InstanceScript.h"
-#include "Map.h"
-#include "MotionMaster.h"
-#include "ObjectAccessor.h"
 #include "scarlet_monastery.h"
+#include "InstanceScript.h"
+#include "MotionMaster.h"
 #include "ScriptedCreature.h"
-#include "Spell.h"
+#include "ScriptMgr.h"
 #include "SpellInfo.h"
+#include "Timer.h"
 
-enum Says
+enum MograineAndWhitemaneSays
 {
-    // Scarlet Commander Mograine
-    SAY_MO_AGGRO                 = 0,
-    SAY_MO_KILL                  = 1,
-    SAY_MO_RESURRECTED           = 2,
+    // Mograine
+    SAY_MO_AGGRO       = 0,
+    SAY_MO_KILL        = 1,
+    SAY_MO_RESURRECTED = 2,
 
-    // High Inquisitor Whitemane
-    SAY_WH_INTRO                 = 0,
-    SAY_WH_KILL                  = 1,
-    SAY_WH_RESURRECT             = 2
+    // Whitemaine
+    SAY_WH_INTRO       = 0,
+    SAY_WH_KILL        = 1,
+    SAY_WH_RESURRECT   = 2,
 };
 
-enum Spells
+enum MograineAndWhitemaneSpells
 {
-    // Scarlet Commander Mograine
-    SPELL_CRUSADER_STRIKE       = 14518,
-    SPELL_HAMMER_OF_JUSTICE     = 77787,
-    SPELL_DIVINE_SHIELD         = 63148,
-    SPELL_LAY_ON_HANDS          = 9257,
-    SPELL_RETRIBUTION_AURA      = 8990,
+    // Mograine Spells
+    SPELL_CRUSADER_STRIKE      = 14518,
+    SPELL_HAMMER_OF_JUSTICE    = 5589,
+    SPELL_LAY_ONHANDS          = 9257,
+    SPELL_RETRIBUTION_AURA     = 8990,
 
-    // High Inquisitor Whitemane
-    SPELL_HOLY_SMITE            = 25054,
-    SPELL_DEEP_SLEEP            = 9256,
-    SPELL_SCARLET_RESURRECTION  = 9232,
-    SPELL_HEAL                  = 12039,
-    SPELL_POWER_WORD_SHIELD     = 22187
+    // Whitemane Spells
+    SPELL_DEEP_SLEEP           = 9256,
+    SPELL_SCARLET_RESURRECTION = 9232,
+    SPELL_DOMINATE_MIND        = 14515,
+    SPELL_HOLY_SMITE           = 9481,
+    SPELL_HEAL                 = 12039,
+    SPELL_POWER_WORD_SHIELD    = 22187
 };
 
-enum Events
+enum MograineAndWhitemaneEvents
 {
-    // Scarlet Commander Mograine
-    EVENT_RESURRECTED = 1,
+    // Mograine
+    EVENT_CRUSADER_STRIKE = 1,
     EVENT_HAMMER_OF_JUSTICE,
-    EVENT_CRUSADER_STRIKE,
-    EVENT_DIVINE_SHIELD,
-    EVENT_RETRIBUTION_AURA,
 
-    // High Inquisitor Whitemane
+    // Whitemane
+    EVENT_HEAL = 1,
+    EVENT_POWER_WORD_SHIELD,
     EVENT_HOLY_SMITE,
-    EVENT_DEEP_SLEEP,
-    EVENT_SCARLET_RESURRECTION,
-    EVENT_SALUTE_EMOTE,
-    EVENT_REENGAGE_PLAYERS,
-    EVENT_HEAL,
-    EVENT_POWER_WORD_SHIELD
 };
 
-enum Actions
+enum MograineAndWhitemanePoints
 {
-    ACTION_MOGRAINE_DIED = 1,
-    ACTION_RESURRECTED
+    POINT_WHITEMANE_MOVE_TO_MOGRAINE = 1,
 };
 
-enum Points
+Position const WhitemaneIntroMovePos = { 1163.113370f, 1398.856812f, 32.527786f, 0.f };
+
+// Scarlet Commander Mograine - 3976
+struct boss_scarlet_commander_mograine : public BossAI
 {
-    POINT_NONE = 0,
-    POINT_RESURRECT_MOGRAINE
-};
-
-enum Misc
-{
-    SOUND_ID_MOGRAINE_DEATH = 1326
-};
-
-Position const WhitemaneIntroPosition = { 1150.1221f, 1397.4794f, 32.337616f };
-
-struct npc_scarlet_commander_mograine : public ScriptedAI
-{
-    npc_scarlet_commander_mograine(Creature* creature) : ScriptedAI(creature), _resurrected(false), _killed(false) { }
-
-    void InitializeAI() override
+public:
+    boss_scarlet_commander_mograine(Creature* creature) : BossAI(creature, DATA_MOGRAINE_AND_WHITE_EVENT), _killYellTimer(0s)
     {
-        _instance = me->GetInstanceScript();
+        Initialize();
     }
 
-    void JustAppeared() override
+    void Initialize()
     {
-        DoCastSelf(SPELL_RETRIBUTION_AURA);
+        _fakeDeath = false;
+        _canDie = true;
     }
 
-    void JustEngagedWith(Unit* /*who*/) override
+    void Reset() override
     {
+        Initialize();
+
+        _Reset();
+        _killYellTimer.Reset(0s);
+
+        DoCastSelf(SPELL_RETRIBUTION_AURA, true);
+        me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE | UNIT_FLAG_NON_ATTACKABLE);
+        me->SetStandState(UNIT_STAND_STATE_STAND);
+        me->SetReactState(REACT_AGGRESSIVE);
+
+        instance->HandleGameObject(ObjectGuid::Empty, false, instance->GetGameObject(DATA_HIGH_INQUISITORS_DOOR));
+    }
+
+    void JustEngagedWith(Unit* who) override
+    {
+        BossAI::JustEngagedWith(who);
+
         Talk(SAY_MO_AGGRO);
-        _instance->SetBossState(DATA_MOGRAINE_AND_WHITEMANE, IN_PROGRESS);
-        me->CallForHelp(VISIBLE_RANGE);
-    }
 
-    void EnterEvadeMode(EvadeReason /*why*/) override
-    {
-        _EnterEvadeMode();
-        // The Instance Script will take care of the reset
-        _instance->SetBossState(DATA_MOGRAINE_AND_WHITEMANE, FAIL);
+        // Call for help (from old script)
+        me->CallForHelp(VISIBLE_RANGE);
+
+        // Just to be sure it's MOTION_SLOT_DEFAULT is static
+        me->GetMotionMaster()->MoveIdle();
+
+        // Schedule events
+        events.ScheduleEvent(EVENT_CRUSADER_STRIKE, 10s, 15s);
+        events.ScheduleEvent(EVENT_HAMMER_OF_JUSTICE, 10s, 15s);
     }
 
     void KilledUnit(Unit* who) override
     {
-        if (who->IsPlayer())
-            Talk(SAY_MO_KILL);
-    }
+        if (who->GetTypeId() != TYPEID_PLAYER)
+            return;
 
-    void JustDied(Unit* /*killer*/) override
-    {
-        _events.Reset();
-        if (Creature* whitemane = _instance->GetCreature(DATA_HIGH_INQUISITOR_WHITEMANE))
-            if (whitemane->isDead())
-                _instance->SetBossState(DATA_MOGRAINE_AND_WHITEMANE, DONE);
-    }
-
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
-    {
-        // Mograine cannot die when he has not been resurrected yet.
-        if (!_resurrected && damage >= me->GetHealth())
-            damage = me->GetHealth() - 1;
-
-        if (!_killed && !_resurrected && me->HealthBelowPctDamaged(1, damage))
+        if (_killYellTimer.Passed())
         {
-            _killed = true;
-            me->AttackStop();
-            me->SetReactState(REACT_PASSIVE);
-            me->PlayDistanceSound(SOUND_ID_MOGRAINE_DEATH);
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-            me->SetImmuneToPC(true, true);
-            me->SetStandState(UNIT_STAND_STATE_DEAD);
-            me->RemoveAllAuras();
-
-            if (Creature* whitemane = _instance->GetCreature(DATA_HIGH_INQUISITOR_WHITEMANE))
-                if (whitemane->IsAIEnabled())
-                    whitemane->AI()->DoAction(ACTION_MOGRAINE_DIED);
+            Talk(SAY_MO_KILL);
+            _killYellTimer.Reset(5s);
         }
     }
 
-    void DoAction(int32 action) override
+    void ExecuteEvent(uint32 eventId) override
     {
-        switch (action)
+        switch (eventId)
         {
-            case ACTION_RESURRECTED:
-                _events.ScheduleEvent(EVENT_RESURRECTED, 3s + 500ms);
+            case EVENT_CRUSADER_STRIKE:
+                DoCastVictim(SPELL_CRUSADER_STRIKE);
+                events.Repeat(10s);
+                break;
+            case EVENT_HAMMER_OF_JUSTICE:
+                DoCastVictim(SPELL_HAMMER_OF_JUSTICE);
+                events.Repeat(60s);
                 break;
             default:
                 break;
         }
     }
 
-    void UpdateAI(uint32 diff) override
+    void DamageTaken(Unit* /*who*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
-        if (!_killed && !UpdateVictim())
-            return;
-
-        _events.Update(diff);
-
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        while (uint32 eventId = _events.ExecuteEvent())
+        if (damage >= me->GetHealth() && !_fakeDeath)
         {
-            switch (eventId)
-            {
-                case EVENT_RESURRECTED:
-                    Talk(SAY_MO_RESURRECTED);
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                    me->SetImmuneToPC(false, true);
-                    me->SetStandState(UNIT_STAND_STATE_STAND);
-                    me->SetReactState(REACT_AGGRESSIVE);
-                    DoCastSelf(SPELL_LAY_ON_HANDS);
-                    _resurrected = true;
-                    _killed = false;
+            _fakeDeath = true;
+            _canDie = false;
 
-                    _events.ScheduleEvent(EVENT_HAMMER_OF_JUSTICE, 6s);
-                    _events.ScheduleEvent(EVENT_RETRIBUTION_AURA, 7s);
-                    _events.ScheduleEvent(EVENT_CRUSADER_STRIKE, 20s);
-                    _events.ScheduleEvent(EVENT_DIVINE_SHIELD, 29s);
-                    break;
-                case EVENT_HAMMER_OF_JUSTICE:
-                    DoCastVictim(SPELL_HAMMER_OF_JUSTICE);
-                    _events.Repeat(8s, 10s);
-                    break;
-                case EVENT_CRUSADER_STRIKE:
-                    DoCastVictim(SPELL_CRUSADER_STRIKE);
-                    _events.Repeat(6s);
-                    break;
-                case EVENT_DIVINE_SHIELD:
-                    DoCastSelf(SPELL_DIVINE_SHIELD);
-                    // @todo: repeat timer
-                    break;
-                case EVENT_RETRIBUTION_AURA:
-                    DoCastSelf(SPELL_RETRIBUTION_AURA);
-                    break;
-                default:
-                    break;
+            // Open the door
+            instance->HandleGameObject(ObjectGuid::Empty, true, instance->GetGameObject(DATA_HIGH_INQUISITORS_DOOR));
+
+            // Tell whitemane to move
+            if (Creature* whitemane = instance->GetCreature(DATA_WHITEMANE))
+            {
+                whitemane->GetMotionMaster()->MovePoint(0, WhitemaneIntroMovePos);
+                DoZoneInCombat(whitemane);
             }
 
-            if (me->HasUnitState(UNIT_STATE_CASTING))
-                return;
+            me->InterruptNonMeleeSpells(true);
+            me->RemoveAllAuras();
+            me->ClearAllReactives();
+            me->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE | UNIT_FLAG_NON_ATTACKABLE);
+            me->SetStandState(UNIT_STAND_STATE_DEAD);
+            me->SetReactState(REACT_PASSIVE); // prevent Mograine from attacking while fake death
+
+            // Stop moving
+            me->GetMotionMaster()->Clear();
         }
 
-        DoMeleeAttackIfReady();
-    }
-private:
-    InstanceScript* _instance;
-    EventMap _events;
-    bool _resurrected;
-    bool _killed;
-};
-
-struct npc_high_inquisitor_whitemane : public ScriptedAI
-{
-    npc_high_inquisitor_whitemane(Creature* creature) : ScriptedAI(creature), _below50PctHealth(false), _resurrectedMograine(false){ }
-
-    void InitializeAI() override
-    {
-        me->SetReactState(REACT_PASSIVE);
-        _instance = me->GetInstanceScript();
+        if (!_canDie && damage >= me->GetHealth())
+            damage = 0;
     }
 
-    void JustEngagedWith(Unit* /*who*/) override
+    void SpellHit(WorldObject* /*caster*/, SpellInfo const* spellInfo) override
     {
-        _events.ScheduleEvent(EVENT_HOLY_SMITE, 1ms);
-        _events.ScheduleEvent(EVENT_HEAL, 12s);
-        _events.ScheduleEvent(EVENT_POWER_WORD_SHIELD, 22s); // @todo: validate timer
-    }
-
-    void KilledUnit(Unit* who) override
-    {
-        if (who->IsPlayer())
-            Talk(SAY_WH_KILL);
-    }
-
-    void EnterEvadeMode(EvadeReason /*why*/) override
-    {
-        _EnterEvadeMode();
-        // The Instance Script will take care of the reset
-        _instance->SetBossState(DATA_MOGRAINE_AND_WHITEMANE, FAIL);
-    }
-
-    void JustDied(Unit* /*killer*/) override
-    {
-        if (Creature* mograine = _instance->GetCreature(DATA_SCARLET_COMMANDER_MOGRAINE))
-            if (mograine->isDead())
-                _instance->SetBossState(DATA_MOGRAINE_AND_WHITEMANE, DONE);
-    }
-
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
-    {
-        // Do not allow Whitemane to die before she has resurrected Mograine.
-        // This bug can actually happen on retail but for the sake of it, we wont allow it to happen.
-        if (!_resurrectedMograine && damage >= me->GetHealth())
-            damage = me->GetHealth() - 1;
-
-        if (!_below50PctHealth && me->HealthBelowPctDamaged(50, damage))
+        // Casted from Whitemane
+        if (spellInfo->Id == SPELL_SCARLET_RESURRECTION)
         {
-            _below50PctHealth = true;
-            me->AttackStop();
-            me->SetReactState(REACT_PASSIVE);
-            _events.Reset();
-            _events.ScheduleEvent(EVENT_DEEP_SLEEP, 1ms);
-        }
-    }
+            scheduler.Schedule(3s, [this](TaskContext /*context*/)
+            {
+                // Say text
+                Talk(SAY_MO_RESURRECTED);
 
-    void DoAction(int32 action) override
-    {
-        switch (action)
-        {
-            case ACTION_MOGRAINE_DIED:
-                Talk(SAY_WH_INTRO);
-                if (GameObject* door = _instance->GetGameObject(DATA_HIGH_INQUISITORS_DOOR))
-                    door->UseDoorOrButton();
-                me->GetMotionMaster()->MovePoint(POINT_NONE, WhitemaneIntroPosition);
+                me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
+                me->SetStandState(UNIT_STAND_STATE_STAND);
+            });
+
+            scheduler.Schedule(5s, [this](TaskContext /*context*/)
+            {
+                // Schedule events after ressurrect
+                events.ScheduleEvent(EVENT_CRUSADER_STRIKE, 10s, 15s);
+                events.ScheduleEvent(EVENT_HAMMER_OF_JUSTICE, 10s, 15s);
+
+                // We can now die
+                me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                 me->SetReactState(REACT_AGGRESSIVE);
-                break;
-            default:
-                break;
-        }
-    }
-
-    void MovementInform(uint32 type, uint32 pointId) override
-    {
-        if (type != POINT_MOTION_TYPE)
-            return;
-
-        switch (pointId)
-        {
-            case POINT_RESURRECT_MOGRAINE:
-                _events.ScheduleEvent(EVENT_SCARLET_RESURRECTION, 3s);
-                break;
-            default:
-                break;
-        }
-    }
-
-    void OnSpellCastFinished(SpellInfo const* spell, SpellFinishReason reason) override
-    {
-        if (spell->Id == SPELL_SCARLET_RESURRECTION && reason == SPELL_FINISHED_SUCCESSFUL_CAST)
-        {
-            Talk(SAY_WH_RESURRECT);
-            _resurrectedMograine = true;
-            _events.ScheduleEvent(EVENT_SALUTE_EMOTE, 1s);
-            _events.ScheduleEvent(EVENT_REENGAGE_PLAYERS, 5s);
-
-            if (Creature* mograine = _instance->GetCreature(DATA_SCARLET_COMMANDER_MOGRAINE))
-                if (mograine->IsAIEnabled())
-                    mograine->AI()->DoAction(ACTION_RESURRECTED);
+                _canDie = true;
+                DoCastSelf(SPELL_RETRIBUTION_AURA, true);
+            });
         }
     }
 
@@ -337,7 +214,93 @@ struct npc_high_inquisitor_whitemane : public ScriptedAI
         if (!UpdateVictim())
             return;
 
+        events.Update(diff);
+        scheduler.Update(diff);
+
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        while (uint32 eventId = events.ExecuteEvent())
+        {
+            ExecuteEvent(eventId);
+            if (me->HasUnitState(UNIT_STATE_CASTING))
+                return;
+        }
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    TimeTracker _killYellTimer;
+    bool _fakeDeath;
+    bool _canDie;
+};
+
+// High Inquisitor Whitemane - 3977
+struct boss_high_inquisitor_whitemane : public ScriptedAI
+{
+public:
+    boss_high_inquisitor_whitemane(Creature* creature) : ScriptedAI(creature), _instance(creature->GetInstanceScript()), _killYellTimer(0s)
+    {
+        Initialize();
+    }
+
+    void Initialize()
+    {
+        _ressurectionInProgress = false;
+        _canDie = true;
+    }
+
+    void Reset() override
+    {
+        Initialize();
+
+        _events.Reset();
+        _scheduler.CancelAll();
+        _killYellTimer.Reset(0s);
+
+        DoCastSelf(SPELL_RETRIBUTION_AURA);
+        me->SetReactState(REACT_AGGRESSIVE);
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        Talk(SAY_WH_INTRO);
+
+        // Just to be sure it's MOTION_SLOT_DEFAULT is static
+        me->GetMotionMaster()->MoveIdle();
+
+        // Start events after 5 seconds
+        _scheduler.Schedule(5s, [this](TaskContext /*context*/)
+        {
+            _events.ScheduleEvent(EVENT_HEAL, 10s);
+            _events.ScheduleEvent(EVENT_POWER_WORD_SHIELD, 15s);
+            _events.ScheduleEvent(EVENT_HOLY_SMITE, 6s);
+        });
+    }
+
+    void KilledUnit(Unit* who) override
+    {
+        if (who->GetTypeId() != TYPEID_PLAYER)
+            return;
+
+        if (_killYellTimer.Passed())
+        {
+            Talk(SAY_WH_KILL);
+            _killYellTimer.Reset(5s);
+        }
+    }
+
+    void UpdateAI(const uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
         _events.Update(diff);
+        _scheduler.Update(diff);
+
+        if (!_killYellTimer.Passed())
+            _killYellTimer.Update(diff);
 
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
@@ -346,53 +309,30 @@ struct npc_high_inquisitor_whitemane : public ScriptedAI
         {
             switch (eventId)
             {
-                case EVENT_HOLY_SMITE:
-                    DoCastVictim(SPELL_HOLY_SMITE);
-                    _events.Repeat(5s, 7s);
-                    break;
-                case EVENT_DEEP_SLEEP:
-                    DoCastAOE(SPELL_DEEP_SLEEP);
-                    if (Creature* mograine = _instance->GetCreature(DATA_SCARLET_COMMANDER_MOGRAINE))
-                    {
-                        Position pos = mograine->GetPosition();
-                        mograine->MovePositionToFirstCollision(pos, 2.f, mograine->GetRelativeAngle(me));
-                        me->GetMotionMaster()->MovePoint(POINT_RESURRECT_MOGRAINE, pos);
-                    }
-                    break;
-                case EVENT_SCARLET_RESURRECTION:
-                    DoCastAOE(SPELL_SCARLET_RESURRECTION);
-                    break;
-                case EVENT_SALUTE_EMOTE:
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_SALUTE);
-                    break;
-                case EVENT_REENGAGE_PLAYERS:
-                    me->SetReactState(REACT_AGGRESSIVE);
-                    _events.ScheduleEvent(EVENT_HOLY_SMITE, 1ms);
-                    _events.ScheduleEvent(EVENT_HEAL, 12s);
-                    _events.ScheduleEvent(EVENT_POWER_WORD_SHIELD, 22s);
-                    break;
                 case EVENT_HEAL:
                 {
-                    // @todo: This logic has been ported from CMangos since there is very little sniff information about conditions and repeat timers
-                    Unit* target = nullptr;
-                    if (me->GetHealthPct() < 75.f)
+                    Creature* target = nullptr;
+                    if (HealthBelowPct(75))
                         target = me;
-                    else if (Creature* mograine = _instance->GetCreature(DATA_SCARLET_COMMANDER_MOGRAINE))
-                        if (mograine->GetHealthPct() < 75.f)
+                    else if (Creature* mograine = _instance->GetCreature(DATA_MOGRAINE))
+                    {
+                        if (mograine->IsAlive() && mograine->HealthBelowPct(75))
                             target = mograine;
+                    }
 
                     if (target)
-                    {
                         DoCast(target, SPELL_HEAL);
-                        _events.Repeat(13s);
-                    }
-                    else
-                        _events.Repeat(1s);
+
+                    _events.Repeat(13s);
                     break;
                 }
                 case EVENT_POWER_WORD_SHIELD:
                     DoCastSelf(SPELL_POWER_WORD_SHIELD);
-                    _events.Repeat(22s, 45s);
+                    _events.Repeat(15s);
+                    break;
+                case EVENT_HOLY_SMITE:
+                    DoCastVictim(SPELL_HOLY_SMITE);
+                    _events.Repeat(6s);
                     break;
                 default:
                     break;
@@ -402,18 +342,97 @@ struct npc_high_inquisitor_whitemane : public ScriptedAI
                 return;
         }
 
-        DoMeleeAttackIfReady();
+        if (me->HasReactState(REACT_AGGRESSIVE))
+            DoMeleeAttackIfReady();
     }
+
+    void DamageTaken(Unit* /*who*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
+    {
+        // When Whitemane falls below 50% cast Deep sleep and schedule to ressurrect
+        if (me->HealthBelowPctDamaged(50, damage) && !_ressurectionInProgress)
+        {
+            _ressurectionInProgress = true;
+            _canDie = false;
+
+            // Cancel all combat events
+            _events.CancelEvent(EVENT_HEAL);
+            _events.CancelEvent(EVENT_POWER_WORD_SHIELD);
+            _events.CancelEvent(EVENT_HOLY_SMITE);
+
+            me->InterruptNonMeleeSpells(true);
+
+            // Sleep all players
+            DoCastAOE(SPELL_DEEP_SLEEP);
+
+            if (Creature* mograine = _instance->GetCreature(DATA_MOGRAINE))
+            {
+                me->SetReactState(REACT_PASSIVE);
+                me->GetMotionMaster()->Clear(MOTION_PRIORITY_NORMAL);
+
+                Position movePosition = mograine->GetPosition();
+
+                // Get a position within 2 yards of mograine, and facing him
+                me->MovePosition(movePosition, 2.0f, me->GetRelativeAngle(movePosition));
+                me->GetMotionMaster()->MovePoint(POINT_WHITEMANE_MOVE_TO_MOGRAINE, movePosition);
+            }
+        }
+
+        if (!_canDie && damage >= me->GetHealth())
+            damage = 0;
+    }
+
+    void MovementInform(uint32 type, uint32 id) override
+    {
+        if (type != POINT_MOTION_TYPE || id != POINT_WHITEMANE_MOVE_TO_MOGRAINE)
+            return;
+
+        if (Creature* mograine = _instance->GetCreature(DATA_MOGRAINE))
+            me->SetFacingToObject(mograine);
+
+        // After 3 seconds cast scarlet ressurection
+        _scheduler.Schedule(3s, [this](TaskContext /*context*/)
+        {
+            if (Creature* mograine = _instance->GetCreature(DATA_MOGRAINE))
+                DoCast(mograine, SPELL_SCARLET_RESURRECTION);
+            else
+                MograineResurrected();
+        });
+    }
+
+    void SpellHitTarget(WorldObject* target, SpellInfo const* spellInfo) override
+    {
+        if (target->GetEntry() == NPC_MOGRAINE && spellInfo->Id == SPELL_SCARLET_RESURRECTION)
+            MograineResurrected();
+    }
+
 private:
+    void MograineResurrected()
+    {
+        Talk(SAY_WH_RESURRECT);
+
+        // Schedule events again
+        _events.ScheduleEvent(EVENT_HEAL, 10s);
+        _events.ScheduleEvent(EVENT_POWER_WORD_SHIELD, 15s);
+        _events.ScheduleEvent(EVENT_HOLY_SMITE, 6s);
+
+        _canDie = true;
+
+        me->SetReactState(REACT_AGGRESSIVE);
+
+        if (me->GetVictim())
+            me->GetMotionMaster()->MoveChase(me->GetVictim());
+    }
+
     InstanceScript* _instance;
     EventMap _events;
-    bool _below50PctHealth;
-    bool _resurrectedMograine;
+    TaskScheduler _scheduler;
+    TimeTracker _killYellTimer;
+    bool _ressurectionInProgress;
+    bool _canDie;
 };
-
 
 void AddSC_boss_mograine_and_whitemane()
 {
-    RegisterScarletMonasteryCreatureAI(npc_scarlet_commander_mograine);
-    RegisterScarletMonasteryCreatureAI(npc_high_inquisitor_whitemane);
+    RegisterScarletMonasteryCreatureAI(boss_scarlet_commander_mograine);
+    RegisterScarletMonasteryCreatureAI(boss_high_inquisitor_whitemane);
 }

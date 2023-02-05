@@ -17,13 +17,14 @@
 
 #include "ScriptMgr.h"
 #include "black_temple.h"
+#include "Containers.h"
 #include "InstanceScript.h"
 #include "MotionMaster.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
-#include "Spell.h"
 #include "SpellAuraEffects.h"
 #include "SpellScript.h"
+#include "TemporarySummon.h"
 
 enum Says
 {
@@ -190,7 +191,7 @@ struct boss_reliquary_of_souls : public BossAI
                 break;
             case ACTION_START_COMBAT:
                 _inCombat = true;
-                me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_STAND_STATE, UNIT_STAND_STATE_STAND);
+                me->SetStandState(UNIT_STAND_STATE_STAND);
                 events.ScheduleEvent(EVENT_SUBMERGE, 10s);
                 break;
             default:
@@ -311,7 +312,7 @@ struct boss_essence_of_suffering : public BossAI
         }
     }
 
-    void DamageTaken(Unit* /*done_by*/, uint32 &damage) override
+    void DamageTaken(Unit* /*done_by*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         if (damage >= me->GetHealth())
         {
@@ -422,7 +423,7 @@ struct boss_essence_of_desire : public BossAI
         }
     }
 
-    void DamageTaken(Unit* /*done_by*/, uint32 &damage) override
+    void DamageTaken(Unit* /*done_by*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         if (damage >= me->GetHealth())
         {
@@ -621,7 +622,7 @@ struct npc_enslaved_soul : public ScriptedAI
         me->m_Events.AddEventAtOffset([this]() { me->KillSelf(); }, 500ms);
     }
 
-    void DamageTaken(Unit* /*done_by*/, uint32& damage) override
+    void DamageTaken(Unit* /*done_by*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         if (damage >= me->GetHealth())
         {
@@ -661,7 +662,7 @@ struct npc_reliquary_combat_trigger : public ScriptedAI
 
     bool CanAIAttack(Unit const* who) const override
     {
-        return ScriptedAI::CanAIAttack(who) && CheckBoundary(who);
+        return ScriptedAI::CanAIAttack(who) && IsInBoundary(who);
     }
 
     void Reset() override
@@ -673,7 +674,7 @@ struct npc_reliquary_combat_trigger : public ScriptedAI
 
     void MoveInLineOfSight(Unit* who) override
     {
-        if (!me->IsEngaged() && who->GetTypeId() == TYPEID_PLAYER && !who->ToPlayer()->IsGameMaster() && CheckBoundary(who))
+        if (!me->IsEngaged() && who->GetTypeId() == TYPEID_PLAYER && !who->ToPlayer()->IsGameMaster() && CanAIAttack(who))
         {
             if (Creature* reliquary = _instance->GetCreature(DATA_RELIQUARY_OF_SOULS))
             {
@@ -683,7 +684,7 @@ struct npc_reliquary_combat_trigger : public ScriptedAI
         }
     }
 
-    void DamageTaken(Unit* /*done_by*/, uint32& damage) override
+    void DamageTaken(Unit* /*done_by*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         damage = 0;
     }
@@ -714,12 +715,14 @@ private:
 // 41350 - Aura of Desire
 class spell_reliquary_of_souls_aura_of_desire : public AuraScript
 {
+    PrepareAuraScript(spell_reliquary_of_souls_aura_of_desire);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_AURA_OF_DESIRE_DAMAGE });
     }
 
-    void OnProcSpell(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    void OnProcSpell(AuraEffect* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
         DamageInfo* damageInfo = eventInfo.GetDamageInfo();
@@ -738,35 +741,56 @@ class spell_reliquary_of_souls_aura_of_desire : public AuraScript
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_reliquary_of_souls_aura_of_desire::OnProcSpell, EFFECT_0, SPELL_AURA_MOD_HEALING_PCT);
-        OnEffectUpdatePeriodic.Register(&spell_reliquary_of_souls_aura_of_desire::UpdateAmount, EFFECT_2, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+        OnEffectProc += AuraEffectProcFn(spell_reliquary_of_souls_aura_of_desire::OnProcSpell, EFFECT_0, SPELL_AURA_MOD_HEALING_PCT);
+        OnEffectUpdatePeriodic += AuraEffectUpdatePeriodicFn(spell_reliquary_of_souls_aura_of_desire::UpdateAmount, EFFECT_2, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+    }
+};
+
+// 41337 - Aura of Anger
+class spell_reliquary_of_souls_aura_of_anger : public AuraScript
+{
+    PrepareAuraScript(spell_reliquary_of_souls_aura_of_anger);
+
+    void HandleEffectPeriodicUpdate(AuraEffect* aurEff)
+    {
+        if (AuraEffect* aurEff1 = aurEff->GetBase()->GetEffect(EFFECT_1))
+            aurEff1->ChangeAmount(aurEff1->GetAmount() + 5);
+        aurEff->SetAmount(100 * aurEff->GetTickNumber());
+    }
+
+    void Register() override
+    {
+        OnEffectUpdatePeriodic += AuraEffectUpdatePeriodicFn(spell_reliquary_of_souls_aura_of_anger::HandleEffectPeriodicUpdate, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE);
     }
 };
 
 // 28819 - Submerge Visual
 class spell_reliquary_of_souls_submerge : public AuraScript
 {
+    PrepareAuraScript(spell_reliquary_of_souls_submerge);
+
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        GetTarget()->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_STAND_STATE, UNIT_STAND_STATE_SUBMERGED);
+        GetTarget()->SetStandState(UNIT_STAND_STATE_SUBMERGED);
     }
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        GetTarget()->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_STAND_STATE, UNIT_STAND_STATE_STAND);
+        GetTarget()->SetStandState(UNIT_STAND_STATE_STAND);
     }
-
 
     void Register() override
     {
-        AfterEffectApply.Register(&spell_reliquary_of_souls_submerge::OnApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
-        AfterEffectRemove.Register(&spell_reliquary_of_souls_submerge::OnRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectApply += AuraEffectApplyFn(spell_reliquary_of_souls_submerge::OnApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_reliquary_of_souls_submerge::OnRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
 // 41376 - Spite
 class spell_reliquary_of_souls_spite : public AuraScript
 {
+    PrepareAuraScript(spell_reliquary_of_souls_spite);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_SPITE_DAMAGE });
@@ -780,13 +804,15 @@ class spell_reliquary_of_souls_spite : public AuraScript
 
     void Register() override
     {
-        AfterEffectRemove.Register(&spell_reliquary_of_souls_spite::OnRemove, EFFECT_0, SPELL_AURA_DAMAGE_IMMUNITY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_reliquary_of_souls_spite::OnRemove, EFFECT_0, SPELL_AURA_DAMAGE_IMMUNITY, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
 // 41305 - Frenzy
 class spell_reliquary_of_souls_frenzy : public SpellScript
 {
+    PrepareSpellScript(spell_reliquary_of_souls_frenzy);
+
     void HandleAfterCast()
     {
         if (Creature* caster = GetCaster()->ToCreature())
@@ -795,7 +821,7 @@ class spell_reliquary_of_souls_frenzy : public SpellScript
 
     void Register() override
     {
-        AfterCast.Register(&spell_reliquary_of_souls_frenzy::HandleAfterCast);
+        AfterCast += SpellCastFn(spell_reliquary_of_souls_frenzy::HandleAfterCast);
     }
 };
 
@@ -808,6 +834,7 @@ void AddSC_boss_reliquary_of_souls()
     RegisterBlackTempleCreatureAI(npc_enslaved_soul);
     RegisterBlackTempleCreatureAI(npc_reliquary_combat_trigger);
     RegisterSpellScript(spell_reliquary_of_souls_aura_of_desire);
+    RegisterSpellScript(spell_reliquary_of_souls_aura_of_anger);
     RegisterSpellScript(spell_reliquary_of_souls_submerge);
     RegisterSpellScript(spell_reliquary_of_souls_spite);
     RegisterSpellScript(spell_reliquary_of_souls_frenzy);

@@ -15,64 +15,65 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
-#include "InstanceScript.h"
-#include "Map.h"
 #include "MotionMaster.h"
 #include "ScriptedCreature.h"
+#include "ScriptMgr.h"
 #include "the_stockade.h"
 
 enum Spells
 {
-    // Randolph Moloch
-    SPELL_WILDLY_STABBING           = 86726,
-    SPELL_SWEEP                     = 86729,
-    SPELL_VANISH                    = 55964,
-    SPELL_SHADOWSTEP                = 55966
+    SPELL_WILDLY_STABBING = 86726,
+    SPELL_SWEEP           = 86729,
+    SPELL_VANISH          = 55964,
+    SPELL_SHADOWSTEP      = 55966
 };
 
 enum Events
 {
-    // Randolph Moloch
     EVENT_WILDLY_STABBING = 1,
     EVENT_SWEEP,
     EVENT_VANISH,
     EVENT_JUST_VANISHED,
     EVENT_ATTACK_RANDOM,
 
-    // Mortimer Moloch
     EVENT_MORTIMER_MOLOCH_EMOTE,
     EVENT_MORTIMER_MOLOCH_DEATH
 };
 
 enum Says
 {
-    // Randolph Moloch
-    SAY_AGGRO           = 0,
-    SAY_VANISH          = 1,
-    SAY_DEATH           = 2,
+    SAY_PULL                = 0, // Allow me to introduce myself. I am Randolph Moloch and I will be killing you all today.
+    SAY_VANISH              = 1, // Area Trigger: %s vanishes!
+    SAY_DEATH               = 2, // My epic schemes, my great plans! Gone!
 
-    // Mortimer Moloch
-    SAY_RANDOLPH_DIED   = 0,
-    SAY_HEART_ATTACK    = 1
+    MORTIMER_MOLOCH_DEATH   = 0, // %s collapses from a heart attack!
+    MORTIMER_MOLOCH_EMOTE   = 1, // Egad! My sophisticated heart!
 };
 
 enum Points
 {
-    // Mortimer Moloch
-    POINT_FINISH = 0
+    POINT_FINISH = 1,
 };
 
-Position const MortimerMolochPos = { 145.5811f, 0.7059f, -25.606f, 6.2f };
+Position const mortimerMolochPos = { 145.5811f, 0.7059f, -25.606f, 6.2f };
 
+// Randolph Moloch - 46383
 struct boss_randolph_moloch : public BossAI
 {
-    boss_randolph_moloch(Creature* creature) : BossAI(creature, DATA_RANDOLPH_MOLOCH), _vanishCount(0) { }
+    boss_randolph_moloch(Creature* creature) : BossAI(creature, DATA_RANDOLPH_MOLOCH), _firstVanish(false),
+        _secondVanish(false) { }
 
+    void Reset() override
+    {
+        _firstVanish = false;
+        _secondVanish = false;
+    }
     void JustEngagedWith(Unit* who) override
     {
         BossAI::JustEngagedWith(who);
-        Talk(SAY_AGGRO);
+
+        Talk(SAY_PULL);
+
         events.ScheduleEvent(EVENT_WILDLY_STABBING, 4s, 5s);
         events.ScheduleEvent(EVENT_SWEEP, 2s, 3s);
     }
@@ -80,6 +81,7 @@ struct boss_randolph_moloch : public BossAI
     void JustSummoned(Creature* summon) override
     {
         BossAI::JustSummoned(summon);
+
         if (summon->GetEntry() == NPC_MORTIMER_MOLOCH)
         {
             summon->SetWalk(true);
@@ -87,120 +89,105 @@ struct boss_randolph_moloch : public BossAI
         }
     }
 
-    void Reset() override
+    void JustDied(Unit* killer) override
     {
-        BossAI::Reset();
-        _vanishCount = 0;
-    }
+        BossAI::JustDied(killer);
 
-    void JustDied(Unit* /*killer*/) override
-    {
         Talk(SAY_DEATH);
-        _JustDied();
-        if (instance->instance->GetTeamInInstance() == ALLIANCE)
-            me->SummonCreature(NPC_MORTIMER_MOLOCH, MortimerMolochPos);
+
+        me->SummonCreature(NPC_MORTIMER_MOLOCH, mortimerMolochPos);
     }
 
-    void UpdateAI(uint32 diff) override
+    void ExecuteEvent(uint32 eventId) override
     {
-        if (!UpdateVictim())
-            return;
-
-        events.Update(diff);
-
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        while (uint32 eventId = events.ExecuteEvent())
+        switch (eventId)
         {
-            switch (eventId)
-            {
-                case EVENT_WILDLY_STABBING:
-                    DoCastVictim(SPELL_WILDLY_STABBING);
-                    events.Repeat(8s, 12s);
-                    break;
-                case EVENT_SWEEP:
-                    DoCastVictim(SPELL_SWEEP);
-                    events.ScheduleEvent(EVENT_SWEEP, 6s, 7s);
-                    break;
-                case EVENT_VANISH:
-                    Talk(SAY_VANISH);
-                    me->RemoveAllAuras();
-                    DoCastSelf(SPELL_VANISH);
-                    me->SetReactState(REACT_PASSIVE);
-                    events.ScheduleEvent(EVENT_JUST_VANISHED, 2s);
-                    break;
-                case EVENT_JUST_VANISHED:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true))
-                        DoCast(target, SPELL_SHADOWSTEP);
-                    me->SetReactState(REACT_AGGRESSIVE);
-                    break;
-                default:
-                    break;
-            }
+            case EVENT_WILDLY_STABBING:
+                DoCastVictim(SPELL_WILDLY_STABBING);
+                events.Repeat(8s, 12s);
+                break;
+            case EVENT_SWEEP:
+                DoCastVictim(SPELL_SWEEP);
+                events.ScheduleEvent(EVENT_SWEEP, 6s, 7s);
+                break;
+            case EVENT_VANISH:
+                Talk(SAY_VANISH);
+                me->RemoveAllAuras();
+                DoCastSelf(SPELL_VANISH);
+                me->SetReactState(REACT_PASSIVE);
+                events.ScheduleEvent(EVENT_JUST_VANISHED, 2s);
+                break;
+            case EVENT_JUST_VANISHED:
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
+                    DoCast(target, SPELL_SHADOWSTEP, true);
+                me->SetReactState(REACT_AGGRESSIVE);
+                break;
+            default:
+                break;
         }
-
-        DoMeleeAttackIfReady();
     }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
-        if (me->HealthBelowPctDamaged(71, damage) && me->HealthAbovePct(59) && _vanishCount < 1)
+        if (me->HealthBelowPctDamaged(71, damage) && me->HealthAbovePct(59) && !_firstVanish)
         {
+            _firstVanish = true;
             events.ScheduleEvent(EVENT_VANISH, 1s);
-            ++_vanishCount;
         }
 
-        if (me->HealthBelowPctDamaged(41, damage) && me->HealthAbovePct(29) && _vanishCount < 2)
+        if (me->HealthBelowPctDamaged(41, damage) && me->HealthAbovePct(29) && !_secondVanish)
         {
+            _secondVanish = true;
             events.ScheduleEvent(EVENT_VANISH, 1s);
-            ++_vanishCount;
         }
     }
 
 private:
-    uint8 _vanishCount;
+    bool _firstVanish;
+    bool _secondVanish;
 };
 
+// Mortimer Moloch - 46482
 struct npc_mortimer_moloch : public ScriptedAI
 {
     npc_mortimer_moloch(Creature* creature) : ScriptedAI(creature) { }
 
+    void Reset() override
+    {
+        me->SetReactState(REACT_PASSIVE);
+    }
+
     void MovementInform(uint32 type, uint32 id) override
     {
-        if (type == POINT_MOTION_TYPE)
-            if (id == POINT_FINISH)
-                _events.ScheduleEvent(EVENT_MORTIMER_MOLOCH_EMOTE, 4s);
+        if (type != POINT_MOTION_TYPE)
+            return;
+
+        if (id == POINT_FINISH)
+        {
+            scheduler.Schedule(4s, [this](TaskContext /*context*/)
+            {
+                Talk(MORTIMER_MOLOCH_EMOTE);
+            });
+
+            scheduler.Schedule(7s, [this](TaskContext /*context*/)
+            {
+                Talk(MORTIMER_MOLOCH_DEATH);
+                me->KillSelf();
+            });
+        }
     }
 
     void UpdateAI(uint32 diff) override
     {
-        _events.Update(diff);
-
-        while (uint32 eventId = _events.ExecuteEvent())
-        {
-            switch (eventId)
-            {
-                case EVENT_MORTIMER_MOLOCH_EMOTE:
-                    Talk(SAY_HEART_ATTACK);
-                    _events.ScheduleEvent(EVENT_MORTIMER_MOLOCH_DEATH, 3s);
-                    break;
-                case EVENT_MORTIMER_MOLOCH_DEATH:
-                    Talk(SAY_RANDOLPH_DIED);
-                    me->KillSelf();
-                    break;
-                default:
-                    break;
-            }
-        }
+        scheduler.Update(diff);
     }
 
 private:
-    EventMap _events;
+    TaskScheduler scheduler;
 };
 
 void AddSC_boss_randolph_moloch()
 {
-    RegisterStormwindStockadeAI(boss_randolph_moloch);
-    RegisterStormwindStockadeAI(npc_mortimer_moloch);
+    RegisterStormwindStockadesAI(boss_randolph_moloch);
+    RegisterStormwindStockadesAI(npc_mortimer_moloch);
 }

@@ -20,14 +20,6 @@
 
 #include "OutdoorPvP.h"
 
-namespace WorldPackets
-{
-    namespace WorldState
-    {
-        class InitWorldStates;
-    }
-}
-
 enum DefenseMessages
 {
     TEXT_ALL_GUARDS_DEFEATED                = 15017, // (NYI) '|cffffff00All the guards have been defeated!|r'
@@ -136,8 +128,7 @@ class OPvPCapturePointNA : public OPvPCapturePoint
 
         uint32 GetAliveGuardsCount() const;
         uint32 GetControllingFaction() const;
-        // called when a faction takes control
-        void FactionTakeOver(uint32 team);
+        void FactionTakeOver(uint32 team); // called when a faction takes control
         void UpdateWyvernRoostWorldState(uint32 roost);
         void UpdateHalaaWorldState();
 
@@ -160,6 +151,7 @@ class OutdoorPvPNA : public OutdoorPvP
         OutdoorPvPNA(Map* map);
 
         void OnGameObjectCreate(GameObject* go) override;
+
         bool SetupOutdoorPvP() override;
         void HandlePlayerEnterZone(Player* player, uint32 zone) override;
         void HandlePlayerLeaveZone(Player* player, uint32 zone) override;
@@ -168,7 +160,7 @@ class OutdoorPvPNA : public OutdoorPvP
         void HandleKillImpl(Player* player, Unit* killed) override;
 
     private:
-        OPvPCapturePointNA * m_obj;
+        OPvPCapturePointNA* m_obj;
 };
 
 #endif

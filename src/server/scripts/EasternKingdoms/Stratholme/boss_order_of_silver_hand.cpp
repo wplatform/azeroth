@@ -24,9 +24,9 @@ EndScriptData */
 
 #include "ScriptMgr.h"
 #include "InstanceScript.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
 #include "stratholme.h"
-#include "Player.h"
 
 /*#####
 # Additional:
@@ -55,6 +55,11 @@ class boss_silver_hand_bosses : public CreatureScript
 {
 public:
     boss_silver_hand_bosses() : CreatureScript("boss_silver_hand_bosses") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetStratholmeAI<boss_silver_hand_bossesAI>(creature);
+    }
 
     struct boss_silver_hand_bossesAI : public ScriptedAI
     {
@@ -158,11 +163,6 @@ public:
             DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetStratholmeAI<boss_silver_hand_bossesAI>(creature);
-    }
 };
 
 void AddSC_boss_order_of_silver_hand()

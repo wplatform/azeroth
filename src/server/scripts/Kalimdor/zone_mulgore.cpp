@@ -18,7 +18,10 @@
 #include "ScriptMgr.h"
 #include "MotionMaster.h"
 #include "ScriptedCreature.h"
-#include "SpellInfo.h"
+
+/*######
+## npc_eagle_spirit
+######*/
 
 enum EagleSpirit
 {
@@ -36,186 +39,42 @@ Position const EagleSpiritflightPath[] =
     { -2465.321f, -502.4896f, 190.7347f },
     { -2343.872f, -401.8281f, -8.320873f }
 };
-uint32 const EagleSpiritflightPathSize = std::extent<decltype(EagleSpiritflightPath)>::value;
+size_t const EagleSpiritflightPathSize = std::extent<decltype(EagleSpiritflightPath)>::value;
 
-struct npc_mulgore_eagle_spirit : public ScriptedAI
+class npc_eagle_spirit : public CreatureScript
 {
-    npc_mulgore_eagle_spirit(Creature* creature) : ScriptedAI(creature) { }
+public:
+    npc_eagle_spirit() : CreatureScript("npc_eagle_spirit") { }
 
-    void PassengerBoarded(Unit* /*who*/, int8 /*seatId*/, bool apply) override
+    struct npc_eagle_spirit_AI : public ScriptedAI
     {
-        if (!apply)
-            return;
+        npc_eagle_spirit_AI(Creature* creature) : ScriptedAI(creature) { }
 
-        DoCastSelf(SPELL_SPIRIT_FORM);
-        me->GetMotionMaster()->MoveSmoothPath(EagleSpiritflightPathSize, EagleSpiritflightPath, EagleSpiritflightPathSize, false, true);
-    }
-
-    void MovementInform(uint32 type, uint32 pointId) override
-    {
-        if (type == EFFECT_MOTION_TYPE && pointId == EagleSpiritflightPathSize)
-            DoCast(SPELL_EJECT_ALL_PASSENGERS);
-    }
-};
-
-enum OurTribeImprisoned
-{
-    // Move Points
-    POINT_ID_BRAVE_ESCAPED  = 1,
-
-    // Spells
-    SPELL_UNLOCKING         = 71725,
-
-    // Events
-    EVENT_TALK_FREED        = 1,
-    EVENT_ESCAPE            = 2,
-
-    // Texts
-    SAY_BRAVE_FREED         = 0
-};
-
-static std::array<Position, 4> CapturedBraveEscapePoints =
-{
-    Position(-3042.8743f, -678.6991f, 45.932663f),
-    Position(-3022.8967f, -674.9234f, 46.631878f),
-    Position(-3006.0527f, -683.7966f, 47.65608f),
-    Position(-2999.302f,   -695.0346f , 48.756355f)
-};
-
-struct npc_mulgore_captured_brave : public ScriptedAI
-{
-    npc_mulgore_captured_brave(Creature* creature) : ScriptedAI(creature) { }
-
-    void SpellHit(WorldObject* /*caster*/, SpellInfo const* spell) override
-    {
-        if (spell->Id != SPELL_UNLOCKING)
-            return;
-
-        Position pos = me->GetPosition();
-        me->MovePosition(pos, 10.f, 0.f);
-        me->GetMotionMaster()->MovePoint(0, pos);
-        _events.ScheduleEvent(EVENT_TALK_FREED, 3s + 600ms);
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        _events.Update(diff);
-
-        while (uint32 eventId = _events.ExecuteEvent())
+        void PassengerBoarded(Unit* /*who*/, int8 /*seatId*/, bool apply) override
         {
-            switch (eventId)
-            {
-                case EVENT_TALK_FREED:
-                    Talk(SAY_BRAVE_FREED);
-                    _events.ScheduleEvent(EVENT_ESCAPE, 4s);
-                    break;
-                case EVENT_ESCAPE:
-                {
-                    Position dest = CapturedBraveEscapePoints.front();
-                    for (uint8 i = 1; i < CapturedBraveEscapePoints.size(); ++i)
-                        if (me->GetExactDist(CapturedBraveEscapePoints[i]) <= me->GetExactDist(dest))
-                            dest = CapturedBraveEscapePoints[i];
-
-                    me->setActive(true); // Ensure that the npc is always updating even when moving out of grid update range
-                    me->GetMotionMaster()->MovePoint(POINT_ID_BRAVE_ESCAPED, dest);
-                    break;
-                }
-                default:
-                    break;
-            }
-        }
-    }
-
-    void MovementInform(uint32 motionType, uint32 pointId) override
-    {
-        if (motionType != POINT_MOTION_TYPE || pointId != POINT_ID_BRAVE_ESCAPED)
-            return;
-
-        me->DespawnOrUnsummon();
-    }
-
-private:
-    EventMap _events;
-};
-
-enum RiteOfHonor
-{
-    // Texts
-    SAY_AGGRO = 0,
-
-    // Events
-    EVENT_QUILLHORN     = 1,
-    EVENT_TORCH_TOSS    = 2,
-
-    // Spells
-    SPELL_QUILLHORN     = 81691,
-    SPELL_TORCH_TOSS    = 81695,
-    SPELL_IMMOLATION    = 69316
-};
-
-struct npc_mulgore_chief_squealer_thornmantle : public ScriptedAI
-{
-    npc_mulgore_chief_squealer_thornmantle(Creature* creature) : ScriptedAI(creature) { }
-
-    void JustEngagedWith(Unit* who) override
-    {
-        Talk(SAY_AGGRO, who);
-        _events.ScheduleEvent(EVENT_QUILLHORN, 10s);
-    }
-
-    void EnterEvadeMode(EvadeReason why) override
-    {
-        ScriptedAI::EnterEvadeMode(why);
-        _events.Reset();
-    }
-
-    void JustDied(Unit* killer) override
-    {
-        ScriptedAI::JustDied(killer);
-        _events.Reset();
-        me->m_Events.AddEventAtOffset([&]() { DoCastSelf(SPELL_IMMOLATION); }, 4s);
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        if (!UpdateVictim())
-            return;
-
-        _events.Update(diff);
-
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        while (uint32 eventId = _events.ExecuteEvent())
-        {
-            switch (eventId)
-            {
-                case EVENT_QUILLHORN:
-                    DoCastVictim(SPELL_QUILLHORN);
-                    _events.ScheduleEvent(EVENT_TORCH_TOSS, 2s + 500ms);
-                    _events.Repeat(60s);
-                    break;
-                case EVENT_TORCH_TOSS:
-                    DoCastVictim(SPELL_TORCH_TOSS);
-                    break;
-                default:
-                    break;
-            }
-
-            if (me->HasUnitState(UNIT_STATE_CASTING))
+            if (!apply)
                 return;
+
+            me->GetMotionMaster()->MoveSmoothPath(uint32(EagleSpiritflightPathSize), EagleSpiritflightPath, EagleSpiritflightPathSize, false, true);
+            me->CastSpell(me, SPELL_SPIRIT_FORM);
         }
 
-        DoMeleeAttackIfReady();
-    }
+        void MovementInform(uint32 type, uint32 pointId) override
+        {
+            if (type == EFFECT_MOTION_TYPE && pointId == EagleSpiritflightPathSize)
+            {
+                DoCast(SPELL_EJECT_ALL_PASSENGERS);
+            }
+        }
+    };
 
-private:
-    EventMap _events;
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return new npc_eagle_spirit_AI(creature);
+    }
 };
 
 void AddSC_mulgore()
 {
-    RegisterCreatureAI(npc_mulgore_eagle_spirit);
-    RegisterCreatureAI(npc_mulgore_captured_brave);
-    RegisterCreatureAI(npc_mulgore_chief_squealer_thornmantle);
+    new npc_eagle_spirit();
 }

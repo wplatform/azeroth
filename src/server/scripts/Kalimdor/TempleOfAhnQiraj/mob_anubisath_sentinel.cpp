@@ -55,6 +55,11 @@ class npc_anubisath_sentinel : public CreatureScript
 public:
     npc_anubisath_sentinel() : CreatureScript("npc_anubisath_sentinel") { }
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<aqsentinelAI>(creature);
+    }
+
     struct aqsentinelAI : public ScriptedAI
     {
         uint32 ability;
@@ -119,7 +124,7 @@ public:
         {
             aqsentinelAI* cai = ENSURE_AI(aqsentinelAI, (c)->AI());
             for (int32 i = 0; i < 3; ++i)
-                if (NearbyGUID[i] && NearbyGUID[i] != c->GetGUID())
+                if (!NearbyGUID[i].IsEmpty() && NearbyGUID[i] != c->GetGUID())
                     cai->AddBuddyToList(NearbyGUID[i]);
             cai->AddBuddyToList(me->GetGUID());
         }
@@ -252,11 +257,6 @@ public:
             }
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetAQ40AI<aqsentinelAI>(creature);
-    }
 };
 
 void AddSC_npc_anubisath_sentinel()

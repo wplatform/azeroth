@@ -20,15 +20,12 @@
 #include "Creature.h"
 #include "GameObject.h"
 #include "GridNotifiersImpl.h"
-#include "MapManager.h"
+#include "Map.h"
 #include "ObjectMgr.h"
-#include "OutdoorPvPMgr.h"
 #include "Player.h"
 #include "ScriptMgr.h"
-#include "WorldPacket.h"
 #include "WorldStatePackets.h"
 
- // kill credit for pks
 uint32 const NA_CREDIT_MARKER = 24867; // kill credit for pks
 uint32 const NA_GUARDS_MAX = 15;
 uint32 const NA_BUFF_ZONE = 3518;
@@ -96,6 +93,7 @@ void OPvPCapturePointNA::FactionTakeOver(uint32 team)
     m_ControllingFaction = team;
     if (m_ControllingFaction)
         sObjectMgr->AddGraveyardLink(NA_HALAA_GRAVEYARD, NA_HALAA_GRAVEYARD_ZONE, m_ControllingFaction, false);
+
     m_GuardsAlive = NA_GUARDS_MAX;
     m_capturable = false;
     UpdateHalaaWorldState();
@@ -212,7 +210,7 @@ bool OPvPCapturePointNA::HandleCustomSpell(Player* player, uint32 spellId, GameO
         nodes[0] = FlightPathStartNodes[NA_ROOST_N];
         nodes[1] = FlightPathEndNodes[NA_ROOST_N];
         player->ActivateTaxiPathTo(nodes);
-        player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP);
+        player->SetPlayerFlag(PLAYER_FLAGS_IN_PVP);
         player->UpdatePvP(true, true);
         retval = true;
         break;
@@ -220,7 +218,7 @@ bool OPvPCapturePointNA::HandleCustomSpell(Player* player, uint32 spellId, GameO
         nodes[0] = FlightPathStartNodes[NA_ROOST_S];
         nodes[1] = FlightPathEndNodes[NA_ROOST_S];
         player->ActivateTaxiPathTo(nodes);
-        player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP);
+        player->SetPlayerFlag(PLAYER_FLAGS_IN_PVP);
         player->UpdatePvP(true, true);
         retval = true;
         break;
@@ -228,7 +226,7 @@ bool OPvPCapturePointNA::HandleCustomSpell(Player* player, uint32 spellId, GameO
         nodes[0] = FlightPathStartNodes[NA_ROOST_W];
         nodes[1] = FlightPathEndNodes[NA_ROOST_W];
         player->ActivateTaxiPathTo(nodes);
-        player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP);
+        player->SetPlayerFlag(PLAYER_FLAGS_IN_PVP);
         player->UpdatePvP(true, true);
         retval = true;
         break;
@@ -236,7 +234,7 @@ bool OPvPCapturePointNA::HandleCustomSpell(Player* player, uint32 spellId, GameO
         nodes[0] = FlightPathStartNodes[NA_ROOST_E];
         nodes[1] = FlightPathEndNodes[NA_ROOST_E];
         player->ActivateTaxiPathTo(nodes);
-        player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP);
+        player->SetPlayerFlag(PLAYER_FLAGS_IN_PVP);
         player->UpdatePvP(true, true);
         retval = true;
         break;
@@ -431,7 +429,7 @@ void OPvPCapturePointNA::ChangeState()
         break;
     }
 
-    auto bounds = sMapMgr->FindMap(530, 0)->GetGameObjectBySpawnIdStore().equal_range(m_capturePointSpawnId);
+    auto bounds = m_PvP->GetMap()->GetGameObjectBySpawnIdStore().equal_range(m_capturePointSpawnId);
     for (auto itr = bounds.first; itr != bounds.second; ++itr)
         itr->second->SetGoArtKit(artkit);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,12 +22,17 @@
 #include "account_service.pb.h"
 #include "authentication_service.pb.h"
 #include "challenge_service.pb.h"
-#include "channel_service.pb.h"
+#include "club_listener.pb.h"
+#include "club_membership_listener.pb.h"
+#include "club_membership_service.pb.h"
+#include "club_service.pb.h"
 #include "connection_service.pb.h"
 #include "friends_service.pb.h"
 #include "game_utilities_service.pb.h"
+#include "presence_listener.pb.h"
 #include "presence_service.pb.h"
 #include "report_service.pb.h"
+#include "api/client/v2/report_service.pb.h"
 #include "resource_service.pb.h"
 #include "user_manager_service.pb.h"
 
@@ -40,7 +45,7 @@ namespace Battlenet
     class WorldserverService : public T
     {
     public:
-        WorldserverService(WorldSession* session) : T(false), _session(session) { }
+        WorldserverService(WorldSession* session) : T(true), _session(session) { }
 
     protected:
         void SendRequest(uint32 serviceHash, uint32 methodId, google::protobuf::Message const* request, std::function<void(MessageBuffer)> callback) override { _session->SendBattlenetRequest(serviceHash, methodId, request, std::move(callback)); }
@@ -63,8 +68,11 @@ namespace Battlenet
         uint32 HandleGetAllValuesForAttribute(game_utilities::v1::GetAllValuesForAttributeRequest const* request, game_utilities::v1::GetAllValuesForAttributeResponse* response, std::function<void(ServiceBase*, uint32, ::google::protobuf::Message const*)>& continuation) override;
 
     private:
-        uint32 HandleRealmListRequest(std::unordered_map<std::string, Variant const*> params, game_utilities::v1::ClientResponse* response);
-        uint32 HandleRealmJoinRequest(std::unordered_map<std::string, Variant const*> params, game_utilities::v1::ClientResponse* response);
+        using ClientRequestHandler = uint32(GameUtilitiesService::*)(std::unordered_map<std::string, Variant const*> const&, game_utilities::v1::ClientResponse*);
+        static std::unordered_map<std::string, ClientRequestHandler> const ClientRequestHandlers;
+
+        uint32 HandleRealmListRequest(std::unordered_map<std::string, Variant const*> const& params, game_utilities::v1::ClientResponse* response);
+        uint32 HandleRealmJoinRequest(std::unordered_map<std::string, Variant const*> const& params, game_utilities::v1::ClientResponse* response);
     };
 }
 

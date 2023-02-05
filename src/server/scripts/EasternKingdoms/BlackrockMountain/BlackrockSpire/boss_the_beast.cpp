@@ -16,8 +16,8 @@
  */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
 #include "blackrock_spire.h"
+#include "ScriptedCreature.h"
 
 enum Spells
 {
@@ -40,7 +40,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return new boss_thebeastAI(creature);
+        return GetBlackrockSpireAI<boss_thebeastAI>(creature);
     }
 
     struct boss_thebeastAI : public BossAI
@@ -55,9 +55,9 @@ public:
         void JustEngagedWith(Unit* who) override
         {
             BossAI::JustEngagedWith(who);
-            events.ScheduleEvent(EVENT_FLAME_BREAK,     12 * IN_MILLISECONDS);
-            events.ScheduleEvent(EVENT_IMMOLATE,         3 * IN_MILLISECONDS);
-            events.ScheduleEvent(EVENT_TERRIFYING_ROAR, 23 * IN_MILLISECONDS);
+            events.ScheduleEvent(EVENT_FLAME_BREAK,     12s);
+            events.ScheduleEvent(EVENT_IMMOLATE,         3s);
+            events.ScheduleEvent(EVENT_TERRIFYING_ROAR, 23s);
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -81,16 +81,16 @@ public:
                 {
                     case EVENT_FLAME_BREAK:
                         DoCastVictim(SPELL_FLAMEBREAK);
-                        events.ScheduleEvent(EVENT_FLAME_BREAK, 10 * IN_MILLISECONDS);
+                        events.ScheduleEvent(EVENT_FLAME_BREAK, 10s);
                         break;
                     case EVENT_IMMOLATE:
-                        if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true))
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
                             DoCast(target, SPELL_IMMOLATE);
-                        events.ScheduleEvent(EVENT_IMMOLATE, 8 * IN_MILLISECONDS);
+                        events.ScheduleEvent(EVENT_IMMOLATE, 8s);
                         break;
                     case EVENT_TERRIFYING_ROAR:
                         DoCastVictim(SPELL_TERRIFYINGROAR);
-                        events.ScheduleEvent(EVENT_TERRIFYING_ROAR, 20 * IN_MILLISECONDS);
+                        events.ScheduleEvent(EVENT_TERRIFYING_ROAR, 20s);
                         break;
                 }
 

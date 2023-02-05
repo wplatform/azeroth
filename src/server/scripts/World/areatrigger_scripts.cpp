@@ -15,34 +15,17 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* ScriptData
-SDName: Areatrigger_Scripts
-SD%Complete: 100
-SDComment: Scripts for areatriggers
-SDCategory: Areatrigger
-EndScriptData */
-
-/* ContentData
-at_coilfang_waterfall           4591
-at_legion_teleporter            4560 Teleporter TO Invasion Point: Cataclysm
-at_stormwright_shelf            q12741
-at_last_rites                   q12019
-at_sholazar_waygate             q12548
-at_nats_landing                 q11209
-at_bring_your_orphan_to         q910 q910 q1800 q1479 q1687 q1558 q10951 q10952
-at_brewfest
-at_area_52_entrance
-EndContentData */
-
 #include "ScriptMgr.h"
-#include "DBCStructure.h"
+#include "AreaTriggerAI.h"
+#include "DB2Structure.h"
 #include "GameObject.h"
 #include "GameTime.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
-#include "Player.h"
 #include "ScriptedCreature.h"
+#include "Player.h"
 #include "TemporarySummon.h"
+#include "World.h"
 
 /*######
 ## at_coilfang_waterfall
@@ -58,7 +41,7 @@ class AreaTrigger_at_coilfang_waterfall : public AreaTriggerScript
     public:
         AreaTrigger_at_coilfang_waterfall() : AreaTriggerScript("at_coilfang_waterfall") { }
 
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*trigger*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
         {
             if (GameObject* go = GetClosestGameObjectWithEntry(player, GO_COILFANG_WATERFALL, 35.0f))
                 if (go->getLootState() == GO_READY)
@@ -86,7 +69,7 @@ class AreaTrigger_at_legion_teleporter : public AreaTriggerScript
     public:
         AreaTrigger_at_legion_teleporter() : AreaTriggerScript("at_legion_teleporter") { }
 
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*trigger*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
         {
             if (player->IsAlive() && !player->IsInCombat())
             {
@@ -109,31 +92,6 @@ class AreaTrigger_at_legion_teleporter : public AreaTriggerScript
 };
 
 /*######
-## at_stormwright_shelf
-######*/
-
-enum StormwrightShelf
-{
-    QUEST_STRENGTH_OF_THE_TEMPEST               = 12741,
-
-    SPELL_CREATE_TRUE_POWER_OF_THE_TEMPEST      = 53067
-};
-
-class AreaTrigger_at_stormwright_shelf : public AreaTriggerScript
-{
-    public:
-        AreaTrigger_at_stormwright_shelf() : AreaTriggerScript("at_stormwright_shelf") { }
-
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*trigger*/) override
-        {
-            if (!player->isDead() && player->GetQuestStatus(QUEST_STRENGTH_OF_THE_TEMPEST) == QUEST_STATUS_INCOMPLETE)
-                player->CastSpell(player, SPELL_CREATE_TRUE_POWER_OF_THE_TEMPEST, false);
-
-            return true;
-        }
-};
-
-/*######
 ## at_scent_larkorwi
 ######*/
 
@@ -148,12 +106,12 @@ class AreaTrigger_at_scent_larkorwi : public AreaTriggerScript
     public:
         AreaTrigger_at_scent_larkorwi() : AreaTriggerScript("at_scent_larkorwi") { }
 
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*trigger*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
         {
             if (!player->isDead() && player->GetQuestStatus(QUEST_SCENT_OF_LARKORWI) == QUEST_STATUS_INCOMPLETE)
             {
                 if (!player->FindNearestCreature(NPC_LARKORWI_MATE, 15))
-                    player->SummonCreature(NPC_LARKORWI_MATE, player->GetPositionX()+5, player->GetPositionY(), player->GetPositionZ(), 3.3f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 100000);
+                    player->SummonCreature(NPC_LARKORWI_MATE, player->GetPositionX()+5, player->GetPositionY(), player->GetPositionZ(), 3.3f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 100s);
             }
 
             return false;
@@ -219,7 +177,7 @@ class AreaTrigger_at_nats_landing : public AreaTriggerScript
     public:
         AreaTrigger_at_nats_landing() : AreaTriggerScript("at_nats_landing") { }
 
-        bool OnTrigger(Player* player, AreaTriggerEntry const* /*trigger*/) override
+        bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
         {
             if (!player->IsAlive() || !player->HasAura(SPELL_FISH_PASTE))
                 return false;
@@ -228,7 +186,7 @@ class AreaTrigger_at_nats_landing : public AreaTriggerScript
             {
                 if (!player->FindNearestCreature(NPC_LURKING_SHARK, 20.0f))
                 {
-                    if (Creature* shark = player->SummonCreature(NPC_LURKING_SHARK, -4246.243f, -3922.356f, -7.488f, 5.0f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 100000))
+                    if (Creature* shark = player->SummonCreature(NPC_LURKING_SHARK, -4246.243f, -3922.356f, -7.488f, 5.0f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 100s))
                         shark->AI()->AttackStart(player);
 
                     return false;
@@ -325,7 +283,7 @@ class AreaTrigger_at_area_52_entrance : public AreaTriggerScript
                 return false;
 
             uint32 triggerId = trigger->ID;
-            if (GameTime::GetGameTime() - _triggerTimes[trigger->ID] < SUMMON_COOLDOWN)
+            if (GameTime::GetGameTime() - _triggerTimes[triggerId] < SUMMON_COOLDOWN)
                 return false;
 
             switch (triggerId)
@@ -352,7 +310,7 @@ class AreaTrigger_at_area_52_entrance : public AreaTriggerScript
                     break;
             }
 
-            player->SummonCreature(NPC_SPOTLIGHT, x, y, z, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000);
+            player->SummonCreature(NPC_SPOTLIGHT, x, y, z, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5s);
             player->AddAura(SPELL_A52_NEURALYZER, player);
             _triggerTimes[trigger->ID] = GameTime::GetGameTime();
             return false;
@@ -389,7 +347,7 @@ public:
         stormforgedEradictorGUID.Clear();
     }
 
-    bool OnTrigger(Player* player, AreaTriggerEntry const* /* trigger */) override
+    bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
     {
         if (player->GetQuestStatus(QUEST_THE_LONESOME_WATCHER) != QUEST_STATUS_INCOMPLETE)
             return false;
@@ -402,7 +360,7 @@ public:
         if (stormforgedEradictor)
             return false;
 
-        stormforgedMonitor = player->SummonCreature(NPC_STORMFORGED_MONITOR, stormforgedMonitorPosition, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 60000);
+        stormforgedMonitor = player->SummonCreature(NPC_STORMFORGED_MONITOR, stormforgedMonitorPosition, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 1min);
         if (stormforgedMonitor)
         {
             stormforgedMonitorGUID = stormforgedMonitor->GetGUID();
@@ -412,7 +370,7 @@ public:
             stormforgedMonitor->GetMotionMaster()->MovePath(NPC_STORMFORGED_MONITOR * 100, false);
         }
 
-        stormforgedEradictor = player->SummonCreature(NPC_STORMFORGED_ERADICTOR, stormforgedEradictorPosition, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 60000);
+        stormforgedEradictor = player->SummonCreature(NPC_STORMFORGED_ERADICTOR, stormforgedEradictorPosition, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 1min);
         if (stormforgedEradictor)
         {
             stormforgedEradictorGUID = stormforgedEradictor->GetGUID();
@@ -427,41 +385,25 @@ private:
     ObjectGuid stormforgedEradictorGUID;
 };
 
-enum DarkmoonIslandGamingArea
+struct areatrigger_stormwind_teleport_unit : AreaTriggerAI
 {
-    // Whack-a-Gnoll
-    AT_GAMING_AREA_WHACK_A_GNOLL    = 7344,
-    SPELL_STAY_OUT_WHACK_A_GNOLL    = 109977,
-    SPELL_WHACK_A_GNOLL             = 101612,
-    NPC_MOLA                        = 54601
-};
-
-struct GamingAreaData
-{
-    uint32 RequiredAura = 0;
-    uint32 NearbyKeeperEntry = 0;
-    uint32 StayOutSpellID = 0;
-};
-
-std::unordered_map<uint32, GamingAreaData> GamingAreaInfo =
-{
-    { AT_GAMING_AREA_WHACK_A_GNOLL, { SPELL_WHACK_A_GNOLL, NPC_MOLA, SPELL_STAY_OUT_WHACK_A_GNOLL } }
-    // To-do: fill with remaining data
-};
-
-class AreaTrigger_at_darkmoon_island_gaming_area : public AreaTriggerScript
-{
-public:
-    AreaTrigger_at_darkmoon_island_gaming_area() : AreaTriggerScript("AreaTrigger_at_darkmoon_island_gaming_area") { }
-
-    bool OnTrigger(Player* player, AreaTriggerEntry const* areaTrigger)
+    enum MiscIds
     {
-        GamingAreaData data = GamingAreaInfo[areaTrigger->ID];
-        if (!player->HasAura(data.RequiredAura))
-            if (Creature* keeper = player->FindNearestCreature(data.NearbyKeeperEntry, 50.f))
-                keeper->CastSpell(player, data.StayOutSpellID);
+        SPELL_DUST_IN_THE_STORMWIND        = 312593,
 
-        return true;
+        NPC_KILL_CREDIT_TELEPORT_STORMWIND = 160561
+    };
+
+    areatrigger_stormwind_teleport_unit(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger) { }
+
+    void OnUnitEnter(Unit* unit) override
+    {
+        Player* player = unit->ToPlayer();
+        if (!player)
+            return;
+
+        player->CastSpell(unit, SPELL_DUST_IN_THE_STORMWIND);
+        player->KilledMonsterCredit(NPC_KILL_CREDIT_TELEPORT_STORMWIND);
     }
 };
 
@@ -469,12 +411,11 @@ void AddSC_areatrigger_scripts()
 {
     new AreaTrigger_at_coilfang_waterfall();
     new AreaTrigger_at_legion_teleporter();
-    new AreaTrigger_at_stormwright_shelf();
     new AreaTrigger_at_scent_larkorwi();
     new AreaTrigger_at_sholazar_waygate();
     new AreaTrigger_at_nats_landing();
     new AreaTrigger_at_brewfest();
     new AreaTrigger_at_area_52_entrance();
     new AreaTrigger_at_frostgrips_hollow();
-    new AreaTrigger_at_darkmoon_island_gaming_area();
+    RegisterAreaTriggerAI(areatrigger_stormwind_teleport_unit);
 }

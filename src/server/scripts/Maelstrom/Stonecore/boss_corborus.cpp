@@ -16,56 +16,53 @@
  */
 
 #include "ScriptMgr.h"
-#include "Player.h"
 #include "CreatureGroups.h"
 #include "InstanceScript.h"
 #include "ScriptedCreature.h"
-#include "SpellAuraEffects.h"
-#include "MotionMaster.h"
-#include "SpellScript.h"
-#include "Map.h"
 #include "stonecore.h"
+
+// TO-DO:
+// Find heroic sniffs and script spawning Crystal Shards on heroic mode.
 
 enum Spells
 {
-    // Corborus Intro
-    SPELL_TWILIGHT_DOCUMENTS            = 93167,
-    SPELL_RING_WYRM_CHARGE              = 81237,
-    SPELL_DOOR_BREAK                    = 81232,
+    // Corborus intro
+    SPELL_TWILIGHT_DOCUMENTS        = 93167,
+    SPELL_RING_WYRM_CHARGE          = 81237,
+    SPELL_DOOR_BREAK                = 81232, // cast by World Trigger 22515
 
-    // Corborus
-    SPELL_DAMPENING_WAVE                = 82415,
-    SPELL_CRYSTAL_BARRAGE_TARGETING     = 81634,
-    SPELL_CRYSTAL_BARRAGE               = 86881,
-    SPELL_CRYSTAL_BARRAGE_SHARD         = 92012,
-    SPELL_CLEAR_ALL_DEBUFFS             = 34098,
-    SPELL_SUBMERGE                      = 81629,
-    SPELL_TRASHING_CHARGE_TELEPORT      = 81839,
-    SPELL_TRASHING_CHARGE_TELEPORT_2    = 81838,
-    SPELL_SUMMON_TRASHING_CHARGE        = 81816,
-    SPELL_TRASHING_CHARGE_VISUAL        = 81801,
-    SPELL_TRASHING_CHARGE_EFFECT        = 81828,
-    SPELL_EMERGE                        = 81948,
+    // Corborus boss
+    SPELL_DAMPENING_WAVE            = 82415,
+    SPELL_CRYSTAL_BARRAGE           = 86881, // 81638 triggers 81637
+//  SPELL_CRYSTAL_BARRAGE_SHARD     = 92012, // heroic only, summons Crystal Shard (TO-DO!)
+    SPELL_CLEAR_ALL_DEBUFFS         = 34098,
+    SPELL_SUBMERGE                  = 81629,
+    SPELL_TRASHING_CHARGE_TELEPORT  = 81839, // triggers 81864
+//  SPELL_TRASHING_CHARGE_TELEPORT_2= 81838, // dummy, targets all players, threat update packet follows
+    SPELL_SUMMON_TRASHING_CHARGE    = 81816,
+    SPELL_TRASHING_CHARGE_VISUAL    = 81801, // cast time 3.5 sec
+    SPELL_TRASHING_CHARGE_EFFECT    = 81828, // 40 yard radius
+    SPELL_EMERGE                    = 81948,
 
-    // Rock Borer
-    SPELL_ROCK_BORER_EMERGE             = 82185,
-    SPELL_ROCK_BORE                     = 80028,
+    // Rock Borer npc (43917)
+    SPELL_ROCK_BORER_EMERGE         = 82185,
+    SPELL_ROCK_BORE                 = 80028,
+};
 
-    // Crystal Shard
-    SPELL_RANDOM_AGGRO                  = 92112,
-    SPELL_CRYSTAL_SHARDS                = 92117,
-    SPELL_CRYSTAL_SHARDS_TARGET         = 92116,
-    SPELL_CRYSTAL_SHARDS_DAMAGE         = 92122,
-    SPELL_SHRINK                        = 92079,
-    SPELL_PERMANENT_FEIGN_DEATH         = 70628
+enum NPCs
+{
+    NPC_TRASHING_CHARGE             = 43743,
+//  NPC_CRYSTAL_SHARD               = 49267, // 49473
 };
 
 enum Events
 {
-    // Corborus Intro
-    EVENT_CORBORUS_CHARGE = 1,
+    EVENT_NONE,
+
+    // Corborus intro
+    EVENT_CORBORUS_CHARGE,
     EVENT_CORBORUS_KNOCKBACK,
-    EVENT_CORBORUS_FACE_PLAYERS,
+    EVENT_CORBORUS_FACEPLAYERS,
 
     // Corborus boss
     EVENT_DAMPENING_WAVE,
@@ -80,22 +77,7 @@ enum Events
     // Rock Borer
     EVENT_EMERGED,
     EVENT_ROCK_BORE,
-
-    // Crystal Shard
-    EVENT_REMOVE_SHRINK_AURA
 };
-
-enum Phases
-{
-    // Corborus
-    PHASE_INTRO     = 0,
-    PHASE_COMBAT    = 1,
-
-    // Crystal Shards
-    PHASE_ACTIVE    = 1
-};
-
-Position const CorborusHomePos = { 1154.55f, 878.843f, 284.963f, 3.176499f };
 
 class boss_corborus : public CreatureScript
 {
@@ -106,45 +88,18 @@ class boss_corborus : public CreatureScript
         {
             boss_corborusAI(Creature* creature) : BossAI(creature, DATA_CORBORUS)
             {
-                Initialize();
-            }
-
-            void Initialize()
-            {
-                _countTrashingCharge = 0;
+                stateIntro = NOT_STARTED;
             }
 
             void Reset() override
             {
                 _Reset();
-                _countTrashingCharge = 0;
-                events.SetPhase(PHASE_INTRO);
 
-                if (instance->GetData(DATA_EVENT_PROGRESS) < EVENT_INDEX_CORBORUS_INTRO)
-                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE_TO_PC);
-            }
+                countTrashingCharge = 0;
 
-            void JustEngagedWith(Unit* /*who*/) override
-            {
-                instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
-                events.ScheduleEvent(EVENT_DAMPENING_WAVE, Seconds(10));
-                events.ScheduleEvent(EVENT_CRYSTAL_BARRAGE, Seconds(15));
-                events.ScheduleEvent(EVENT_SUBMERGE, Seconds(36));
-            }
-
-            void EnterEvadeMode(EvadeReason /*why*/) override
-            {
-                _EnterEvadeMode();
-                summons.DespawnAll();
-                instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
-                instance->SetBossState(DATA_CORBORUS, FAIL);
-                me->DespawnOrUnsummon();
-            }
-
-            void JustDied(Unit* /*killer*/) override
-            {
-                instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
-                _JustDied();
+                events.ScheduleEvent(EVENT_DAMPENING_WAVE, 10s);
+                events.ScheduleEvent(EVENT_CRYSTAL_BARRAGE, 15s);
+                events.ScheduleEvent(EVENT_SUBMERGE, 36s);
             }
 
             void DoAction(int32 action) override
@@ -153,6 +108,11 @@ class boss_corborus : public CreatureScript
                 {
                     case ACTION_CORBORUS_INTRO: // Executes Corborus intro event
                     {
+                        if (stateIntro != NOT_STARTED)
+                            return;
+
+                        stateIntro = IN_PROGRESS;
+
                         if (Creature* Millhouse = instance->GetCreature(DATA_MILLHOUSE_MANASTORM))
                         {
                             Millhouse->InterruptNonMeleeSpells(true);
@@ -160,7 +120,7 @@ class boss_corborus : public CreatureScript
                             Millhouse->HandleEmoteCommand(EMOTE_ONESHOT_KNOCKDOWN);
                         }
 
-                        events.ScheduleEvent(EVENT_CORBORUS_CHARGE, Seconds(1));
+                        events.ScheduleEvent(EVENT_CORBORUS_CHARGE, 1s);
                         break;
                     }
                     default:
@@ -168,17 +128,9 @@ class boss_corborus : public CreatureScript
                 }
             }
 
-            void JustSummoned(Creature* summon) override
-            {
-                summons.Summon(summon);
-
-                if (summon->GetEntry() == NPC_TRASHING_CHARGE)
-                    summon->CastSpell(summon, SPELL_TRASHING_CHARGE_EFFECT);
-            }
-
             void UpdateAI(uint32 diff) override
             {
-                if (!UpdateVictim() && !events.IsInPhase(PHASE_INTRO))
+                if (!UpdateVictim() && stateIntro != IN_PROGRESS)
                     return;
 
                 events.Update(diff);
@@ -202,7 +154,7 @@ class boss_corborus : public CreatureScript
                             // Make Corborus charge
                             DoCast(me, SPELL_RING_WYRM_CHARGE, true);
 
-                            events.ScheduleEvent(EVENT_CORBORUS_KNOCKBACK, Seconds(1));
+                            events.ScheduleEvent(EVENT_CORBORUS_KNOCKBACK, 1s);
                             break;
                         case EVENT_CORBORUS_KNOCKBACK:
                             // Spawn Twilight Documents (quest gameobject)
@@ -211,58 +163,63 @@ class boss_corborus : public CreatureScript
 
                             // Knockback Millhouse and other mobs
                             instance->SetData(DATA_MILLHOUSE_EVENT_KNOCKBACK, 0);
-                            events.ScheduleEvent(EVENT_CORBORUS_FACE_PLAYERS, Seconds(2));
+
+                            events.ScheduleEvent(EVENT_CORBORUS_FACEPLAYERS, 2s);
                             break;
-                        case EVENT_CORBORUS_FACE_PLAYERS:
+                        case EVENT_CORBORUS_FACEPLAYERS:
+                            // Face Corborus to players and set new home position
                             me->SetFacingTo(3.176499f);
-                            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
+                            me->SetHomePosition(1154.55f, 878.843f, 284.963f, 3.176499f);
+                            me->RemoveUnitFlag(UNIT_FLAG_IMMUNE_TO_PC);
 
                             // Despawn Millhouse and all trash
                             instance->SetData(DATA_MILLHOUSE_EVENT_DESPAWN, 0);
+
+                            stateIntro = DONE;
                             break;
                         case EVENT_DAMPENING_WAVE:
-                            DoCastAOE(SPELL_DAMPENING_WAVE);
-                            events.Repeat(Seconds(15));
+                            DoCastVictim(SPELL_DAMPENING_WAVE);
+                            events.ScheduleEvent(EVENT_DAMPENING_WAVE, 15s);
                             break;
                         case EVENT_CRYSTAL_BARRAGE:
-                            DoCastAOE(SPELL_CRYSTAL_BARRAGE_TARGETING, true);
-                            events.Repeat(Seconds(10));
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
+                                DoCast(target, SPELL_CRYSTAL_BARRAGE);
+                            events.ScheduleEvent(EVENT_CRYSTAL_BARRAGE, 10s);
                             break;
                         case EVENT_SUBMERGE:
-                            events.RescheduleEvent(EVENT_DAMPENING_WAVE, Seconds(35));
-                            events.RescheduleEvent(EVENT_CRYSTAL_BARRAGE, Seconds(30));
-                            events.Repeat(Minutes(1) + Seconds(40));
+                            events.RescheduleEvent(EVENT_DAMPENING_WAVE, 35s);
+                            events.RescheduleEvent(EVENT_CRYSTAL_BARRAGE, 30s);
+                            events.RescheduleEvent(EVENT_SUBMERGE, 100s);
 
                             me->SetReactState(REACT_PASSIVE);
-                            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                            me->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                             DoCast(me, SPELL_CLEAR_ALL_DEBUFFS);
                             me->AttackStop();
 
                             DoCast(me, SPELL_SUBMERGE);
 
-                            _countTrashingCharge = 0;
-                            events.ScheduleEvent(EVENT_TELEPORT, Milliseconds(500));
+                            countTrashingCharge = 0;
+                            events.ScheduleEvent(EVENT_TELEPORT, 500ms);
                             break;
                         case EVENT_TELEPORT:
-                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true))
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
                                 DoCast(target, SPELL_TRASHING_CHARGE_TELEPORT);
-                            _countTrashingCharge++;
-
-                            if (_countTrashingCharge <= 4)
-                                events.ScheduleEvent(EVENT_TRASHING_CHARGE, Seconds(1));
+                            countTrashingCharge += 1;
+                            if (countTrashingCharge <= 4)
+                                events.ScheduleEvent(EVENT_TRASHING_CHARGE, 1s);
                             else
-                                events.ScheduleEvent(EVENT_EMERGE, Seconds(2) + Milliseconds(500));
+                                events.ScheduleEvent(EVENT_EMERGE, 2500ms);
                             break;
                         case EVENT_TRASHING_CHARGE:
                             DoCast(me, SPELL_SUMMON_TRASHING_CHARGE);
                             DoCast(me, SPELL_TRASHING_CHARGE_VISUAL);
-                            events.ScheduleEvent(EVENT_TELEPORT, Seconds(5));
+                            events.ScheduleEvent(EVENT_TELEPORT, 5s);
                             break;
                         case EVENT_EMERGE:
                             me->RemoveAllAuras();
-                            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                            me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                             DoCast(me, SPELL_EMERGE);
-                            events.ScheduleEvent(EVENT_ATTACK, Seconds(2) + Milliseconds(500));
+                            events.ScheduleEvent(EVENT_ATTACK, 2500ms);
                             break;
                         case EVENT_ATTACK:
                             me->SetReactState(REACT_AGGRESSIVE);
@@ -275,8 +232,21 @@ class boss_corborus : public CreatureScript
                 DoMeleeAttackIfReady();
             }
 
+            void JustSummoned(Creature* summon) override
+            {
+                if (summon->GetEntry() == NPC_TRASHING_CHARGE)
+                {
+                    summon->SetReactState(REACT_PASSIVE);
+                    summon->CastSpell(summon, SPELL_TRASHING_CHARGE_EFFECT);
+                    summon->DespawnOrUnsummon(6s);
+                }
+
+                BossAI::JustSummoned(summon);
+            }
+
         private:
-            uint32 _countTrashingCharge;
+            EncounterState stateIntro;
+            uint32 countTrashingCharge = 0;
         };
 
         CreatureAI* GetAI(Creature* creature) const override
@@ -285,6 +255,7 @@ class boss_corborus : public CreatureScript
         }
 };
 
+// 43391 - Rock Borer
 class npc_rock_borer : public CreatureScript
 {
     public:
@@ -292,19 +263,16 @@ class npc_rock_borer : public CreatureScript
 
         struct npc_rock_borerAI : public ScriptedAI
         {
-            npc_rock_borerAI(Creature* creature) : ScriptedAI(creature), _instance(me->GetInstanceScript())
+            npc_rock_borerAI(Creature* creature) : ScriptedAI(creature)
             {
                 me->SetDisableGravity(true);
                 me->SetReactState(REACT_PASSIVE);
             }
 
-            void IsSummonedBy(Unit* /*summoner*/) override
+            void IsSummonedBy(WorldObject* /*summoner*/) override
             {
-                if (Creature* corborus = _instance->GetCreature(DATA_CORBORUS))
-                    corborus->AI()->JustSummoned(me);
-
-                _events.ScheduleEvent(EVENT_EMERGED, 1s + 200ms);
-                _events.ScheduleEvent(EVENT_ROCK_BORE, 17s);
+                events.ScheduleEvent(EVENT_EMERGED, 1200ms);
+                events.ScheduleEvent(EVENT_ROCK_BORE, 15s, 20s); // Need sniffs for this timer
                 DoZoneInCombat();
                 DoCast(me, SPELL_ROCK_BORER_EMERGE);
             }
@@ -314,12 +282,12 @@ class npc_rock_borer : public CreatureScript
                 if (!UpdateVictim() && me->GetReactState() != REACT_PASSIVE)
                     return;
 
-                _events.Update(diff);
+                events.Update(diff);
 
                 if (me->HasUnitState(UNIT_STATE_CASTING))
                     return;
 
-                while (uint32 eventId = _events.ExecuteEvent())
+                while (uint32 eventId = events.ExecuteEvent())
                 {
                     switch (eventId)
                     {
@@ -328,8 +296,8 @@ class npc_rock_borer : public CreatureScript
                             me->SetReactState(REACT_AGGRESSIVE);
                             break;
                         case EVENT_ROCK_BORE:
-                            DoCastVictim(SPELL_ROCK_BORE);
-                            _events.Repeat(17s); // Need sniffs for this timer
+                            DoCast(me, SPELL_ROCK_BORE);
+                            events.ScheduleEvent(EVENT_ROCK_BORE, 15s, 20s); // Need sniffs for this timer
                             break;
                         default:
                             break;
@@ -340,8 +308,7 @@ class npc_rock_borer : public CreatureScript
             }
 
         private:
-            EventMap _events;
-            InstanceScript* _instance;
+            EventMap events;
         };
 
         CreatureAI* GetAI(Creature* creature) const override
@@ -350,133 +317,8 @@ class npc_rock_borer : public CreatureScript
         }
 };
 
-class npc_crystal_shard : public CreatureScript
-{
-    public:
-        npc_crystal_shard() : CreatureScript("npc_crystal_shard") { }
-
-        struct npc_crystal_shardAI : public ScriptedAI
-        {
-            npc_crystal_shardAI(Creature* creature) : ScriptedAI(creature)
-            {
-                SetCombatMovement(false);
-            }
-
-            void IsSummonedBy(Unit* /*summoner*/) override
-            {
-                if (Unit* target = me->SelectNearestPlayer(80.0f))
-                    target->CastSpell(me, SPELL_RANDOM_AGGRO, true);
-
-                DoCastSelf(SPELL_CRYSTAL_SHARDS, true);
-                _events.ScheduleEvent(EVENT_REMOVE_SHRINK_AURA, Seconds(1) + Milliseconds(200));
-            }
-
-            void SpellHitTarget(WorldObject* /*target*/, SpellInfo const* spell) override
-            {
-                if (spell->Id == SPELL_CRYSTAL_SHARDS_TARGET)
-                {
-                    DoCastAOE(SPELL_CRYSTAL_SHARDS_DAMAGE, true);
-                    DoCastSelf(SPELL_PERMANENT_FEIGN_DEATH, true);
-                    me->DespawnOrUnsummon(Seconds(3) + Milliseconds(500));
-                }
-            }
-
-            void UpdateAI(uint32 diff) override
-            {
-                UpdateVictim();
-
-                _events.Update(diff);
-
-                while (uint32 eventId = _events.ExecuteEvent())
-                {
-                    switch (eventId)
-                    {
-                        case EVENT_REMOVE_SHRINK_AURA:
-                            me->RemoveAurasDueToSpell(SPELL_SHRINK);
-                            _events.ScheduleEvent(EVENT_ATTACK, Seconds(2));
-                            break;
-                        case EVENT_ATTACK:
-                            _events.SetPhase(PHASE_ACTIVE);
-                            SetCombatMovement(true);
-                            if (Unit* victim = me->GetVictim())
-                                me->GetMotionMaster()->MoveChase(victim);
-                            break;
-                        default:
-                            break;
-                    }
-                }
-
-                if (_events.IsInPhase(PHASE_ACTIVE))
-                    DoSpellAttackIfReady(SPELL_CRYSTAL_SHARDS_TARGET);
-            }
-
-        private:
-            EventMap _events;
-        };
-
-        CreatureAI* GetAI(Creature* creature) const override
-        {
-            return GetStonecoreAI<npc_crystal_shardAI>(creature);
-        }
-};
-
-class spell_corborus_crystal_barrage_targeting : public SpellScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_CRYSTAL_BARRAGE });
-    }
-
-    void FilterTargets(std::list<WorldObject*>& targets)
-    {
-        if (targets.empty())
-            return;
-
-        Trinity::Containers::RandomResize(targets, 1);
-    }
-
-    void HandleEffect(SpellEffIndex /*effIndex*/)
-    {
-        if (Unit* caster = GetCaster())
-        {
-            caster->StopMoving();
-            caster->CastSpell(GetHitUnit(), SPELL_CRYSTAL_BARRAGE);
-        }
-    }
-
-    void Register() override
-    {
-        OnObjectAreaTargetSelect.Register(&spell_corborus_crystal_barrage_targeting::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-        OnEffectHitTarget.Register(&spell_corborus_crystal_barrage_targeting::HandleEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-    }
-};
-
-class spell_corborus_crystal_barrage : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_CRYSTAL_BARRAGE_SHARD });
-    }
-
-    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        if (Unit* caster = GetCaster())
-            if (caster->GetMap()->IsHeroic())
-                for (uint8 i = 0; i < 9; i++)
-                    caster->CastSpell(caster, SPELL_CRYSTAL_BARRAGE_SHARD, true);
-    }
-
-    void Register() override
-    {
-        OnEffectRemove.Register(&spell_corborus_crystal_barrage::OnRemove, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
-    }
-};
-
 void AddSC_boss_corborus()
 {
     new boss_corborus();
     new npc_rock_borer();
-    new npc_crystal_shard();
-    RegisterSpellScript(spell_corborus_crystal_barrage_targeting);
-    RegisterSpellScript(spell_corborus_crystal_barrage);
 }

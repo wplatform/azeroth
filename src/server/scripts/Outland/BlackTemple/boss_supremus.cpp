@@ -18,7 +18,6 @@
 #include "ScriptMgr.h"
 #include "black_temple.h"
 #include "MotionMaster.h"
-#include "ObjectAccessor.h"
 #include "PassiveAI.h"
 #include "ScriptedCreature.h"
 
@@ -117,7 +116,7 @@ struct boss_supremus : public BossAI
 
     Unit* CalculateHatefulStrikeTarget()
     {
-        uint32 health = 0;
+        uint64 health = 0;
         Unit* target = nullptr;
 
         for (auto* ref : me->GetThreatManager().GetUnsortedThreatList())
@@ -153,7 +152,7 @@ struct boss_supremus : public BossAI
                 events.Repeat(Seconds(5));
                 break;
             case EVENT_SWITCH_TARGET:
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 100.0f, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1, 100.0f, true))
                 {
                     ResetThreatList();
                     AddThreat(target, 1000000.0f);

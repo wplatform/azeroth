@@ -24,12 +24,11 @@
 #include "BattlefieldMgr.h"
 #include "Battleground.h"
 #include "CreatureTextMgr.h"
+#include "DB2Stores.h"
 #include "GameObject.h"
 #include "GameTime.h"
 #include "Log.h"
 #include "ObjectAccessor.h"
-#include "ObjectMgr.h"
-#include "Opcodes.h"
 #include "Player.h"
 #include "Random.h"
 #include "ScriptedCreature.h"
@@ -544,7 +543,7 @@ void BattlefieldWG::OnBattleStart()
         // Update faction of relic, only attacker can click on
         relic->SetFaction(WintergraspFaction[GetAttackerTeam()]);
         // Set in use (not allow to click on before last door is broken)
-        relic->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE);
+        relic->SetFlag(GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE);
         m_titansRelicGUID = relic->GetGUID();
     }
     else
@@ -582,7 +581,7 @@ void BattlefieldWG::OnBattleStart()
     for (WintergraspWorkshop* workshop : Workshops)
         workshop->UpdateGraveyardAndWorkshop();
 
-    for (uint8 team = 0; team < BG_TEAMS_COUNT; ++team)
+    for (uint8 team = 0; team < PVP_TEAMS_COUNT; ++team)
     {
         for (auto itr = m_players[team].begin(); itr != m_players[team].end(); ++itr)
         {
@@ -627,10 +626,16 @@ void BattlefieldWG::UpdateCounterVehicle(bool init)
 void BattlefieldWG::OnBattleEnd(bool endByTimer)
 {
     // Remove relic
-    if (m_titansRelicGUID)
+    if (!m_titansRelicGUID.IsEmpty())
         if (GameObject* relic = GetGameObject(m_titansRelicGUID))
             relic->RemoveFromWorld();
     m_titansRelicGUID.Clear();
+
+    // change collision wall state closed
+    for (BfWGGameObjectBuilding* building : BuildingsInZone)
+    {
+        building->RebuildGate();
+    }
 
     // update win statistics
     {
@@ -647,6 +652,7 @@ void BattlefieldWG::OnBattleEnd(bool endByTimer)
 
     sWorldStateMgr->SetValueAndSaveInDb(WS_BATTLEFIELD_WG_DEFENDER, GetDefenderTeam(), false, m_Map);
     sWorldStateMgr->SetValueAndSaveInDb(WS_BATTLEFIELD_WG_SHOW_TIME_NEXT_BATTLE, 1, false, m_Map);
+    sWorldStateMgr->SetValue(WS_BATTLEFIELD_WG_SHOW_TIME_BATTLE_END, 0, false, m_Map);
     sWorldStateMgr->SetValue(ClockWorldState[1], GameTime::GetGameTime() + m_Timer / IN_MILLISECONDS, false, m_Map);
 
     // Remove turret
@@ -695,7 +701,7 @@ void BattlefieldWG::OnBattleEnd(bool endByTimer)
         if (Player* player = ObjectAccessor::FindPlayer(*itr))
             player->CastSpell(player, SPELL_DEFEAT_REWARD, true);
 
-    for (uint8 team = 0; team < BG_TEAMS_COUNT; ++team)
+    for (uint8 team = 0; team < PVP_TEAMS_COUNT; ++team)
     {
         for (auto itr = m_PlayersInWar[team].begin(); itr != m_PlayersInWar[team].end(); ++itr)
             if (Player* player = ObjectAccessor::FindPlayer(*itr))
@@ -713,7 +719,7 @@ void BattlefieldWG::OnBattleEnd(bool endByTimer)
 
     if (!endByTimer)
     {
-        for (uint8 team = 0; team < BG_TEAMS_COUNT; ++team)
+        for (uint8 team = 0; team < PVP_TEAMS_COUNT; ++team)
         {
             for (auto itr = m_players[team].begin(); itr != m_players[team].end(); ++itr)
             {
@@ -737,7 +743,7 @@ void BattlefieldWG::OnBattleEnd(bool endByTimer)
 // *******************************************************
 void BattlefieldWG::DoCompleteOrIncrementAchievement(uint32 achievement, Player* player, uint8 /*incrementNumber*/)
 {
-    AchievementEntry const* achievementEntry = sAchievementMgr->GetAchievement(achievement);
+    AchievementEntry const* achievementEntry = sAchievementStore.LookupEntry(achievement);
 
     if (!achievementEntry)
         return;
@@ -745,12 +751,16 @@ void BattlefieldWG::DoCompleteOrIncrementAchievement(uint32 achievement, Player*
     switch (achievement)
     {
         case ACHIEVEMENTS_WIN_WG_100:
-            // player->UpdateAchievementCriteria();
+        {
+            // player->UpdateCriteria();
             break;
+        }
         default:
+        {
             if (player)
                 player->CompletedAchievement(achievementEntry);
             break;
+        }
     }
 
 }
@@ -779,7 +789,7 @@ uint8 BattlefieldWG::GetSpiritGraveyardId(uint32 areaId) const
         case AREA_THE_CHILLED_QUAGMIRE:
             return BATTLEFIELD_WG_GY_HORDE;
         default:
-            TC_LOG_ERROR("bg.battlefield", "BattlefieldWG::GetSpiritGraveyardId: Unexpected Area Id %u", areaId);
+            TC_LOG_ERROR("bg.battlefield", "BattlefieldWG::GetSpiritGraveyardId: Unexpected Area Id {}", areaId);
             break;
     }
 
@@ -939,7 +949,7 @@ void BattlefieldWG::HandleKill(Player* killer, Unit* victim)
         HandlePromotion(killer, victim);
 
         // Allow to Skin non-released corpse
-        victim->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
+        victim->SetUnitFlag(UNIT_FLAG_SKINNABLE);
     }
 
     /// @todoRecent PvP activity worldstate
@@ -947,7 +957,7 @@ void BattlefieldWG::HandleKill(Player* killer, Unit* victim)
 
 bool BattlefieldWG::FindAndRemoveVehicleFromList(Unit* vehicle)
 {
-    for (uint32 team = 0; team < BG_TEAMS_COUNT; ++team)
+    for (uint32 team = 0; team < PVP_TEAMS_COUNT; ++team)
     {
         auto itr = m_vehicles[team].find(vehicle->GetGUID());
         if (itr != m_vehicles[team].end())
@@ -996,7 +1006,7 @@ void BattlefieldWG::PromotePlayer(Player* killer)
             killer->RemoveAura(SPELL_RECRUIT);
             killer->CastSpell(killer, SPELL_CORPORAL, true);
             if (Creature* stalker = GetCreature(StalkerGuid))
-                sCreatureTextMgr->SendChat(stalker, BATTLEFIELD_WG_TEXT_RANK_CORPORAL, killer, CHAT_MSG_ADDON, LANG_ADDON, TEXT_RANGE_NORMAL, 0, TEAM_OTHER, false, killer);
+                sCreatureTextMgr->SendChat(stalker, BATTLEFIELD_WG_TEXT_RANK_CORPORAL, killer, CHAT_MSG_ADDON, LANG_ADDON, TEXT_RANGE_NORMAL, 0, SoundKitPlayType::Normal, TEAM_OTHER, false, killer);
         }
         else
             killer->CastSpell(killer, SPELL_RECRUIT, true);
@@ -1008,7 +1018,7 @@ void BattlefieldWG::PromotePlayer(Player* killer)
             killer->RemoveAura(SPELL_CORPORAL);
             killer->CastSpell(killer, SPELL_LIEUTENANT, true);
             if (Creature* stalker = GetCreature(StalkerGuid))
-                sCreatureTextMgr->SendChat(stalker, BATTLEFIELD_WG_TEXT_RANK_FIRST_LIEUTENANT, killer, CHAT_MSG_ADDON, LANG_ADDON, TEXT_RANGE_NORMAL, 0, TEAM_OTHER, false, killer);
+                sCreatureTextMgr->SendChat(stalker, BATTLEFIELD_WG_TEXT_RANK_FIRST_LIEUTENANT, killer, CHAT_MSG_ADDON, LANG_ADDON, TEXT_RANGE_NORMAL, 0, SoundKitPlayType::Normal, TEAM_OTHER, false, killer);
         }
         else
             killer->CastSpell(killer, SPELL_CORPORAL, true);
@@ -1075,6 +1085,7 @@ void BattlefieldWG::OnPlayerLeaveWar(Player* player)
     player->RemoveAurasDueToSpell(SPELL_ALLIANCE_CONTROLS_FACTORY_PHASE_SHIFT);
     player->RemoveAurasDueToSpell(SPELL_HORDE_CONTROL_PHASE_SHIFT);
     player->RemoveAurasDueToSpell(SPELL_ALLIANCE_CONTROL_PHASE_SHIFT);
+    UpdateTenacity();
 }
 
 void BattlefieldWG::OnPlayerLeaveZone(Player* player)
@@ -1086,7 +1097,6 @@ void BattlefieldWG::OnPlayerLeaveZone(Player* player)
     player->RemoveAurasDueToSpell(SPELL_ALLIANCE_CONTROLS_FACTORY_PHASE_SHIFT);
     player->RemoveAurasDueToSpell(SPELL_HORDE_CONTROL_PHASE_SHIFT);
     player->RemoveAurasDueToSpell(SPELL_ALLIANCE_CONTROL_PHASE_SHIFT);
-    UpdateTenacity();
 }
 
 void BattlefieldWG::OnPlayerEnterZone(Player* player)
@@ -1125,7 +1135,7 @@ void BattlefieldWG::BrokenWallOrTower(TeamId team, BfWGGameObjectBuilding* build
         for (auto itr = m_PlayersInWar[GetAttackerTeam()].begin(); itr != m_PlayersInWar[GetAttackerTeam()].end(); ++itr)
         {
             if (Player* player = ObjectAccessor::FindPlayer(*itr))
-                if (player->GetDistance2d(GetGameObject(building->GetGUID())) < 50.0f)
+                if (player->GetDistance2d(ASSERT_NOTNULL(GetGameObject(building->GetGUID()))) < 50.0f)
                     player->KilledMonsterCredit(QUEST_CREDIT_DEFEND_SIEGE);
         }
     }
@@ -1164,6 +1174,7 @@ void BattlefieldWG::UpdatedDestroyedTowerCount(TeamId team)
                 m_Timer = 0;
             else
                 m_Timer -= 600000;
+
             sWorldStateMgr->SetValue(ClockWorldState[0], GameTime::GetGameTime() + m_Timer / IN_MILLISECONDS, false, m_Map);
         }
     }
@@ -1200,9 +1211,9 @@ void BattlefieldWG::ProcessEvent(WorldObject* obj, uint32 eventId, WorldObject* 
         {
             if (GameObject* buildingGo = GetGameObject(building->GetGUID()))
             {
-                if (buildingGo->GetGOInfo()->building.damagedEvent == eventId)
+                if (buildingGo->GetGOInfo()->destructibleBuilding.DamagedEvent == eventId)
                     building->Damaged();
-                else if (buildingGo->GetGOInfo()->building.destroyedEvent == eventId)
+                else if (buildingGo->GetGOInfo()->destructibleBuilding.DestroyedEvent == eventId)
                     building->Destroyed();
                 break;
             }
@@ -1222,9 +1233,9 @@ void BattlefieldWG::UpdateDamagedTowerCount(TeamId team)
 // Update vehicle count WorldState to player
 void BattlefieldWG::UpdateVehicleCountWG()
 {
-    sWorldStateMgr->SetValue(WS_BATTLEFIELD_WG_VEHICLE_H, GetData(BATTLEFIELD_WG_DATA_VEHICLE_H), false, m_Map);
+    sWorldStateMgr->SetValue(WS_BATTLEFIELD_WG_VEHICLE_H,     GetData(BATTLEFIELD_WG_DATA_VEHICLE_H), false, m_Map);
     sWorldStateMgr->SetValue(WS_BATTLEFIELD_WG_MAX_VEHICLE_H, GetData(BATTLEFIELD_WG_DATA_MAX_VEHICLE_H), false, m_Map);
-    sWorldStateMgr->SetValue(WS_BATTLEFIELD_WG_VEHICLE_A, GetData(BATTLEFIELD_WG_DATA_VEHICLE_A), false, m_Map);
+    sWorldStateMgr->SetValue(WS_BATTLEFIELD_WG_VEHICLE_A,     GetData(BATTLEFIELD_WG_DATA_VEHICLE_A), false, m_Map);
     sWorldStateMgr->SetValue(WS_BATTLEFIELD_WG_MAX_VEHICLE_A, GetData(BATTLEFIELD_WG_DATA_MAX_VEHICLE_A), false, m_Map);
 }
 
@@ -1251,7 +1262,7 @@ void BattlefieldWG::UpdateTenacity()
     {
         for (auto itr = m_players[m_tenacityTeam].begin(); itr != m_players[m_tenacityTeam].end(); ++itr)
             if (Player* player = ObjectAccessor::FindPlayer(*itr))
-                if (player->getLevel() >= m_MinLevel)
+                if (player->GetLevel() >= m_MinLevel)
                     player->RemoveAurasDueToSpell(SPELL_TENACITY);
 
         for (auto itr = m_vehicles[m_tenacityTeam].begin(); itr != m_vehicles[m_tenacityTeam].end(); ++itr)
@@ -1357,7 +1368,7 @@ void BfWGGameObjectBuilding::Rebuild()
             build->SetDestructibleState(GO_DESTRUCTIBLE_REBUILDING, nullptr, true);
             if (build->GetEntry() == GO_WINTERGRASP_VAULT_GATE)
                 if (GameObject* go = build->FindNearestGameObject(GO_WINTERGRASP_KEEP_COLLISION_WALL, 50.0f))
-                    go->SetGoState(GO_STATE_READY);
+                    go->SetGoState(GO_STATE_ACTIVE);
 
             // Update worldstate
             _state = WintergraspGameObjectState(BATTLEFIELD_WG_OBJECTSTATE_ALLIANCE_INTACT - (_teamControl * 3));
@@ -1365,6 +1376,18 @@ void BfWGGameObjectBuilding::Rebuild()
         }
         UpdateCreatureAndGo();
         build->SetFaction(WintergraspFaction[_teamControl]);
+    }
+}
+
+void BfWGGameObjectBuilding::RebuildGate()
+{
+    if (GameObject* build = _wg->GetGameObject(_buildGUID))
+    {
+        if (build->IsDestructibleBuilding() && build->GetEntry() == GO_WINTERGRASP_VAULT_GATE)
+        {
+            if (GameObject* go = build->FindNearestGameObject(GO_WINTERGRASP_KEEP_COLLISION_WALL, 50.0f))
+                go->SetGoState(GO_STATE_READY); //not GO_STATE_ACTIVE
+        }
     }
 }
 
@@ -1415,7 +1438,7 @@ void BfWGGameObjectBuilding::Destroyed()
                     go->SetGoState(GO_STATE_ACTIVE);
             _wg->SetRelicInteractible(true);
             if (_wg->GetRelic())
-                _wg->GetRelic()->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE);
+                _wg->GetRelic()->RemoveFlag(GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE);
             else
                 TC_LOG_ERROR("bg.battlefield.wg", "Titan Relic not found.");
             break;

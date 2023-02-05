@@ -40,6 +40,11 @@ class boss_nerubenkan : public CreatureScript
 public:
     boss_nerubenkan() : CreatureScript("boss_nerubenkan") { }
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetStratholmeAI<boss_nerubenkanAI>(creature);
+    }
+
     struct boss_nerubenkanAI : public ScriptedAI
     {
         boss_nerubenkanAI(Creature* creature) : ScriptedAI(creature)
@@ -79,7 +84,7 @@ public:
 
         void RaiseUndeadScarab(Unit* victim)
         {
-            if (Creature* pUndeadScarab = DoSpawnCreature(10876, float(irand(-9, 9)), float(irand(-9, 9)), 0, 0, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, 180000))
+            if (Creature* pUndeadScarab = DoSpawnCreature(10876, float(irand(-9, 9)), float(irand(-9, 9)), 0, 0, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, 180s))
                 if (pUndeadScarab->AI())
                     pUndeadScarab->AI()->AttackStart(victim);
         }
@@ -122,10 +127,6 @@ public:
         }
     };
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetStratholmeAI<boss_nerubenkanAI>(creature);
-    }
 };
 
 void AddSC_boss_nerubenkan()

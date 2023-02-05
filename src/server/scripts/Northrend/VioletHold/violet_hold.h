@@ -20,6 +20,8 @@
 
 #include "CreatureAIImpl.h"
 
+struct Position;
+
 #define VioletHoldScriptName "instance_violet_hold"
 #define DataHeader "VH"
 
@@ -27,7 +29,7 @@ uint32 const EncounterCount = 3 + 6;
 
 // Defined in instance_violet_hold.cpp
 extern Position const DefenseSystemLocation;
-uint8 const PortalIntroCount = 3;
+uint8 constexpr PortalIntroCount = 3;
 extern Position const PortalIntroPositions[];
 
 /*
@@ -158,5 +160,8 @@ inline AI* GetVioletHoldAI(T* obj)
 {
     return GetInstanceAI<AI>(obj, VioletHoldScriptName);
 }
+
+#define RegisterVioletHoldCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetVioletHoldAI)
+#define RegisterVioletHoldGameObjectAI(ai_name) RegisterGameObjectAIWithFactory(ai_name, GetVioletHoldAI)
 
 #endif // VIOLET_HOLD_H_

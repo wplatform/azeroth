@@ -16,6 +16,7 @@
  */
 
 #include "ScriptMgr.h"
+#include "hyjal.h"
 #include "hyjal_trash.h"
 #include "InstanceScript.h"
 #include "ObjectAccessor.h"
@@ -41,6 +42,11 @@ class boss_rage_winterchill : public CreatureScript
 {
 public:
     boss_rage_winterchill() : CreatureScript("boss_rage_winterchill") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<boss_rage_winterchillAI>(creature);
+    }
 
     struct boss_rage_winterchillAI : public hyjal_trashAI
     {
@@ -71,13 +77,13 @@ public:
             Initialize();
 
             if (IsEvent)
-                instance->SetData(DATA_RAGEWINTERCHILLEVENT, NOT_STARTED);
+                instance->SetBossState(DATA_RAGEWINTERCHILL, NOT_STARTED);
         }
 
         void JustEngagedWith(Unit* /*who*/) override
         {
             if (IsEvent)
-                instance->SetData(DATA_RAGEWINTERCHILLEVENT, IN_PROGRESS);
+                instance->SetBossState(DATA_RAGEWINTERCHILL, IN_PROGRESS);
             Talk(SAY_ONAGGRO);
         }
 
@@ -90,7 +96,7 @@ public:
         {
             if (waypointId == 7 && instance)
             {
-                Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
+                Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
                 if (target && target->IsAlive())
                     AddThreat(target, 0.0f);
             }
@@ -100,7 +106,7 @@ public:
         {
             hyjal_trashAI::JustDied(killer);
             if (IsEvent)
-                instance->SetData(DATA_RAGEWINTERCHILLEVENT, DONE);
+                instance->SetBossState(DATA_RAGEWINTERCHILL, DONE);
             Talk(SAY_ONDEATH);
         }
 
@@ -149,18 +155,13 @@ public:
             } else NovaTimer -= diff;
             if (IceboltTimer <= diff)
             {
-                DoCast(SelectTarget(SELECT_TARGET_RANDOM, 0, 40, true), SPELL_ICEBOLT);
+                DoCast(SelectTarget(SelectTargetMethod::Random, 0, 40, true), SPELL_ICEBOLT);
                 IceboltTimer = 11000 + rand32() % 20000;
             } else IceboltTimer -= diff;
 
             DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<boss_rage_winterchillAI>(creature);
-    }
 };
 
 void AddSC_boss_rage_winterchill()

@@ -57,10 +57,11 @@ enum Spells
     SPELL_COOL_DOWN_SLOW                    = 52443,
     SPELL_STUN_SELF                         = 47067, // Serverside spell @todo
     SPELL_COSMETIC_STUN_IMMUNE_FREEZE_AMNIM = 59123,
-    SPELL_SHATTER                           = 52429,
     SPELL_INSTAKILL_SELF                    = 29878, // Serverside spell
     SPELL_IMMOLATION_STRIKE                 = 52433
 };
+
+#define SPELL_SHATTER DUNGEON_MODE<uint32>(52429,59527)
 
 enum Events
 {
@@ -161,7 +162,7 @@ struct boss_volkhan : public BossAI
         }
     }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo*/) override
     {
         if (damage >= me->GetHealth() || _shatteredGolems)
             return;
@@ -325,7 +326,6 @@ struct npc_volkhan_molten_golem : public ScriptedAI
         {
             case ACTION_SHATTER:
                 me->RemoveAurasDueToSpell(SPELL_COSMETIC_STUN_IMMUNE_FREEZE_AMNIM);
-                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE);
                 DoCastAOE(SPELL_SHATTER);
                 DoCastSelf(SPELL_INSTAKILL_SELF);
                 break;
@@ -334,7 +334,7 @@ struct npc_volkhan_molten_golem : public ScriptedAI
         }
     }
 
-    void DamageTaken(Unit* attacker, uint32& damage) override
+    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo*/) override
     {
         // Molten Golems cannot die from foreign damage. They will kill themselves via suicide spell when getting shattered
         if (damage >= me->GetHealth() && attacker != me)
@@ -362,6 +362,9 @@ struct npc_volkhan_molten_golem : public ScriptedAI
                 default:
                     break;
             }
+
+            if (me->HasUnitState(UNIT_STATE_CASTING))
+                return;
         }
 
         DoMeleeAttackIfReady();
@@ -374,6 +377,8 @@ private:
 // 52654, 52238 - Temper
 class spell_volkhan_temper_dummy : public SpellScript
 {
+    PrepareSpellScript(spell_volkhan_temper_dummy);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_TEMPER_DUMMY_COMBAT });
@@ -400,13 +405,15 @@ class spell_volkhan_temper_dummy : public SpellScript
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_volkhan_temper_dummy::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnEffectHitTarget += SpellEffectFn(spell_volkhan_temper_dummy::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
 // 52441 - Cool Down
 class spell_volkhan_cool_down : public AuraScript
 {
+    PrepareAuraScript(spell_volkhan_cool_down);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_COOL_DOWN_SLOW, SPELL_COSMETIC_STUN_IMMUNE_FREEZE_AMNIM });
@@ -432,38 +439,32 @@ class spell_volkhan_cool_down : public AuraScript
 
     void Register() override
     {
-        OnEffectPeriodic.Register(&spell_volkhan_cool_down::HandlePeriodicDummyEffect, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_volkhan_cool_down::HandlePeriodicDummyEffect, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
     }
 };
 
 // 59123 Cosmetic - Stun + Immune Permanent (Freeze Anim)
 class spell_volkhan_cosmetic_stun_immune_permanent : public AuraScript
 {
+    PrepareAuraScript(spell_volkhan_cosmetic_stun_immune_permanent);
+
     void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         if (Creature* target = GetTarget()->ToCreature())
-        {
             target->UpdateEntry(ENTRY_BRITTLE_GOLEM, nullptr, false);
-            target->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE);
-        }
-    }
-
-    void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        if (Creature* target = GetTarget()->ToCreature())
-            target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE);
     }
 
     void Register() override
     {
-        AfterEffectApply.Register(&spell_volkhan_cosmetic_stun_immune_permanent::HandleApply, EFFECT_0, SPELL_AURA_MOD_STUN, AURA_EFFECT_HANDLE_REAL);
-        AfterEffectRemove.Register(&spell_volkhan_cosmetic_stun_immune_permanent::HandleRemove, EFFECT_0, SPELL_AURA_MOD_STUN, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectApply += AuraEffectApplyFn(spell_volkhan_cosmetic_stun_immune_permanent::HandleApply, EFFECT_0, SPELL_AURA_MOD_STUN, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
 // 52237, 59529 - Shattering Stomp
 class spell_volkhan_shattering_stomp : public SpellScript
 {
+    PrepareSpellScript(spell_volkhan_shattering_stomp);
+
     void HandleShattering()
     {
         if (Creature* caster = GetCaster()->ToCreature())
@@ -473,7 +474,7 @@ class spell_volkhan_shattering_stomp : public SpellScript
 
     void Register() override
     {
-        AfterCast.Register(&spell_volkhan_shattering_stomp::HandleShattering);
+        AfterCast += SpellCastFn(spell_volkhan_shattering_stomp::HandleShattering);
     }
 };
 

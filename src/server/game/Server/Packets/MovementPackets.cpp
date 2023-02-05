@@ -33,7 +33,7 @@ ByteBuffer& operator<<(ByteBuffer& data, MovementInfo const& movementInfo)
     data << movementInfo.time;
     data << movementInfo.pos.PositionXYZOStream();
     data << movementInfo.pitch;
-    data << movementInfo.splineElevation;
+    data << movementInfo.stepUpStartElevation;
 
     uint32 removeMovementForcesCount = 0;
     data << removeMovementForcesCount;
@@ -87,7 +87,7 @@ ByteBuffer& operator>>(ByteBuffer& data, MovementInfo& movementInfo)
     data >> movementInfo.time;
     data >> movementInfo.pos.PositionXYZOStream();
     data >> movementInfo.pitch;
-    data >> movementInfo.splineElevation;
+    data >> movementInfo.stepUpStartElevation;
 
     uint32 removeMovementForcesCount;
     data >> removeMovementForcesCount;

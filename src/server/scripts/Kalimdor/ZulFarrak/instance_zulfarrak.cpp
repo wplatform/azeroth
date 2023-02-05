@@ -103,6 +103,11 @@ class instance_zulfarrak : public InstanceMapScript
 public:
     instance_zulfarrak() : InstanceMapScript(ZFScriptName, 209) { }
 
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override
+    {
+        return new instance_zulfarrak_InstanceMapScript(map);
+    }
+
     struct instance_zulfarrak_InstanceMapScript : public InstanceScript
     {
         instance_zulfarrak_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
@@ -213,9 +218,9 @@ public:
             switch (type)
             {
                 case EVENT_PYRAMID:
-                    PyramidPhase=data;
+                    PyramidPhase = data;
                     break;
-            };
+            }
         }
 
         virtual void Update(uint32 diff) override
@@ -325,9 +330,11 @@ public:
                 if (pyramidSpawns[i][0] == (float)wave)
                 {
                     Position pos = {pyramidSpawns[i][2], pyramidSpawns[i][3], 8.87f, 0};
-                    TempSummon* ts = instance->SummonCreature(uint32(pyramidSpawns[i][1]), pos);
-                    ts->GetMotionMaster()->MoveRandom(10);
-                    addsAtBase.push_back(ts->GetGUID());
+                    if (TempSummon* ts = instance->SummonCreature(uint32(pyramidSpawns[i][1]), pos))
+                    {
+                        ts->GetMotionMaster()->MoveRandom(10);
+                        addsAtBase.push_back(ts->GetGUID());
+                    }
                 }
             }
         }
@@ -356,7 +363,7 @@ public:
         void SendAddsUpStairs(uint32 count)
         {
             //pop a add from list, send him up the stairs...
-            for (uint32 addCount = 0; addCount<count && !addsAtBase.empty(); addCount++)
+            for (uint32 addCount = 0; addCount < count && !addsAtBase.empty(); addCount++)
             {
                 if (Creature* add = instance->GetCreature(*addsAtBase.begin()))
                 {
@@ -368,10 +375,6 @@ public:
         }
     };
 
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_zulfarrak_InstanceMapScript(map);
-    }
 };
 
 void AddSC_instance_zulfarrak()

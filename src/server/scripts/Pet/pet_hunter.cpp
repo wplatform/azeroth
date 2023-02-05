@@ -21,10 +21,9 @@
  */
 
 #include "ScriptMgr.h"
+#include "Containers.h"
 #include "CreatureAIImpl.h"
 #include "ScriptedCreature.h"
-#include "SpellAuraEffects.h"
-#include "SpellScript.h"
 #include "TemporarySummon.h"
 
 enum HunterSpells
@@ -39,246 +38,93 @@ enum HunterCreatures
     NPC_HUNTER_VIPER                    = 19921
 };
 
-enum PetSpellsMisc
+struct npc_pet_hunter_snake_trap : public ScriptedAI
 {
-    SPELL_PET_SILVERBACK_RANK_1     = 62800,
-    SPELL_PET_SILVERBACK_RANK_2     = 62801,
-    PET_ICON_ID_GROWL               = 201,
-    PET_ICON_ID_CLAW                = 262,
-    PET_ICON_ID_BITE                = 1680,
-    PET_ICON_ID_SMACK               = 473
-};
+    npc_pet_hunter_snake_trap(Creature* creature) : ScriptedAI(creature), _isViper(false), _spellTimer(0) { }
 
-class npc_pet_hunter_snake_trap : public CreatureScript
-{
-    public:
-        npc_pet_hunter_snake_trap() : CreatureScript("npc_pet_hunter_snake_trap") { }
+    void JustEngagedWith(Unit* /*who*/) override { }
 
-        struct npc_pet_hunter_snake_trapAI : public ScriptedAI
-        {
-            npc_pet_hunter_snake_trapAI(Creature* creature) : ScriptedAI(creature), _isViper(false), _spellTimer(0) { }
+    void JustAppeared() override
+    {
+        _isViper = me->GetEntry() == NPC_HUNTER_VIPER ? true : false;
 
-            void JustEngagedWith(Unit* /*who*/) override { }
+        me->SetMaxHealth(uint32(107 * (me->GetLevel() - 40) * 0.025f));
+        // Add delta to make them not all hit the same time
+        me->SetBaseAttackTime(BASE_ATTACK, me->GetBaseAttackTime(BASE_ATTACK) + urandms(0,6));
 
-            void JustAppeared() override
-            {
-                _isViper = me->GetEntry() == NPC_HUNTER_VIPER ? true : false;
+        if (!_isViper && !me->HasAura(SPELL_HUNTER_DEADLY_POISON_PASSIVE))
+            DoCast(me, SPELL_HUNTER_DEADLY_POISON_PASSIVE, true);
+    }
 
-                me->SetMaxHealth(uint32(107 * (me->getLevel() - 40) * 0.025f));
-                // Add delta to make them not all hit the same time
-                me->SetAttackTime(BASE_ATTACK, me->GetAttackTime(BASE_ATTACK) + urandms(0,6));
+    // Redefined for random target selection:
+    void MoveInLineOfSight(Unit* /*who*/) override { }
 
-                if (!_isViper && !me->HasAura(SPELL_HUNTER_DEADLY_POISON_PASSIVE))
-                    DoCast(me, SPELL_HUNTER_DEADLY_POISON_PASSIVE, true);
-            }
-
-            // Redefined for random target selection:
-            void MoveInLineOfSight(Unit* /*who*/) override { }
-
-            void UpdateAI(uint32 diff) override
-            {
-                if (me->GetVictim() && me->GetVictim()->HasBreakableByDamageCrowdControlAura())
-                { // don't break cc
-                    me->GetThreatManager().ClearFixate();
-                    me->InterruptNonMeleeSpells(false);
-                    me->AttackStop();
-                    return;
-                }
-
-                if (me->IsSummon() && !me->GetThreatManager().GetFixateTarget())
-                { // find new target
-                    Unit* summoner = me->ToTempSummon()->GetSummoner();
-
-                    std::vector<Unit*> targets;
-                    for (std::pair<ObjectGuid const, PvPCombatReference*> const& pair : summoner->GetCombatManager().GetPvPCombatRefs())
-                    {
-                        Unit* enemy = pair.second->GetOther(summoner);
-                        if (!enemy->HasBreakableByDamageCrowdControlAura() && me->CanCreatureAttack(enemy) && me->IsWithinDistInMap(enemy, me->GetAttackDistance(enemy)))
-                            targets.push_back(enemy);
-                    }
-
-                    if (targets.empty())
-                        for (std::pair<ObjectGuid const, CombatReference*> const& pair : summoner->GetCombatManager().GetPvECombatRefs())
-                        {
-                            Unit* enemy = pair.second->GetOther(summoner);
-                            if (!enemy->HasBreakableByDamageCrowdControlAura() && me->CanCreatureAttack(enemy) && me->IsWithinDistInMap(enemy, me->GetAttackDistance(enemy)))
-                                targets.push_back(enemy);
-                        }
-
-                    for (Unit* target : targets)
-                        me->EngageWithTarget(target);
-
-                    if (!targets.empty())
-                    {
-                        Unit* target = Trinity::Containers::SelectRandomContainerElement(targets);
-                        me->GetThreatManager().FixateTarget(target);
-                    }
-                }
-
-                if (!UpdateVictim())
-                    return;
-
-                // Viper
-                if (_isViper)
-                {
-                    if (_spellTimer <= diff)
-                    {
-                        if (!urand(0, 2)) // 33% chance to cast
-                            DoCastVictim(RAND(SPELL_HUNTER_MIND_NUMBING_POISON, SPELL_HUNTER_CRIPPLING_POISON));
-
-                        _spellTimer = 3000;
-                    }
-                    else
-                        _spellTimer -= diff;
-                }
-
-                DoMeleeAttackIfReady();
-            }
-
-        private:
-            bool _isViper;
-            uint32 _spellTimer;
-        };
-
-        CreatureAI* GetAI(Creature* creature) const override
-        {
-            return new npc_pet_hunter_snake_trapAI(creature);
+    void UpdateAI(uint32 diff) override
+    {
+        if (me->GetVictim() && me->GetVictim()->HasBreakableByDamageCrowdControlAura())
+        { // don't break cc
+            me->GetThreatManager().ClearFixate();
+            me->InterruptNonMeleeSpells(false);
+            me->AttackStop();
+            return;
         }
-};
 
-// -53178 - Guard Dog
-class spell_pet_guard_dog : public SpellScriptLoader
-{
-    public:
-        spell_pet_guard_dog() : SpellScriptLoader("spell_pet_guard_dog") { }
+        if (me->IsSummon() && !me->GetThreatManager().GetFixateTarget())
+        { // find new target
+            Unit* summoner = me->ToTempSummon()->GetSummonerUnit();
 
-        class spell_pet_guard_dog_AuraScript : public AuraScript
-        {
-            bool CheckProc(ProcEventInfo& eventInfo)
+            std::vector<Unit*> targets;
+
+            auto addTargetIfValid = [this, &targets, summoner](CombatReference* ref) mutable
             {
-                // Growl shares family flags with other spells
-                // filter by spellIcon instead
-                SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
-                if (!spellInfo || spellInfo->SpellIconID != PET_ICON_ID_GROWL)
-                    return false;
+                Unit* enemy = ref->GetOther(summoner);
+                if (!enemy->HasBreakableByDamageCrowdControlAura() && me->CanCreatureAttack(enemy) && me->IsWithinDistInMap(enemy, me->GetAttackDistance(enemy)))
+                    targets.push_back(enemy);
+            };
 
-                return true;
-            }
+            for (std::pair<ObjectGuid const, PvPCombatReference*> const& pair : summoner->GetCombatManager().GetPvPCombatRefs())
+                addTargetIfValid(pair.second);
 
-            void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+            if (targets.empty())
+                for (std::pair<ObjectGuid const, CombatReference*> const& pair : summoner->GetCombatManager().GetPvECombatRefs())
+                    addTargetIfValid(pair.second);
+
+            for (Unit* target : targets)
+                me->EngageWithTarget(target);
+
+            if (!targets.empty())
             {
-                PreventDefaultAction();
-
-                Unit* caster = eventInfo.GetActor();
-
-                Unit* target = eventInfo.GetProcTarget();
-                if (!target->CanHaveThreatList())
-                    return;
-
-                float addThreat = CalculatePct(ASSERT_NOTNULL(eventInfo.GetSpellInfo())->Effects[EFFECT_0].CalcValue(caster), aurEff->GetAmount());
-                target->GetThreatManager().AddThreat(caster, addThreat, GetSpellInfo(), false, true);
+                Unit* target = Trinity::Containers::SelectRandomContainerElement(targets);
+                me->GetThreatManager().FixateTarget(target);
             }
-
-            void Register() override
-            {
-                DoCheckProc.Register(&spell_pet_guard_dog_AuraScript::CheckProc);
-                OnEffectProc.Register(&spell_pet_guard_dog_AuraScript::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
-            }
-        };
-
-        AuraScript* GetAuraScript() const override
-        {
-            return new spell_pet_guard_dog_AuraScript();
         }
-};
 
-// -62764 - Silverback
-class spell_pet_silverback : public SpellScriptLoader
-{
-    public:
-        spell_pet_silverback() : SpellScriptLoader("spell_pet_silverback") { }
+        if (!UpdateVictim())
+            return;
 
-        class spell_pet_silverback_AuraScript : public AuraScript
+        // Viper
+        if (_isViper)
         {
-            bool CheckProc(ProcEventInfo& eventInfo)
+            if (_spellTimer <= diff)
             {
-                // Growl shares family flags with other spells
-                // filter by spellIcon instead
-                SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
-                if (!spellInfo || spellInfo->SpellIconID != PET_ICON_ID_GROWL)
-                    return false;
+                if (!urand(0, 2)) // 33% chance to cast
+                    DoCastVictim(RAND(SPELL_HUNTER_MIND_NUMBING_POISON, SPELL_HUNTER_CRIPPLING_POISON));
 
-                return true;
+                _spellTimer = 3000;
             }
-
-            void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-            {
-                static uint32 const triggerSpell[2] = { SPELL_PET_SILVERBACK_RANK_1, SPELL_PET_SILVERBACK_RANK_2 };
-
-                PreventDefaultAction();
-
-                uint32 spellId = triggerSpell[GetSpellInfo()->GetRank() - 1];
-                eventInfo.GetActor()->CastSpell((Unit*)nullptr, spellId, aurEff);
-            }
-
-            void Register() override
-            {
-                DoCheckProc.Register(&spell_pet_silverback_AuraScript::CheckProc);
-                OnEffectProc.Register(&spell_pet_silverback_AuraScript::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
-            }
-        };
-
-        AuraScript* GetAuraScript() const override
-        {
-            return new spell_pet_silverback_AuraScript();
+            else
+                _spellTimer -= diff;
         }
-};
 
-// -61680 - Culling the Herd
-class spell_pet_culling_the_herd : public SpellScriptLoader
-{
-    public:
-        spell_pet_culling_the_herd() : SpellScriptLoader("spell_pet_culling_the_herd") { }
+        DoMeleeAttackIfReady();
+    }
 
-        class spell_pet_culling_the_herd_AuraScript : public AuraScript
-        {
-            bool CheckProc(ProcEventInfo& eventInfo)
-            {
-                // Claw, Bite and Smack share FamilyFlags with other spells
-                // filter by spellIcon instead
-                SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
-                if (!spellInfo)
-                    return false;
-
-                switch (spellInfo->SpellIconID)
-                {
-                    case PET_ICON_ID_CLAW:
-                    case PET_ICON_ID_BITE:
-                    case PET_ICON_ID_SMACK:
-                        break;
-                    default:
-                        return false;
-                }
-
-                return true;
-            }
-
-            void Register() override
-            {
-                DoCheckProc.Register(&spell_pet_culling_the_herd_AuraScript::CheckProc);
-            }
-        };
-
-        AuraScript* GetAuraScript() const override
-        {
-            return new spell_pet_culling_the_herd_AuraScript();
-        }
+private:
+    bool _isViper;
+    uint32 _spellTimer;
 };
 
 void AddSC_hunter_pet_scripts()
 {
-    new npc_pet_hunter_snake_trap();
-    new spell_pet_guard_dog();
-    new spell_pet_silverback();
-    new spell_pet_culling_the_herd();
+    RegisterCreatureAI(npc_pet_hunter_snake_trap);
 }

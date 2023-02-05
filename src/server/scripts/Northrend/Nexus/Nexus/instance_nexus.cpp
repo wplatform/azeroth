@@ -23,6 +23,15 @@
 #include "nexus.h"
 #include "Player.h"
 
+DungeonEncounterData const encounters[] =
+{
+    { DATA_COMMANDER, {{ 519 }} },
+    { DATA_MAGUS_TELESTRA, {{ 520, 521, 2010 }} },
+    { DATA_ANOMALUS, {{ 522, 523, 2009 }} },
+    { DATA_ORMOROK, {{ 524, 525, 2012 }} },
+    { DATA_KERISTRASZA, {{ 526, 527, 2011 }} }
+};
+
 class instance_nexus : public InstanceMapScript
 {
     public:
@@ -34,6 +43,7 @@ class instance_nexus : public InstanceMapScript
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
+                LoadDungeonEncounterData(encounters);
                 _teamInInstance = 0;
             }
 
@@ -101,17 +111,17 @@ class instance_nexus : public InstanceMapScript
                     case GO_ANOMALUS_CONTAINMENT_SPHERE:
                         AnomalusContainmentSphere = go->GetGUID();
                         if (GetBossState(DATA_ANOMALUS) == DONE)
-                            go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                            go->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                         break;
                     case GO_ORMOROKS_CONTAINMENT_SPHERE:
                         OrmoroksContainmentSphere = go->GetGUID();
                         if (GetBossState(DATA_ORMOROK) == DONE)
-                            go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                            go->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                         break;
                     case GO_TELESTRAS_CONTAINMENT_SPHERE:
                         TelestrasContainmentSphere = go->GetGUID();
                         if (GetBossState(DATA_MAGUS_TELESTRA) == DONE)
-                            go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                            go->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                         break;
                     default:
                         break;
@@ -129,21 +139,21 @@ class instance_nexus : public InstanceMapScript
                         if (state == DONE)
                         {
                             if (GameObject* sphere = instance->GetGameObject(TelestrasContainmentSphere))
-                                sphere->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                sphere->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                         }
                         break;
                     case DATA_ANOMALUS:
                         if (state == DONE)
                         {
                             if (GameObject* sphere = instance->GetGameObject(AnomalusContainmentSphere))
-                                sphere->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                sphere->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                         }
                         break;
                     case DATA_ORMOROK:
                         if (state == DONE)
                         {
                             if (GameObject* sphere = instance->GetGameObject(OrmoroksContainmentSphere))
-                                sphere->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                sphere->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                         }
                         break;
                     default:

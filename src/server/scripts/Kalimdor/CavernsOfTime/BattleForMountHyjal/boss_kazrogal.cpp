@@ -16,10 +16,10 @@
  */
 
 #include "ScriptMgr.h"
+#include "hyjal.h"
 #include "hyjal_trash.h"
 #include "InstanceScript.h"
 #include "ObjectAccessor.h"
-#include "ScriptedCreature.h"
 #include "SpellAuraEffects.h"
 #include "SpellScript.h"
 
@@ -47,6 +47,11 @@ class boss_kazrogal : public CreatureScript
 {
 public:
     boss_kazrogal() : CreatureScript("boss_kazrogal") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<boss_kazrogalAI>(creature);
+    }
 
     struct boss_kazrogalAI : public hyjal_trashAI
     {
@@ -77,13 +82,13 @@ public:
             Initialize();
 
             if (IsEvent)
-                instance->SetData(DATA_KAZROGALEVENT, NOT_STARTED);
+                instance->SetBossState(DATA_KAZROGAL, NOT_STARTED);
         }
 
         void JustEngagedWith(Unit* /*who*/) override
         {
             if (IsEvent)
-                instance->SetData(DATA_KAZROGALEVENT, IN_PROGRESS);
+                instance->SetBossState(DATA_KAZROGAL, IN_PROGRESS);
             Talk(SAY_ONAGGRO);
         }
 
@@ -96,7 +101,7 @@ public:
         {
             if (waypointId == 7 && instance)
             {
-                Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
+                Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
                 if (target && target->IsAlive())
                     AddThreat(target, 0.0f);
             }
@@ -106,7 +111,7 @@ public:
         {
             hyjal_trashAI::JustDied(killer);
             if (IsEvent)
-                instance->SetData(DATA_KAZROGALEVENT, DONE);
+                instance->SetBossState(DATA_KAZROGAL, DONE);
             DoPlaySoundToSet(me, SOUND_ONDEATH);
         }
 
@@ -163,10 +168,6 @@ public:
         }
     };
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<boss_kazrogalAI>(creature);
-    }
 };
 
 class MarkTargetFilter
@@ -180,6 +181,7 @@ class MarkTargetFilter
         }
 };
 
+// 31447 - Mark of Kaz'rogal
 class spell_mark_of_kazrogal : public SpellScriptLoader
 {
     public:
@@ -187,6 +189,8 @@ class spell_mark_of_kazrogal : public SpellScriptLoader
 
         class spell_mark_of_kazrogal_SpellScript : public SpellScript
         {
+            PrepareSpellScript(spell_mark_of_kazrogal_SpellScript);
+
             void FilterTargets(std::list<WorldObject*>& targets)
             {
                 targets.remove_if(MarkTargetFilter());
@@ -194,12 +198,14 @@ class spell_mark_of_kazrogal : public SpellScriptLoader
 
             void Register() override
             {
-                OnObjectAreaTargetSelect.Register(&spell_mark_of_kazrogal_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_mark_of_kazrogal_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
             }
         };
 
         class spell_mark_of_kazrogal_AuraScript : public AuraScript
         {
+            PrepareAuraScript(spell_mark_of_kazrogal_AuraScript);
+
             bool Validate(SpellInfo const* /*spell*/) override
             {
                 return ValidateSpellInfo({ SPELL_MARK_DAMAGE });
@@ -219,7 +225,7 @@ class spell_mark_of_kazrogal : public SpellScriptLoader
 
             void Register() override
             {
-                OnEffectPeriodic.Register(&spell_mark_of_kazrogal_AuraScript::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_MANA_LEECH);
+                OnEffectPeriodic += AuraEffectPeriodicFn(spell_mark_of_kazrogal_AuraScript::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_MANA_LEECH);
             }
         };
 

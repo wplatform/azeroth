@@ -16,15 +16,13 @@
  */
 
 #include "ScriptMgr.h"
-#include "GameObject.h"
 #include "InstanceScript.h"
 #include "magisters_terrace.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
-#include "SpellScript.h"
 #include "SpellAuraEffects.h"
-#include "SpellInfo.h"
+#include "SpellScript.h"
 #include "TemporarySummon.h"
 
 enum Says
@@ -55,7 +53,6 @@ enum Spells
     SPELL_GRAVITY_LAPSE_FLY                     = 44227,
     SPELL_GRAVITY_LAPSE_BEAM_VISUAL_PERIODIC    = 44251,
     SPELL_SUMMON_ARCANE_SPHERE                  = 44265,
-    SPELL_POWER_FEEDBACK                        = 44233,
     SPELL_FLAME_STRIKE                          = 46162,
     SPELL_SHOCK_BARRIER                         = 46165,
     SPELL_PYROBLAST                             = 36819,
@@ -66,7 +63,7 @@ enum Spells
     SPELL_CLEAR_FLIGHT                          = 44232,
     SPELL_QUITE_SUICIDE                         = 3617, // Serverside spell
 
-    // Flame Strike 
+    // Flame Strike
     SPELL_FLAME_STRIKE_DUMMY                    = 44191,
     SPELL_FLAME_STRIKE_DAMAGE                   = 44190,
 
@@ -87,7 +84,8 @@ uint32 gravityLapseTeleportSpells[] =
     SPELL_GRAVITY_LAPSE_RIGHT_TELEPORT
 };
 
-#define SPELL_GRAVITY_LAPSE_DAMAGE  RAID_MODE<uint32>(49887, 44226)
+#define SPELL_POWER_FEEDBACK        DUNGEON_MODE<uint32>(44233, 47109)
+#define SPELL_GRAVITY_LAPSE_DAMAGE  DUNGEON_MODE<uint32>(49887, 44226)
 
 enum Events
 {
@@ -173,7 +171,7 @@ struct boss_felblood_kaelthas : public BossAI
         _DespawnAtEvade();
     }
 
-    void DamageTaken(Unit* attacker, uint32 &damage) override
+    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         // Checking for lethal damage first so we trigger the outro phase without triggering phase two in case of oneshot attacks
         if (damage >= me->GetHealth() && !events.IsInPhase(PHASE_OUTRO))
@@ -218,22 +216,22 @@ struct boss_felblood_kaelthas : public BossAI
         }
     }
 
-    void SpellHitTarget(WorldObject* target, SpellInfo const* spell) override
+    void SpellHitTarget(WorldObject* target, SpellInfo const* spellInfo) override
     {
         Unit* unitTarget = target->ToUnit();
         if (!unitTarget)
             return;
 
-        switch (spell->Id)
+        switch (spellInfo->Id)
         {
             case SPELL_GRAVITY_LAPSE_INITIAL:
             {
                 DoCast(unitTarget, gravityLapseTeleportSpells[_gravityLapseTargetCount], true);
                 uint32 gravityLapseDamageSpell = SPELL_GRAVITY_LAPSE_DAMAGE;
-                unitTarget->m_Events.AddEventAtOffset([unitTarget, gravityLapseDamageSpell]()
+                target->m_Events.AddEventAtOffset([target, gravityLapseDamageSpell]()
                 {
-                    unitTarget->CastSpell(unitTarget, gravityLapseDamageSpell);
-                    unitTarget->CastSpell(unitTarget, SPELL_GRAVITY_LAPSE_FLY);
+                    target->CastSpell(target, gravityLapseDamageSpell);
+                    target->CastSpell(target, SPELL_GRAVITY_LAPSE_FLY);
 
                 }, 400ms);
                 _gravityLapseTargetCount++;
@@ -255,7 +253,7 @@ struct boss_felblood_kaelthas : public BossAI
         switch (summon->GetEntry())
         {
             case NPC_ARCANE_SPHERE:
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 70.0f, true, true, 0))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 70.0f, true))
                     summon->GetMotionMaster()->MoveFollow(target, 0.0f, 0.0f);
                 break;
             case NPC_FLAME_STRIKE:
@@ -283,7 +281,7 @@ struct boss_felblood_kaelthas : public BossAI
             {
                 case EVENT_TALK_INTRO_1:
                     Talk(SAY_INTRO_1);
-                    me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_TALK);
+                    me->SetEmoteState(EMOTE_STATE_TALK);
                     events.ScheduleEvent(EVENT_TALK_INTRO_2, 20s + 600ms, 0, PHASE_INTRO);
                     events.ScheduleEvent(EVENT_LAUGH_EMOTE, 15s + 600ms, 0, PHASE_INTRO);
                     break;
@@ -295,8 +293,8 @@ struct boss_felblood_kaelthas : public BossAI
                     me->HandleEmoteCommand(EMOTE_ONESHOT_LAUGH_NO_SHEATHE);
                     break;
                 case EVENT_FINISH_INTRO:
-                    me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_NONE);
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+                    me->SetEmoteState(EMOTE_ONESHOT_NONE);
+                    me->SetImmuneToPC(false);
                     break;
                 case EVENT_FIREBALL:
                     DoCastVictim(SPELL_FIREBALL);
@@ -304,7 +302,7 @@ struct boss_felblood_kaelthas : public BossAI
                     break;
                 case EVENT_FLAME_STRIKE:
                     Talk(SAY_FLAME_STRIKE);
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true, true, 0))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
                         DoCast(target, SPELL_FLAME_STRIKE);
                     events.Repeat(44s);
                     break;
@@ -316,7 +314,7 @@ struct boss_felblood_kaelthas : public BossAI
                     events.Repeat(1min);
                     break;
                 case EVENT_PYROBLAST:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true, true, 0))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
                         DoCast(target, SPELL_PYROBLAST);
                     break;
                 case EVENT_PHOENIX:
@@ -327,8 +325,9 @@ struct boss_felblood_kaelthas : public BossAI
                 case EVENT_PREPARE_GRAVITY_LAPSE:
                     Talk(_firstGravityLapse ? SAY_GRAVITY_LAPSE_1 : SAY_GRAVITY_LAPSE_2);
                     _firstGravityLapse = false;
-                    me->AttackStop();
                     me->SetReactState(REACT_PASSIVE);
+                    me->AttackStop();
+                    me->GetMotionMaster()->Clear();
                     events.ScheduleEvent(EVENT_GRAVITY_LAPSE_CENTER_TELEPORT, 1s, 0, PHASE_TWO);
                     break;
                 case EVENT_GRAVITY_LAPSE_CENTER_TELEPORT:
@@ -392,7 +391,7 @@ struct npc_felblood_kaelthas_phoenix : public ScriptedAI
         _isInEgg = false;
     }
 
-    void IsSummonedBy(Unit* /*summoner*/) override
+    void IsSummonedBy(WorldObject* /*summoner*/) override
     {
         DoZoneInCombat();
         DoCastSelf(SPELL_BURN);
@@ -402,7 +401,7 @@ struct npc_felblood_kaelthas_phoenix : public ScriptedAI
 
     void JustEngagedWith(Unit* /*who*/) override { }
 
-    void DamageTaken(Unit* /*attacker*/, uint32 &damage) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         if (damage >= me->GetHealth())
         {
@@ -411,10 +410,10 @@ struct npc_felblood_kaelthas_phoenix : public ScriptedAI
                 me->AttackStop();
                 me->SetReactState(REACT_PASSIVE);
                 me->RemoveAllAuras();
-                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                me->SetUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                 DoCastSelf(SPELL_EMBER_BLAST);
                 // DoCastSelf(SPELL_SUMMON_PHOENIX_EGG); -- We do a manual summon for now. Feel free to move it to spelleffect_dbc
-                if (Creature* egg = DoSummon(NPC_PHOENIX_EGG, me->GetPosition(), 0))
+                if (Creature* egg = DoSummon(NPC_PHOENIX_EGG, me->GetPosition(), 0s))
                 {
                     if (Creature* kaelthas = _instance->GetCreature(DATA_KAELTHAS_SUNSTRIDER))
                     {
@@ -468,7 +467,7 @@ struct npc_felblood_kaelthas_phoenix : public ScriptedAI
                     _isInEgg = false;
                     DoCastSelf(SPELL_FULL_HEAL);
                     DoCastSelf(SPELL_BURN);
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                    me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                     _events.ScheduleEvent(EVENT_ATTACK_PLAYERS, 2s);
                     break;
                 default:
@@ -485,8 +484,11 @@ private:
     ObjectGuid _eggGUID;
 };
 
+// 44191 - Flame Strike
 class spell_felblood_kaelthas_flame_strike : public AuraScript
 {
+    PrepareAuraScript(spell_felblood_kaelthas_flame_strike);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_FLAME_STRIKE_DAMAGE });
@@ -500,7 +502,7 @@ class spell_felblood_kaelthas_flame_strike : public AuraScript
 
     void Register() override
     {
-        AfterEffectRemove.Register(&spell_felblood_kaelthas_flame_strike::AfterRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_felblood_kaelthas_flame_strike::AfterRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
 

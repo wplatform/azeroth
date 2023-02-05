@@ -16,8 +16,8 @@
  */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
 #include "karazhan.h"
+#include "ScriptedCreature.h"
 
 enum CuratorSays
 {
@@ -62,7 +62,6 @@ public:
         {
             _Reset();
             _infused = false;
-            me->ApplySpellImmune(0, IMMUNITY_DAMAGE, SPELL_SCHOOL_MASK_ARCANE, true);
         }
 
         void KilledUnit(Unit* victim) override
@@ -82,12 +81,12 @@ public:
             BossAI::JustEngagedWith(who);
             Talk(SAY_AGGRO);
 
-            events.ScheduleEvent(EVENT_HATEFUL_BOLT, Seconds(12));
-            events.ScheduleEvent(EVENT_SUMMON_ASTRAL_FLARE, Seconds(10));
-            events.ScheduleEvent(EVENT_BERSERK, Minutes(12));
+            events.ScheduleEvent(EVENT_HATEFUL_BOLT, 12s);
+            events.ScheduleEvent(EVENT_SUMMON_ASTRAL_FLARE, 10s);
+            events.ScheduleEvent(EVENT_BERSERK, 12min);
         }
 
-        void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/) override
+        void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
         {
             if (!HealthAbovePct(15) && !_infused)
             {
@@ -102,7 +101,7 @@ public:
             switch (eventId)
             {
                 case EVENT_HATEFUL_BOLT:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_MAXTHREAT, 1))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::MaxThreat, 1))
                         DoCast(target, SPELL_HATEFUL_BOLT);
                     events.Repeat(Seconds(7), Seconds(15));
                     break;
@@ -164,7 +163,7 @@ public:
             _scheduler.Schedule(Seconds(2), [this](TaskContext /*context*/)
             {
                 me->SetReactState(REACT_AGGRESSIVE);
-                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                me->RemoveUnitFlag(UNIT_FLAG_UNINTERACTIBLE);
                 DoZoneInCombat();
             });
         }

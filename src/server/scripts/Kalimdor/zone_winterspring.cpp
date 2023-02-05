@@ -35,7 +35,6 @@ EndContentData */
 #include "Player.h"
 #include "ScriptedEscortAI.h"
 #include "TemporarySummon.h"
-#include "WorldSession.h"
 
 enum Says
 {
@@ -262,15 +261,9 @@ class npc_ranshalla : public CreatureScript
 public:
     npc_ranshalla() : CreatureScript("npc_ranshalla") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_ranshallaAI(creature);
-    }
-
     struct npc_ranshallaAI : public EscortAI, private DialogueHelper
     {
-        npc_ranshallaAI(Creature* creature) : EscortAI(creature),
-            DialogueHelper(introDialogue)
+        npc_ranshallaAI(Creature* creature) : EscortAI(creature), DialogueHelper(introDialogue)
         {
             Initialize();
         }
@@ -287,16 +280,6 @@ public:
         ObjectGuid _guardEluneGUID;
         ObjectGuid _voiceEluneGUID;
         ObjectGuid _altarGUID;
-
-        void QuestAccept(Player* player, Quest const* quest) override
-        {
-            if (quest->GetQuestId() == QUEST_GUARDIANS_ALTAR)
-            {
-                Talk(SAY_QUEST_START);
-                me->SetFaction(FACTION_ESCORTEE_A_NEUTRAL_PASSIVE);
-                Start(false, false, player->GetGUID(), quest);
-            }
-        }
 
         void Reset() override
         {
@@ -324,13 +307,13 @@ public:
             {
                 if (GameObject* go = GetClosestGameObjectWithEntry(me, GO_ELUNE_ALTAR, 10.0f))
                 {
-                    go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                    go->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                     me->SetFacingToObject(go);
                     _altarGUID = go->GetGUID();
                 }
             }
             else if (GameObject* go = GetClosestGameObjectWithEntry(me, GO_ELUNE_FIRE, 10.0f))
-                go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                go->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
 
             // Yell and set escort to pause
             Talk(SAY_REACH_TORCH);
@@ -342,15 +325,15 @@ public:
         void DoSummonPriestess()
         {
             // Summon 2 Elune priestess and make each of them move to a different spot
-            if (Creature* priestess = me->SummonCreature(NPC_PRIESTESS_ELUNE, wingThicketLocations[0].m_positionX, wingThicketLocations[0].m_positionY, wingThicketLocations[0].m_positionZ, wingThicketLocations[0].GetOrientation(), TEMPSUMMON_CORPSE_DESPAWN, 0))
+            if (Creature* priestess = me->SummonCreature(NPC_PRIESTESS_ELUNE, wingThicketLocations[0], TEMPSUMMON_CORPSE_DESPAWN, 0s))
             {
-                priestess->GetMotionMaster()->MovePoint(0, wingThicketLocations[3].m_positionX, wingThicketLocations[3].m_positionY, wingThicketLocations[3].m_positionZ);
+                priestess->GetMotionMaster()->MovePoint(0, wingThicketLocations[3]);
                 _firstPriestessGUID = priestess->GetGUID();
             }
-            if (Creature* priestess = me->SummonCreature(NPC_PRIESTESS_ELUNE, wingThicketLocations[1].m_positionX, wingThicketLocations[1].m_positionY, wingThicketLocations[1].m_positionZ, wingThicketLocations[1].GetOrientation(), TEMPSUMMON_CORPSE_DESPAWN, 0))
+            if (Creature* priestess = me->SummonCreature(NPC_PRIESTESS_ELUNE, wingThicketLocations[1], TEMPSUMMON_CORPSE_DESPAWN, 0s))
             {
                 // Left priestess should have a distinct move point because she is the one who starts the dialogue at point reach
-                priestess->GetMotionMaster()->MovePoint(1, wingThicketLocations[4].m_positionX, wingThicketLocations[4].m_positionY, wingThicketLocations[4].m_positionZ);
+                priestess->GetMotionMaster()->MovePoint(1, wingThicketLocations[4]);
                 _secondPriestessGUID = priestess->GetGUID();
             }
         }
@@ -385,18 +368,18 @@ public:
                 case 41:
                 {
                     // Search for all nearest lights and respawn them
-                    std::vector<GameObject*> eluneLights;
+                    std::list<GameObject*> eluneLights;
                     GetGameObjectListWithEntryInGrid(eluneLights, me, GO_ELUNE_LIGHT, 20.0f);
-                    for (GameObject* go : eluneLights)
+                    for (std::list<GameObject*>::const_iterator itr = eluneLights.begin(); itr != eluneLights.end(); ++itr)
                     {
-                        if (go->isSpawned())
+                        if ((*itr)->isSpawned())
                             continue;
 
-                        go->SetRespawnTime(115);
-                        go->Refresh();
+                        (*itr)->SetRespawnTime(115);
+                        (*itr)->Refresh();
                     }
 
-                    if (GameObject* altar = ObjectAccessor::GetGameObject(*me, _altarGUID))
+                    if (GameObject* altar = ObjectAccessor::GetGameObject(*me ,_altarGUID))
                         me->SetFacingToObject(altar);
                     break;
                 }
@@ -405,7 +388,7 @@ public:
                     SetEscortPaused(true);
                     DoSummonPriestess();
                     Talk(SAY_RANSHALLA_ALTAR_2);
-                    events.ScheduleEvent(EVENT_RESUME, 2000);
+                    events.ScheduleEvent(EVENT_RESUME, 2s);
                     break;
                 case 44:
                     // Stop the escort and turn towards the altar
@@ -429,7 +412,7 @@ public:
                     break;
                 case SAY_PRIESTESS_ALTAR_8:
                     // make the gem respawn
-                    if (GameObject* gem = GetClosestGameObjectWithEntry(me, GO_ELUNE_GEM, 10.0f))
+                    if (GameObject* gem = GetClosestGameObjectWithEntry(me, GO_ELUNE_GEM, 10.0f, false))
                     {
                         if (gem->isSpawned())
                             break;
@@ -441,19 +424,19 @@ public:
                 case SAY_PRIESTESS_ALTAR_9:
                     // move near the escort npc
                     if (Creature* priestess = ObjectAccessor::GetCreature(*me, _firstPriestessGUID))
-                        priestess->GetMotionMaster()->MovePoint(0, wingThicketLocations[6].m_positionX, wingThicketLocations[6].m_positionY, wingThicketLocations[6].m_positionZ);
+                        priestess->GetMotionMaster()->MovePoint(0, wingThicketLocations[6]);
                     break;
                 case SAY_PRIESTESS_ALTAR_13:
                     // summon the Guardian of Elune
-                    if (Creature* guard = me->SummonCreature(NPC_GUARDIAN_ELUNE, wingThicketLocations[2].m_positionX, wingThicketLocations[2].m_positionY, wingThicketLocations[2].m_positionZ, wingThicketLocations[2].GetOrientation(), TEMPSUMMON_CORPSE_DESPAWN, 0))
+                    if (Creature* guard = me->SummonCreature(NPC_GUARDIAN_ELUNE, wingThicketLocations[2], TEMPSUMMON_CORPSE_DESPAWN, 0s))
                     {
-                        guard->GetMotionMaster()->MovePoint(0, wingThicketLocations[5].m_positionX, wingThicketLocations[5].m_positionY, wingThicketLocations[5].m_positionZ);
+                        guard->GetMotionMaster()->MovePoint(0, wingThicketLocations[5]);
                         _guardEluneGUID = guard->GetGUID();
                     }
                     // summon the Voice of Elune
                     if (GameObject* altar = ObjectAccessor::GetGameObject(*me, _altarGUID))
                     {
-                        if (Creature* voice = me->SummonCreature(NPC_VOICE_ELUNE, altar->GetPositionX(), altar->GetPositionY(), altar->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 30000))
+                        if (Creature* voice = me->SummonCreature(NPC_VOICE_ELUNE, *altar, TEMPSUMMON_TIMED_DESPAWN, 30s))
                             _voiceEluneGUID = voice->GetGUID();
                     }
                     break;
@@ -462,31 +445,31 @@ public:
                     if (Creature* priestess = ObjectAccessor::GetCreature(*me, _secondPriestessGUID))
                     {
                         priestess->AI()->Talk(SAY_PRIESTESS_ALTAR_14);
-                        priestess->GetMotionMaster()->MovePoint(0, wingThicketLocations[7].m_positionX, wingThicketLocations[7].m_positionY, wingThicketLocations[7].m_positionZ);
+                        priestess->GetMotionMaster()->MovePoint(0, wingThicketLocations[7]);
                     }
                     break;
                 case SAY_PRIESTESS_ALTAR_19:
                     // make the voice of elune leave
                     if (Creature* guard = ObjectAccessor::GetCreature(*me, _guardEluneGUID))
                     {
-                        guard->GetMotionMaster()->MovePoint(0, wingThicketLocations[2].m_positionX, wingThicketLocations[2].m_positionY, wingThicketLocations[2].m_positionZ);
-                        guard->DespawnOrUnsummon(4000);
+                        guard->GetMotionMaster()->MovePoint(0, wingThicketLocations[2]);
+                        guard->DespawnOrUnsummon(4s);
                     }
                     break;
                 case SAY_PRIESTESS_ALTAR_20:
                     // make the first priestess leave
                     if (Creature* priestess = ObjectAccessor::GetCreature(*me, _firstPriestessGUID))
                     {
-                        priestess->GetMotionMaster()->MovePoint(0, wingThicketLocations[0].m_positionX, wingThicketLocations[0].m_positionY, wingThicketLocations[0].m_positionZ);
-                        priestess->DespawnOrUnsummon(4000);
+                        priestess->GetMotionMaster()->MovePoint(0, wingThicketLocations[0]);
+                        priestess->DespawnOrUnsummon(4s);
                     }
                     break;
                 case SAY_PRIESTESS_ALTAR_21:
                     // make the second priestess leave
                     if (Creature* priestess = ObjectAccessor::GetCreature(*me, _secondPriestessGUID))
                     {
-                        priestess->GetMotionMaster()->MovePoint(0, wingThicketLocations[1].m_positionX, wingThicketLocations[1].m_positionY, wingThicketLocations[1].m_positionZ);
-                        priestess->DespawnOrUnsummon(4000);
+                        priestess->GetMotionMaster()->MovePoint(0, wingThicketLocations[1]);
+                        priestess->DespawnOrUnsummon(4s);
                     }
                     break;
                 case DATA_EVENT_END:
@@ -510,7 +493,7 @@ public:
                         player->GroupEventHappens(QUEST_GUARDIANS_ALTAR, me);
                         Talk(SAY_RANSHALLA_END_2, player);
                     }
-                    me->DespawnOrUnsummon(4000);
+                    me->DespawnOrUnsummon(4s);
                     break;
             }
         }
@@ -553,9 +536,26 @@ public:
 
             EscortAI::UpdateEscortAI(diff);
         }
+
+        void OnQuestAccept(Player* player, Quest const* quest) override
+        {
+            if (quest->GetQuestId() == QUEST_GUARDIANS_ALTAR)
+            {
+                Talk(SAY_QUEST_START);
+                me->SetFaction(FACTION_ESCORTEE_A_NEUTRAL_PASSIVE);
+
+                Start(false, false, player->GetGUID(), quest);
+            }
+        }
+
     private:
         EventMap events;
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return new npc_ranshallaAI(creature);
+    }
 };
 
 /*#####
@@ -564,35 +564,35 @@ public:
 
 class go_elune_fire : public GameObjectScript
 {
-    public:
-        go_elune_fire() : GameObjectScript("go_elune_fire") { }
+public:
+    go_elune_fire() : GameObjectScript("go_elune_fire") { }
 
-        struct go_elune_fireAI : public GameObjectAI
+    struct go_elune_fireAI : public GameObjectAI
+    {
+        go_elune_fireAI(GameObject* go) : GameObjectAI(go) { }
+
+        bool OnGossipHello(Player* /*player*/) override
         {
-            go_elune_fireAI(GameObject* go) : GameObjectAI(go) { }
+            // Check if we are using the torches or the altar
+            bool isAltar = false;
 
-            bool GossipHello(Player* /*player*/) override
+            if (me->GetEntry() == GO_ELUNE_ALTAR)
+                isAltar = true;
+
+            if (Creature* ranshalla = GetClosestCreatureWithEntry(me, NPC_RANSHALLA, 10.0f))
             {
-                // Check if we are using the torches or the altar
-                bool isAltar = false;
-
-                if (me->GetEntry() == GO_ELUNE_ALTAR)
-                    isAltar = true;
-
-                if (Creature* ranshalla = GetClosestCreatureWithEntry(me, NPC_RANSHALLA, 10.0f))
-                {
-                    if (npc_ranshalla::npc_ranshallaAI* escortAI = dynamic_cast<npc_ranshalla::npc_ranshallaAI*>(ranshalla->AI()))
-                        escortAI->DoContinueEscort(isAltar);
-                }
-                me->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
-                return false;
+                if (npc_ranshalla::npc_ranshallaAI* escortAI = dynamic_cast<npc_ranshalla::npc_ranshallaAI*>(ranshalla->AI()))
+                    escortAI->DoContinueEscort(isAltar);
             }
-        };
-
-        GameObjectAI* GetAI(GameObject* go) const override
-        {
-            return new go_elune_fireAI(go);
+            me->SetFlag(GO_FLAG_NOT_SELECTABLE);
+            return false;
         }
+    };
+
+    GameObjectAI* GetAI(GameObject* go) const override
+    {
+        return new go_elune_fireAI(go);
+    }
 };
 
 void AddSC_winterspring()

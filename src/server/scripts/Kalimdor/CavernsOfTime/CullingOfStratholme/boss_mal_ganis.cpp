@@ -18,29 +18,26 @@
 #include "culling_of_stratholme.h"
 #include "InstanceScript.h"
 #include "Map.h"
-#include "MotionMaster.h"
-#include "ObjectAccessor.h"
 #include "PassiveAI.h"
-#include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptMgr.h"
-#include "SpellMgr.h"
 
 enum Spells
 {
-    SPELL_CARRION_SWARM     = 52720,
-    SPELL_MIND_BLAST        = 52722,
-    SPELL_SLEEP             = 52721,
-    SPELL_VAMPIRIC_TOUCH    = 52723
+    SPELL_VAMPIRIC_TOUCH = 52723
 };
+
+#define SPELL_CARRION_SWARM DUNGEON_MODE(52720,58852)
+#define SPELL_MIND_BLAST DUNGEON_MODE(52722,58850)
+#define SPELL_SLEEP DUNGEON_MODE(52721,58849)
 
 enum Yells
 {
-    SAY_KILL        = 3,
-    SAY_SLAY        = 4,
-    SAY_SLEEP       = 5,
-    SAY_30HEALTH    = 6,
-    SAY_15HEALTH    = 7
+    SAY_KILL = 3,
+    SAY_SLAY = 4,
+    SAY_SLEEP = 5,
+    SAY_30HEALTH = 6,
+    SAY_15HEALTH = 7
 };
 
 enum Events
@@ -77,7 +74,7 @@ class boss_mal_ganis : public CreatureScript
                     instance->SetBossState(DATA_MAL_GANIS, NOT_STARTED);
             }
 
-            void DamageTaken(Unit* /*source*/, uint32 &damage) override
+            void DamageTaken(Unit* /*source*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
             {
                 if (damage >= me->GetHealth())
                 {
@@ -85,10 +82,6 @@ class boss_mal_ganis : public CreatureScript
                     if (_defeated)
                         return;
                     _defeated = true;
-
-                    // @todo hack most likely
-                    if (InstanceMap* map = instance->instance->ToInstanceMap())
-                        map->PermBindAllPlayers();
                 }
             }
 
@@ -116,7 +109,7 @@ class boss_mal_ganis : public CreatureScript
                     if (me->IsInCombat())
                     {
                         EnterEvadeMode();
-                        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_IMMUNE_TO_PC);
+                        me->SetImmuneToAll(true);
                     }
                     return;
                 }
@@ -150,7 +143,7 @@ class boss_mal_ganis : public CreatureScript
                             events.Repeat(Seconds(6));
                             break;
                         case EVENT_MIND_BLAST:
-                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 100.0f, true, -int32(sSpellMgr->GetSpellIdForDifficulty(SPELL_SLEEP, me))))
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1, 100.0f, true, -int32(SPELL_SLEEP)))
                                 DoCast(target, SPELL_MIND_BLAST);
                             else
                                 DoCastVictim(SPELL_MIND_BLAST);
@@ -161,7 +154,7 @@ class boss_mal_ganis : public CreatureScript
                             events.Repeat(Seconds(30));
                             break;
                         case EVENT_SLEEP:
-                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 100.0f))
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1, 100.0f))
                                 DoCast(target, SPELL_SLEEP);
                             else
                                 DoCastVictim(SPELL_SLEEP);

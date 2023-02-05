@@ -16,12 +16,12 @@
  */
 
 #include "ScriptMgr.h"
+#include "GameObject.h"
 #include "InstanceScript.h"
 #include "MotionMaster.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
-#include "Spell.h"
 #include "SpellScript.h"
 #include "stonecore.h"
 
@@ -29,7 +29,7 @@ enum Texts
 {
     // Millhouse Manastorm
     SAY_MILLHOUSE_EVENT_1           = 0,
-    SAY_MILLHOUSE_EVENT_2           = 1
+    SAY_MILLHOUSE_EVENT_2           = 1,
 };
 
 enum Spells
@@ -52,14 +52,31 @@ enum Spells
 
 enum Events
 {
+    EVENT_NONE,
+
     // Millhouse Manastorm
-    EVENT_FROSTBOLT_VOLLEY = 1,
+    EVENT_FROSTBOLT_VOLLEY,
     EVENT_SHADOWFURY,
     EVENT_FEAR,
-    EVENT_SHADOW_BOLT,
+
+    EVENT_READY_FOR_COMBAT,
     EVENT_CAST_IMPENDING_DOOM,
     EVENT_INTERRUPT_IMPENDING_DOOM,
-    EVENT_RUN_AWAY
+};
+
+enum Phase
+{
+    PHASE_NONE,
+
+    PHASE_MILLHOUSE_GROUP_1,
+    PHASE_MILLHOUSE_GROUP_2,
+    PHASE_MILLHOUSE_GROUP_3,
+    PHASE_MILLHOUSE_GROUP_4,
+
+    PHASE_MASK_MILLHOUSE_GROUP_1 = (1 << (PHASE_MILLHOUSE_GROUP_1 - 1)),
+    PHASE_MASK_MILLHOUSE_GROUP_2 = (1 << (PHASE_MILLHOUSE_GROUP_2 - 1)),
+    PHASE_MASK_MILLHOUSE_GROUP_3 = (1 << (PHASE_MILLHOUSE_GROUP_3 - 1)),
+    PHASE_MASK_MILLHOUSE_GROUP_4 = (1 << (PHASE_MILLHOUSE_GROUP_4 - 1)),
 };
 
 enum MovementPoints
@@ -76,6 +93,9 @@ Position const MillhousePointGroup2 = { 977.3045f, 895.2347f, 306.3298f };
 Position const MillhousePointGroup3 = { 1049.823f, 871.4349f, 295.006f };
 Position const MillhousePointGroup4 = { 1149.04f, 884.431f, 284.9406f };
 
+// TO-DO:
+// - Millhouse Manastorm should face and cast SPELL_TIGULE_AND_FORORS_SPECIAL_BLEND, but he won't. :(
+
 // 43391 - Millhouse Manastorm
 class npc_sc_millhouse_manastorm : public CreatureScript
 {
@@ -84,65 +104,63 @@ class npc_sc_millhouse_manastorm : public CreatureScript
 
         struct npc_sc_millhouse_manastormAI : public ScriptedAI
         {
-            npc_sc_millhouse_manastormAI(Creature* creature) : ScriptedAI(creature), _instance(creature->GetInstanceScript())
+            npc_sc_millhouse_manastormAI(Creature* creature) : ScriptedAI(creature),
+                _instance(creature->GetInstanceScript())
             {
-                Initialize();
+                events.SetPhase(PHASE_MILLHOUSE_GROUP_1);
             }
 
-            void Initialize()
+            void ScheduleEvents()
             {
-                _fleeCounter = 0;
-            }
-
-            void JustEngagedWith(Unit* /*who*/) override
-            {
-                events.Reset();
                 events.ScheduleEvent(EVENT_SHADOWFURY, 3s);
                 events.ScheduleEvent(EVENT_FROSTBOLT_VOLLEY, 5s);
                 events.ScheduleEvent(EVENT_FEAR, 8s);
-                events.ScheduleEvent(EVENT_SHADOW_BOLT, 1ms);
             }
 
-            void AttackStart(Unit* who) override
-            {
-                if (me->HasAura(SPELL_TIGULE_AND_FORORS_SPECIAL_BLEND))
-                    return;
-                else
-                    ScriptedAI::AttackStart(who);
-            }
-
-            void EnterEvadeMode(EvadeReason /*why*/) override
-            {
-                _EnterEvadeMode();
-                me->GetMotionMaster()->MoveTargetedHome();
-
-                if (_fleeCounter != 3)
-                    DoCast(me, SPELL_TIGULE_AND_FORORS_SPECIAL_BLEND);
-            }
-
-            void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+            void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
             {
                 if (damage >= me->GetHealth())
                     damage = me->GetHealth() - 1;
 
-                if (me->HealthBelowPctDamaged(50, damage))
+                if (!HealthBelowPct(50) || me->HasAura(SPELL_BLUR))
+                    return;
+
+                switch (events.GetPhaseMask())
                 {
-                    if (_fleeCounter > 3 || me->HasAura(SPELL_BLUR))
-                        return;
-
-                    events.Reset();
-                    me->InterruptNonMeleeSpells(true);
-                    me->AttackStop();
-                    me->SetReactState(REACT_PASSIVE);
-                    DoCast(me, SPELL_CLEAR_ALL_DEBUFFS);
-                    DoCast(me, SPELL_BLUR);
-
-                    if (_fleeCounter != 2)
+                    case PHASE_MASK_MILLHOUSE_GROUP_1:
+                        events.Reset();
+                        events.SetPhase(PHASE_MILLHOUSE_GROUP_2);
+                        me->SetReactState(REACT_PASSIVE);
+                        me->InterruptNonMeleeSpells(true);
+                        DoCast(me, SPELL_CLEAR_ALL_DEBUFFS);
+                        DoCast(me, SPELL_BLUR);
                         Talk(SAY_MILLHOUSE_EVENT_1);
-
-                    events.ScheduleEvent(EVENT_RUN_AWAY, 2s);
-                    _fleeCounter++;
+                        me->GetMotionMaster()->MovePoint(POINT_MILLHOUSE_GROUP_2, MillhousePointGroup2);
+                        break;
+                    case PHASE_MASK_MILLHOUSE_GROUP_2:
+                        events.Reset();
+                        events.SetPhase(PHASE_MILLHOUSE_GROUP_3);
+                        me->SetReactState(REACT_PASSIVE);
+                        me->InterruptNonMeleeSpells(true);
+                        DoCast(me, SPELL_CLEAR_ALL_DEBUFFS);
+                        DoCast(me, SPELL_BLUR);
+                        Talk(SAY_MILLHOUSE_EVENT_1);
+                        me->GetMotionMaster()->MovePoint(POINT_MILLHOUSE_GROUP_3, MillhousePointGroup3);
+                        break;
+                    case PHASE_MASK_MILLHOUSE_GROUP_3:
+                        events.Reset();
+                        events.SetPhase(PHASE_MILLHOUSE_GROUP_4);
+                        me->SetReactState(REACT_PASSIVE);
+                        me->InterruptNonMeleeSpells(true);
+                        DoCast(me, SPELL_CLEAR_ALL_DEBUFFS);
+                        DoCast(me, SPELL_BLUR);
+                        me->GetMotionMaster()->MovePoint(POINT_MILLHOUSE_GROUP_4, MillhousePointGroup4);
+                        break;
+                    default:
+                        break;
                 }
+
+                me->SetUnitFlag(UNIT_FLAG_IN_COMBAT);
             }
 
             void MovementInform(uint32 type, uint32 pointId) override
@@ -153,21 +171,31 @@ class npc_sc_millhouse_manastorm : public CreatureScript
                 if (pointId < POINT_MILLHOUSE_GROUP_2 || pointId > POINT_MILLHOUSE_GROUP_4)
                     return;
 
+                me->RemoveAllAuras();
+                me->CombatStop(true);
+                EngagementOver();
+
                 switch (pointId)
                 {
                     case POINT_MILLHOUSE_GROUP_2:
+                        me->SetUnitFlag(UNIT_FLAG_IN_COMBAT);
                         me->SetReactState(REACT_AGGRESSIVE);
                         if (Creature* worldtrigger = me->FindNearestCreature(NPC_WORLDTRIGGER, 200.0f))
                             me->SetFacingToObject(worldtrigger);
                         DoCast(me, SPELL_ANCHOR_HERE);
+                        DoCast(me, SPELL_TIGULE_AND_FORORS_SPECIAL_BLEND);
+                        events.ScheduleEvent(EVENT_READY_FOR_COMBAT, 10s);
                         break;
                     case POINT_MILLHOUSE_GROUP_3:
+                        me->SetUnitFlag(UNIT_FLAG_IN_COMBAT);
                         me->SetReactState(REACT_AGGRESSIVE);
-                        me->SetOrientation(5.931499f);
+                        me->SetFacingTo(5.931499f);
                         DoCast(me, SPELL_ANCHOR_HERE);
+                        DoCast(me, SPELL_TIGULE_AND_FORORS_SPECIAL_BLEND);
+                        events.ScheduleEvent(EVENT_READY_FOR_COMBAT, 10s);
                         break;
                     case POINT_MILLHOUSE_GROUP_4:
-                        me->SetOrientation(3.455752f);
+                        me->SetFacingTo(3.455752f);
                         DoCast(me, SPELL_ANCHOR_HERE);
                         Talk(SAY_MILLHOUSE_EVENT_2);
                         events.ScheduleEvent(EVENT_CAST_IMPENDING_DOOM, 1s);
@@ -175,8 +203,6 @@ class npc_sc_millhouse_manastorm : public CreatureScript
                     default:
                         break;
                 }
-
-                EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
             }
 
             void UpdateAI(uint32 diff) override
@@ -200,18 +226,19 @@ class npc_sc_millhouse_manastorm : public CreatureScript
                             events.ScheduleEvent(EVENT_FROSTBOLT_VOLLEY, 7s);
                             break;
                         case EVENT_SHADOWFURY:
-                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true))
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true))
                                 DoCast(target, SPELL_SHADOWFURY);
                             events.ScheduleEvent(EVENT_SHADOWFURY, 7s);
                             break;
                         case EVENT_FEAR:
-                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true))
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true))
                                 DoCast(target, SPELL_FEAR);
                             events.ScheduleEvent(EVENT_FEAR, 18s);
                             break;
-                        case EVENT_SHADOW_BOLT:
-                            DoCastVictim(SPELL_SHADOW_BOLT);
-                            events.Repeat(2s);
+                        case EVENT_READY_FOR_COMBAT:
+                            me->RemoveUnitFlag(UNIT_FLAG_IN_COMBAT);
+                            me->SetReactState(REACT_AGGRESSIVE);
+                            ScheduleEvents();
                             break;
                         case EVENT_CAST_IMPENDING_DOOM:
                             DoCast(me, SPELL_IMPENDING_DOOM);
@@ -224,24 +251,17 @@ class npc_sc_millhouse_manastorm : public CreatureScript
                             me->HandleEmoteCommand(EMOTE_ONESHOT_KNOCKDOWN);
                             events.ScheduleEvent(EVENT_CAST_IMPENDING_DOOM, 3s);
                             break;
-                        case EVENT_RUN_AWAY:
-                            if (_fleeCounter == 1)
-                                me->GetMotionMaster()->MovePoint(POINT_MILLHOUSE_GROUP_2, MillhousePointGroup2);
-                            else if (_fleeCounter == 2)
-                                me->GetMotionMaster()->MovePoint(POINT_MILLHOUSE_GROUP_3, MillhousePointGroup3);
-                            else if (_fleeCounter == 3)
-                                me->GetMotionMaster()->MovePoint(POINT_MILLHOUSE_GROUP_4, MillhousePointGroup4);
-                            break;
                         default:
                             break;
                     }
                 }
+
+                DoSpellAttackIfReady(SPELL_SHADOW_BOLT);
             }
 
         private:
             InstanceScript* _instance;
             EventMap events;
-            uint8 _fleeCounter;
         };
 
         CreatureAI* GetAI(Creature* creature) const override
@@ -258,14 +278,16 @@ class spell_force_of_earth : public SpellScriptLoader
 
         class spell_force_of_earth_SpellScript : public SpellScript
         {
+            PrepareSpellScript(spell_force_of_earth_SpellScript);
+
             void DummyEffect(SpellEffIndex /*effIndex*/)
             {
                 GetCaster()->SetDisplayId(26693); // can be moved to SAI part, need sniffs to see what this dummy does (note: npc 43552)
             }
 
-            void Register()
+            void Register() override
             {
-                OnEffectLaunch.Register(&spell_force_of_earth_SpellScript::DummyEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
+                OnEffectLaunch += SpellEffectFn(spell_force_of_earth_SpellScript::DummyEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
             }
         };
 
@@ -273,32 +295,6 @@ class spell_force_of_earth : public SpellScriptLoader
         {
             return new spell_force_of_earth_SpellScript();
         }
-};
-
-// 45313 - Anchor Here
-class spell_sc_anchor_here : public SpellScriptLoader
-{
-public:
-    spell_sc_anchor_here() : SpellScriptLoader("spell_sc_anchor_here") { }
-
-    class spell_sc_anchor_here_SpellScript : public SpellScript
-    {
-             void HandleScript(SpellEffIndex /*effIndex*/)
-        {
-            if (Creature* creature = GetHitUnit()->ToCreature())
-                creature->SetHomePosition(creature->GetPositionX(), creature->GetPositionY(), creature->GetPositionZ(), creature->GetOrientation());
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget.Register(&spell_sc_anchor_here_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_sc_anchor_here_SpellScript();
-    }
 };
 
 // 93167 - Twilight Documents
@@ -309,6 +305,8 @@ class spell_sc_twilight_documents : public SpellScriptLoader
 
         class spell_sc_twilight_documents_SpellScript : public SpellScript
         {
+            PrepareSpellScript(spell_sc_twilight_documents_SpellScript);
+
             bool Validate(SpellInfo const* /*spell*/) override
             {
                 if (!sObjectMgr->GetGameObjectTemplate(GAMEOBJECT_TWILIGHT_DOCUMENTS))
@@ -319,12 +317,12 @@ class spell_sc_twilight_documents : public SpellScriptLoader
             void SpawnGameObject(SpellEffIndex /*effIndex*/)
             {
                 if (WorldLocation* loc = GetHitDest())
-                    GetCaster()->SummonGameObject(GAMEOBJECT_TWILIGHT_DOCUMENTS, *loc, QuaternionData(), 7200);
+                    GetCaster()->SummonGameObject(GAMEOBJECT_TWILIGHT_DOCUMENTS, *loc, QuaternionData::fromEulerAnglesZYX(loc->GetOrientation(), 0.0f, 0.0f), 2h);
             }
 
             void Register() override
             {
-                OnEffectHit.Register(&spell_sc_twilight_documents_SpellScript::SpawnGameObject, EFFECT_0, SPELL_EFFECT_DUMMY);
+                OnEffectHit += SpellEffectFn(spell_sc_twilight_documents_SpellScript::SpawnGameObject, EFFECT_0, SPELL_EFFECT_DUMMY);
             }
         };
 
@@ -338,14 +336,10 @@ class spell_sc_twilight_documents : public SpellScriptLoader
 class JumpCheck
 {
     public:
-        bool operator()(WorldObject* object)
+        bool operator()(WorldObject* object) const
         {
-            if (Unit* target = object->ToUnit())
-                return (target->HasUnitMovementFlag(MOVEMENTFLAG_FALLING)
-                    || target->HasUnitMovementFlag(MOVEMENTFLAG_FALLING_FAR)
-                    || target->HasUnitMovementFlag(MOVEMENTFLAG_PITCH_UP));
-
-            return false;
+            Player* player = object->ToPlayer();
+            return (player && (player->IsFalling() || player->HasUnitState(UNIT_STATE_JUMPING)));
         }
 };
 
@@ -356,6 +350,8 @@ class spell_sc_quake : public SpellScriptLoader
 
         class spell_sc_quake_SpellScript : public SpellScript
         {
+            PrepareSpellScript(spell_sc_quake_SpellScript);
+
             void FilterTargets(std::list<WorldObject*>& unitList)
             {
                 unitList.remove_if(JumpCheck());
@@ -363,7 +359,7 @@ class spell_sc_quake : public SpellScriptLoader
 
             void Register() override
             {
-                OnObjectAreaTargetSelect.Register(&spell_sc_quake_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sc_quake_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
             }
         };
 
@@ -371,25 +367,6 @@ class spell_sc_quake : public SpellScriptLoader
         {
             return new spell_sc_quake_SpellScript();
         }
-};
-
-class spell_sc_ring_wyrm_knockback : public SpellScript
-{
-    void SetDest(SpellDestination& dest)
-    {
-        Unit* caster = GetCaster();
-
-        float angle = caster->GetOrientation();
-        float x = caster->GetPositionX() + cos(angle + float(M_PI)) * 100.0f;
-        float y = caster->GetPositionY() + sin(angle + float(M_PI)) * 100.0f;
-        float z = caster->GetPositionZ();
-        dest.Relocate({ x, y, z, 0.0f });
-    }
-
-    void Register()
-    {
-        OnDestinationTargetSelect.Register(&spell_sc_ring_wyrm_knockback::SetDest, EFFECT_0, TARGET_DEST_CASTER_RANDOM);
-    }
 };
 
 class at_sc_corborus_intro : public AreaTriggerScript
@@ -400,8 +377,8 @@ public:
     bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
     {
         if (InstanceScript* instance = player->GetInstanceScript())
-            if (instance->GetData(DATA_EVENT_PROGRESS) < EVENT_INDEX_CORBORUS_INTRO)
-                instance->SetData(DATA_EVENT_PROGRESS, EVENT_INDEX_CORBORUS_INTRO);
+            if (Creature* corborus = instance->GetCreature(DATA_CORBORUS))
+                corborus->AI()->DoAction(ACTION_CORBORUS_INTRO);
         return true;
     }
 };
@@ -414,8 +391,8 @@ public:
     bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
     {
         if (InstanceScript* instance = player->GetInstanceScript())
-            if (instance->GetData(DATA_EVENT_PROGRESS) < EVENT_INDEX_SLABHIDE_INTRO)
-                instance->SetData(DATA_EVENT_PROGRESS, EVENT_INDEX_SLABHIDE_INTRO);
+            if (Creature* slabhide = instance->GetCreature(DATA_SLABHIDE))
+                slabhide->AI()->DoAction(ACTION_SLABHIDE_INTRO);
         return true;
     }
 };
@@ -424,10 +401,8 @@ void AddSC_stonecore()
 {
     new npc_sc_millhouse_manastorm();
     new spell_force_of_earth();
-    new spell_sc_anchor_here();
     new spell_sc_twilight_documents();
     new spell_sc_quake();
-    RegisterSpellScript(spell_sc_ring_wyrm_knockback);
     new at_sc_corborus_intro();
     new at_sc_slabhide_intro();
 }

@@ -16,247 +16,286 @@
  */
 
 #include "ScriptMgr.h"
+#include "Creature.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Map.h"
 #include "ScriptedCreature.h"
-#include "MotionMaster.h"
 #include "zulaman.h"
 
-ObjectData const creatureData[] =
+DungeonEncounterData const encounters[] =
 {
-    { BOSS_AKILZON,                     DATA_ALKILZON                   },
-    { BOSS_NALORAKK,                    DATA_NALORAKK                   },
-    { BOSS_JANALAI,                     DATA_JANALAI                    },
-    { BOSS_HALAZZI,                     DATA_HALAZZI                    },
-    { BOSS_HEXLORD_MALACRASS,           DATA_HEXLORD_MALACRASS          },
-    { BOSS_DAAKARA,                     DATA_DAAKARA                    },
-    { NPC_VOLJIN,                       DATA_VOLJIN                     },
-    { NPC_HEXLORD_MALACRASS_TRIGGER,    DATA_HEXLORD_MALACRASS_TRIGGER  },
-    { 0,                                0                               } // END
+    { DATA_AKILZON, {{ 1189 }} },
+    { DATA_NALORAKK, {{ 1190 }} },
+    { DATA_JANALAI, {{ 1191 }} },
+    { DATA_HALAZZI, {{ 1192 }} },
+    { DATA_HEXLORD, {{ 1193 }} },
+    { DATA_DAAKARA, {{ 1194 }} }
 };
-
-ObjectData const gameobjectData[] =
-{
-    { GO_STRANGE_GONG,                  DATA_STRANGE_GONG               },
-    { GO_MASSIVE_GATE,                  DATA_MASSIVE_GATE               },
-    { 0,                                0                               } // END
-};
-
-DoorData const doorData[] =
-{
-    { GO_DOODAD_ZULAMAN_WIND_DOOR,      DATA_ALKILZON,      DOOR_TYPE_ROOM  },
-    { 0,                                0,                  DOOR_TYPE_ROOM  } // END
-};
-
-enum HexlordMalacrassTriggerTexts
-{
-    SAY_SPEEDRUN_STARTED = 0
-};
-
-Position const AmanishiGuardianDistanceCheckPos = { 120.223f, 1585.766f, 43.43f  };
-Position const AmanishiSavageDistanceCheckPos   = { 122.176f, 1528.203f, 21.233f };
 
 class instance_zulaman : public InstanceMapScript
 {
-public:
-    instance_zulaman() : InstanceMapScript(ZulAmanScriptName, 568) { }
+    public:
+        instance_zulaman() : InstanceMapScript(ZulamanScriptName, 568) { }
 
-    struct instance_zulaman_InstanceScript : public InstanceScript
-    {
-        instance_zulaman_InstanceScript(InstanceMap* map) : InstanceScript(map)
+        struct instance_zulaman_InstanceScript : public InstanceScript
         {
-            SetHeaders(DataHeader);
-            SetBossNumber(EncounterCount);
-            LoadObjectData(creatureData, gameobjectData);
-            LoadDoorData(doorData);
-            _remainingSpeedRunTime = 0;
-            _savagesAtGateTriggered = false;
-            _speedRunState = NOT_STARTED;
-        }
-
-        void Load(char const* /*data*/) override
-        {
-            // If players enter the instance after a soft-reset, the speedrun is failed
-            if (_speedRunState == IN_PROGRESS)
-                _speedRunState = FAIL;
-        }
-
-        void OnCreatureCreate(Creature* creature) override
-        {
-            InstanceScript::OnCreatureCreate(creature);
-
-            switch (creature->GetEntry())
+            instance_zulaman_InstanceScript(InstanceMap* map) : InstanceScript(map),
+                ZulAmanState(*this, "TimedRunState", NOT_STARTED)
             {
-                case NPC_AMANISHI_GUARDIAN:
-                    if (creature->GetExactDist2d(AmanishiGuardianDistanceCheckPos) < 30.0f)
-                        _amanishiGuardianGUIDs.push_back(creature->GetGUID());
-                    break;
-                case NPC_AMANISHI_SAVAGE:
-                    if (creature->GetExactDist2d(AmanishiSavageDistanceCheckPos) < 100.0f)
-                        _amanishiSavageGUIDs.push_back(creature->GetGUID());
-                    break;
-                case NPC_AMANI_DRAGONHAWK_HATCHLING:
-                    if (Creature* janalai = GetCreature(DATA_JANALAI))
-                        if (janalai->IsAIEnabled())
-                            janalai->AI()->JustSummoned(creature);
-                    break;
-                default:
-                    break;
-            }
-        }
+                SetHeaders(DataHeader);
+                SetBossNumber(EncounterCount);
+                LoadDungeonEncounterData(encounters);
 
-        void OnGameObjectCreate(GameObject* go) override
-        {
-            InstanceScript::OnGameObjectCreate(go);
-
-            switch (go->GetEntry())
-            {
-                case GO_MASSIVE_GATE:
-                    if (_speedRunState != NOT_STARTED)
-                        go->SetGoState(GO_STATE_ACTIVE);
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        void SetData(uint32 type, uint32 data) override
-        {
-            switch (type)
-            {
-                case DATA_ZULAMAN_SPEEDRUN_STATE:
-                    if (data == IN_PROGRESS)
-                    {
-                        _remainingSpeedRunTime = 15;
-                        _speedRunState = IN_PROGRESS;
-
-                        if (Creature* trigger = GetCreature(DATA_HEXLORD_MALACRASS_TRIGGER))
-                            if (trigger->IsAIEnabled())
-                                trigger->AI()->Talk(SAY_SPEEDRUN_STARTED);
-
-                        DoUpdateWorldState(WORLD_STATE_ZULAMAN_TIMER_ENABLED, 1);
-                        DoUpdateWorldState(WORLD_STATE_ZULAMAN_TIMER, _remainingSpeedRunTime);
-                        events.ScheduleEvent(EVENT_UPDATE_SPEED_RUN_TIMER, 1min);
-                        SaveToDB();
-                    }
-                    break;
-                case DATA_TRIGGER_AMANISHI_GUARDIANS:
-                    for (ObjectGuid guid : _amanishiGuardianGUIDs)
-                    {
-                        if (Creature* guardian = instance->GetCreature(guid))
-                            if (guardian->IsAIEnabled())
-                                guardian->AI()->DoAction(ACTION_ALERT_AMANISHI_GUARDIANS);
-                    }
-                    break;
-                case DATA_TRIGGER_AMANISHI_SAVAGES:
-                    if (_savagesAtGateTriggered)
-                        return;
-                    for (ObjectGuid guid : _amanishiSavageGUIDs)
-                    {
-                        if (Creature* savage = instance->GetCreature(guid))
-                            savage->GetMotionMaster()->MovePath(savage->GetSpawnId() * 10, false);
-                    }
-                    _savagesAtGateTriggered = true;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        uint32 GetData(uint32 type) const override
-        {
-            switch (type)
-            {
-                case DATA_ZULAMAN_SPEEDRUN_STATE:
-                    return _speedRunState;
-                default:
-                    break;
+                SpeedRunTimer           = 15;
+                ZulAmanBossCount        = 0;
             }
 
-            return 0;
-        }
-
-        bool SetBossState(uint32 type, EncounterState state) override
-        {
-            if (!InstanceScript::SetBossState(type, state))
-                return false;
-
-            if (state == DONE)
+            void OnCreatureCreate(Creature* creature) override
             {
-            }
-
-            return true;
-        }
-
-        void ProcessEvent(WorldObject* /*obj*/, uint32 eventId, WorldObject* /*invoker*/) override
-        {
-            switch (eventId)
-            {
-                case EVENT_RIUAL_OF_POWER:
-                    if (Creature* voljin = GetCreature(DATA_VOLJIN))
-                        if (voljin->IsAIEnabled())
-                            voljin->AI()->DoAction(ACTION_OPEN_MASSIVE_GATES);
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        void Update(uint32 diff) override
-        {
-            if (events.Empty())
-                return;
-
-            events.Update(diff);
-
-            while (uint32 eventId = events.ExecuteEvent())
-            {
-                switch (eventId)
+                switch (creature->GetEntry())
                 {
-                    case EVENT_UPDATE_SPEED_RUN_TIMER:
-                        _remainingSpeedRunTime--;
-                        DoUpdateWorldState(WORLD_STATE_ZULAMAN_TIMER, _remainingSpeedRunTime);
-                        if (_remainingSpeedRunTime)
-                            events.Repeat(1min);
-                        else
-                        {
-                            DoUpdateWorldState(WORLD_STATE_ZULAMAN_TIMER_ENABLED, 0);
-                            _remainingSpeedRunTime = FAIL;
-                        }
-                        SaveToDB();
+                    case NPC_AKILZON:
+                        AkilzonGUID = creature->GetGUID();
+                        break;
+                    case NPC_NALORAKK:
+                        NalorakkGUID = creature->GetGUID();
+                        break;
+                    case NPC_JANALAI:
+                        JanalaiGUID = creature->GetGUID();
+                        break;
+                    case NPC_HALAZZI:
+                        HalazziGUID = creature->GetGUID();
+                        break;
+                    case NPC_HEXLORD:
+                        HexLordMalacrassGUID = creature->GetGUID();
+                        break;
+                    case NPC_DAAKARA:
+                        DaakaraGUID = creature->GetGUID();
+                        break;
+                    case NPC_VOLJIN:
+                        VoljinGUID = creature->GetGUID();
+                        break;
+                    case NPC_HEXLORD_TRIGGER:
+                        HexLordTriggerGUID = creature->GetGUID();
                         break;
                     default:
                         break;
                 }
             }
-        }
 
-        void WriteSaveDataMore(std::ostringstream& data) override
+            void OnGameObjectCreate(GameObject* go) override
+            {
+                switch (go->GetEntry())
+                {
+                    case GO_STRANGE_GONG:
+                        StrangeGongGUID = go->GetGUID();
+                        break;
+                    case GO_MASSIVE_GATE:
+                        MasiveGateGUID = go->GetGUID();
+                        AddDoor(go, true);
+                        if (ZulAmanState != NOT_STARTED)
+                            go->SetGoState(GO_STATE_ACTIVE);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            void OnGameObjectRemove(GameObject* go) override
+            {
+                switch (go->GetEntry())
+                {
+                    case GO_MASSIVE_GATE:
+                        AddDoor(go, false);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            ObjectGuid GetGuidData(uint32 type) const override
+            {
+                switch (type)
+                {
+                    case DATA_AKILZON:
+                        return AkilzonGUID;
+                    case DATA_NALORAKK:
+                        return NalorakkGUID;
+                    case DATA_JANALAI:
+                        return JanalaiGUID;
+                    case DATA_HALAZZI:
+                        return HalazziGUID;
+                    case DATA_HEXLORD:
+                        return HexLordMalacrassGUID;
+                    case DATA_DAAKARA:
+                        return DaakaraGUID;
+                    case DATA_HEXLORD_TRIGGER:
+                        return HexLordTriggerGUID;
+                    case DATA_STRANGE_GONG:
+                        return StrangeGongGUID;
+                    case DATA_MASSIVE_GATE:
+                        return MasiveGateGUID;
+                    default:
+                        break;
+                }
+
+                return ObjectGuid::Empty;
+            }
+
+            void SetData(uint32 type, uint32 data) override
+            {
+                switch (type)
+                {
+                    case DATA_ZULAMAN_STATE:
+                    {
+                        if (data == IN_PROGRESS)
+                        {
+                            DoUpdateWorldState(WORLD_STATE_ZULAMAN_TIMER_ENABLED, 1);
+                            DoUpdateWorldState(WORLD_STATE_ZULAMAN_TIMER, 15);
+                            events.ScheduleEvent(EVENT_UPDATE_ZULAMAN_TIMER, 1min);
+                            SpeedRunTimer = 15;
+                            ZulAmanState = data;
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+
+            uint32 GetData(uint32 type) const override
+            {
+                switch (type)
+                {
+                    case DATA_ZULAMAN_STATE:
+                        return ZulAmanState;
+                    default:
+                        break;
+                }
+
+                return 0;
+            }
+
+            bool SetBossState(uint32 type, EncounterState state) override
+            {
+                if (!InstanceScript::SetBossState(type, state))
+                    return false;
+
+                if (state == DONE)
+                {
+                    if (ZulAmanState == IN_PROGRESS && SpeedRunTimer)
+                    {
+                        ++ZulAmanBossCount;
+
+                        if (ZulAmanBossCount < 2)
+                        {
+                            SpeedRunTimer = SpeedRunTimer + 5;
+                            DoUpdateWorldState(WORLD_STATE_ZULAMAN_TIMER, SpeedRunTimer);
+                        }
+                        else if (ZulAmanBossCount == 4)
+                        {
+                            DoUpdateWorldState(WORLD_STATE_ZULAMAN_TIMER_ENABLED, 0);
+                            events.CancelEvent(EVENT_UPDATE_ZULAMAN_TIMER);
+                            ZulAmanState = DONE;
+                        }
+                    }
+                }
+
+                switch (type)
+                {
+                    case DATA_AKILZON:
+                        break;
+                    case DATA_NALORAKK:
+                        break;
+                    case DATA_JANALAI:
+                        break;
+                    case DATA_HALAZZI:
+                    case DATA_HEXLORD:
+                    case DATA_DAAKARA:
+                        break;
+                    default:
+                        break;
+                }
+
+                return true;
+            }
+
+            void ProcessEvent(WorldObject* /*obj*/, uint32 eventId, WorldObject* /*invoker*/) override
+            {
+                switch (eventId)
+                {
+                    case EVENT_START_ZULAMAN:
+                        if (Creature* voljin = instance->GetCreature(VoljinGUID))
+                        {
+                            if (voljin->IsAIEnabled())
+                                voljin->AI()->DoAction(ACTION_START_ZULAMAN);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            void Update(uint32 diff) override
+            {
+                if (events.Empty())
+                    return;
+
+                events.Update(diff);
+
+                while (uint32 eventId = events.ExecuteEvent())
+                {
+                    switch (eventId)
+                    {
+                        case EVENT_UPDATE_ZULAMAN_TIMER:
+                            DoUpdateWorldState(WORLD_STATE_ZULAMAN_TIMER, --SpeedRunTimer);
+                            if (SpeedRunTimer)
+                                events.ScheduleEvent(EVENT_UPDATE_ZULAMAN_TIMER, 1min);
+                            else
+                            {
+                                DoUpdateWorldState(WORLD_STATE_ZULAMAN_TIMER_ENABLED, 0);
+                                events.CancelEvent(EVENT_UPDATE_ZULAMAN_TIMER);
+                                ZulAmanState = FAIL;
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            void AfterDataLoad() override
+            {
+                // Speed run cannot be resumed after reset/crash
+                if (ZulAmanState != NOT_STARTED)
+                {
+                    SpeedRunTimer = 0;
+                    ZulAmanState.LoadValue(FAIL);
+                }
+            }
+
+        protected:
+            EventMap events;
+            ObjectGuid AkilzonGUID;
+            ObjectGuid NalorakkGUID;
+            ObjectGuid JanalaiGUID;
+            ObjectGuid HalazziGUID;
+            ObjectGuid HexLordMalacrassGUID;
+            ObjectGuid DaakaraGUID;
+            ObjectGuid VoljinGUID;
+            ObjectGuid HexLordTriggerGUID;
+            ObjectGuid StrangeGongGUID;
+            ObjectGuid MasiveGateGUID;
+            uint32 SpeedRunTimer;
+            PersistentInstanceScriptValue<uint32> ZulAmanState;
+            uint32 ZulAmanBossCount;
+        };
+
+        InstanceScript* GetInstanceScript(InstanceMap* map) const override
         {
-            data << _speedRunState << ' '
-                << _remainingSpeedRunTime;
+            return new instance_zulaman_InstanceScript(map);
         }
-
-        void ReadSaveDataMore(std::istringstream& data) override
-        {
-            data >> _speedRunState;
-            data >> _remainingSpeedRunTime;
-        }
-
-    protected:
-        EventMap events;
-        GuidVector _amanishiGuardianGUIDs;
-        GuidVector _amanishiSavageGUIDs;
-        uint32 _remainingSpeedRunTime;
-        uint32 _speedRunState;
-        bool _savagesAtGateTriggered;
-    };
-
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_zulaman_InstanceScript(map);
-    }
 };
 
 void AddSC_instance_zulaman()

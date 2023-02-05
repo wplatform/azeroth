@@ -15,11 +15,17 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* ScriptData
+SDName: Boss Loken
+SD%Complete: 60%
+SDComment: Missing intro.
+SDCategory: Halls of Lightning
+EndScriptData */
+
 #include "ScriptMgr.h"
 #include "halls_of_lightning.h"
 #include "InstanceScript.h"
 #include "ScriptedCreature.h"
-#include "SpellMgr.h"
 #include "SpellScript.h"
 
 enum Texts
@@ -41,9 +47,10 @@ enum Spells
     SPELL_ARC_LIGHTNING                           = 52921,
     SPELL_LIGHTNING_NOVA                          = 52960,
 
-    SPELL_PULSING_SHOCKWAVE                       = 52961,
     SPELL_PULSING_SHOCKWAVE_AURA                  = 59414
 };
+
+#define SPELL_PULSING_SHOCKWAVE DUNGEON_MODE<uint32>(52961,59836)
 
 enum Events
 {
@@ -71,8 +78,22 @@ enum Misc
 
 struct boss_loken : public BossAI
 {
-    boss_loken(Creature* creature) : BossAI(creature, DATA_LOKEN),
-       _healthAmountModifier(1), _isIntroDone(false) { }
+    boss_loken(Creature* creature) : BossAI(creature, DATA_LOKEN)
+    {
+        Initialize();
+        _isIntroDone = false;
+    }
+
+    void Initialize()
+    {
+        _healthAmountModifier = 1;
+    }
+
+    void Reset() override
+    {
+        Initialize();
+        _Reset();
+    }
 
     void JustEngagedWith(Unit* who) override
     {
@@ -82,27 +103,20 @@ struct boss_loken : public BossAI
         events.ScheduleEvent(EVENT_ARC_LIGHTNING, 15s);
         events.ScheduleEvent(EVENT_LIGHTNING_NOVA, 20s);
         events.ScheduleEvent(EVENT_RESUME_PULSING_SHOCKWAVE, 1s);
-        instance->DoStartTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, ACHIEV_TIMELY_DEATH_START_EVENT);
-        me->SetStandState(UNIT_STAND_STATE_STAND);
+        instance->TriggerGameEvent(ACHIEV_TIMELY_DEATH_START_EVENT);
     }
 
-    void JustDied(Unit* killer) override
+    void JustDied(Unit* /*killer*/) override
     {
-        BossAI::JustDied(killer);
-        Talk(SAY_DEATH, killer);
-        instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_PULSING_SHOCKWAVE_AURA);
-    }
-
-    void EnterEvadeMode(EvadeReason /*why*/) override
-    {
-        instance->DoStopTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, ACHIEV_TIMELY_DEATH_START_EVENT);
-        _DespawnAtEvade();
+        Talk(SAY_DEATH);
+        _JustDied();
+        instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_PULSING_SHOCKWAVE_AURA, true, true);
     }
 
     void KilledUnit(Unit* who) override
     {
-        if (who->IsPlayer())
-            Talk(SAY_SLAY, who);
+        if (who->GetTypeId() == TYPEID_PLAYER)
+            Talk(SAY_SLAY);
     }
 
     void MoveInLineOfSight(Unit* who) override
@@ -110,7 +124,7 @@ struct boss_loken : public BossAI
         if (!_isIntroDone && me->IsValidAttackTarget(who) && me->IsWithinDistInMap(who, 40.0f))
         {
             _isIntroDone = true;
-            Talk(SAY_INTRO_1, who);
+            Talk(SAY_INTRO_1);
             events.ScheduleEvent(EVENT_INTRO_DIALOGUE, 20s, 0, PHASE_INTRO);
         }
         BossAI::MoveInLineOfSight(who);
@@ -128,7 +142,7 @@ struct boss_loken : public BossAI
             switch (eventId)
             {
                 case EVENT_ARC_LIGHTNING:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                         DoCast(target, SPELL_ARC_LIGHTNING);
                     events.ScheduleEvent(EVENT_ARC_LIGHTNING, 15s, 16s);
                     break;
@@ -136,7 +150,7 @@ struct boss_loken : public BossAI
                     Talk(SAY_NOVA);
                     Talk(EMOTE_NOVA);
                     DoCastAOE(SPELL_LIGHTNING_NOVA);
-                    me->RemoveAurasDueToSpell(sSpellMgr->GetSpellIdForDifficulty(SPELL_PULSING_SHOCKWAVE, me));
+                    me->RemoveAurasDueToSpell(SPELL_PULSING_SHOCKWAVE);
                     events.ScheduleEvent(EVENT_RESUME_PULSING_SHOCKWAVE, DUNGEON_MODE(5s, 4s)); // Pause Pulsing Shockwave aura
                     events.ScheduleEvent(EVENT_LIGHTNING_NOVA, 20s, 21s);
                     break;
@@ -157,11 +171,8 @@ struct boss_loken : public BossAI
         DoMeleeAttackIfReady();
     }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
-        if (damage >= me->GetHealth())
-            return;
-
         if (me->HealthBelowPctDamaged(100 - 25 * _healthAmountModifier, damage))
         {
             switch (_healthAmountModifier)
@@ -182,13 +193,16 @@ struct boss_loken : public BossAI
         }
     }
 
-private:
-    uint32 _healthAmountModifier;
-    bool _isIntroDone;
+    private:
+        uint32 _healthAmountModifier;
+        bool _isIntroDone;
 };
 
+// 52942, 59837 - Pulsing Shockwave
 class spell_loken_pulsing_shockwave : public SpellScript
 {
+    PrepareSpellScript(spell_loken_pulsing_shockwave);
+
     void CalculateDamage(SpellEffIndex /*effIndex*/)
     {
         if (!GetHitUnit())
@@ -201,7 +215,7 @@ class spell_loken_pulsing_shockwave : public SpellScript
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_loken_pulsing_shockwave::CalculateDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+        OnEffectHitTarget += SpellEffectFn(spell_loken_pulsing_shockwave::CalculateDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
     }
 };
 

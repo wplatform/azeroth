@@ -15,167 +15,98 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
-#include "ScriptedCreature.h"
 #include "scarlet_monastery.h"
+#include "ScriptedCreature.h"
+#include "ScriptMgr.h"
 
-enum Yells
+enum BloodmageThalnosYells
 {
-    SAY_AGGRO               = 0,
-    SAY_HEALTH_BELOW_50     = 1,
-    SAY_SLAY                = 2
+    SAY_AGGRO = 0,
+    SAY_HEALTH = 1,
+    SAY_KILL = 2
 };
 
-enum Spells
+enum BloodmageThalnosSpells
 {
-    SPELL_SHADOW_BOLT   = 20825,
-    SPELL_FIRE_NOVA     = 12470,
-    SPELL_FLAME_SHOCK   = 23038,
-    SPELL_FLAME_SPIKE   = 8814
+    SPELL_FLAMESHOCK = 8053,
+    SPELL_SHADOWBOLT = 1106,
+    SPELL_FLAMESPIKE = 8814,
+    SPELL_FIRENOVA = 16079
 };
 
-enum Events
+enum BloodmageThalnosEvents
 {
-    EVENT_SHADOW_BOLT = 1,
-    EVENT_FIRE_NOVA,
-    EVENT_FLAME_SHOCK,
-    EVENT_FLAME_SPIKE
+    EVENT_FLAME_SHOCK = 1,
+    EVENT_SHADOW_BOLT,
+    EVENT_FLAME_SPIKE,
+    EVENT_FIRE_NOVA
 };
-
-static constexpr uint8 const MaxChainedEvents = 4;
 
 struct boss_bloodmage_thalnos : public BossAI
 {
-    boss_bloodmage_thalnos(Creature* creature) : BossAI(creature, DATA_BLOODMAGE_THALNOS), _triggeredText(false)
+    boss_bloodmage_thalnos(Creature* creature) : BossAI(creature, DATA_BLOODMAGE_THALNOS)
     {
-        InitializeEventCooldowns();
+        _hpYell = false;
     }
 
     void Reset() override
     {
-        _triggeredText = false;
-        InitializeEventCooldowns();
+        _hpYell = false;
         _Reset();
     }
 
     void JustEngagedWith(Unit* who) override
     {
-        BossAI::JustEngagedWith(who);
         Talk(SAY_AGGRO);
-        events.ScheduleEvent(EVENT_FLAME_SPIKE, 8s, 10s);
-        events.ScheduleEvent(EVENT_SHADOW_BOLT, 1ms);
+        BossAI::JustEngagedWith(who);
+        events.ScheduleEvent(EVENT_FLAME_SHOCK, 10s);
+        events.ScheduleEvent(EVENT_SHADOW_BOLT, 2s);
+        events.ScheduleEvent(EVENT_FLAME_SPIKE, 8s);
+        events.ScheduleEvent(EVENT_FIRE_NOVA, 40s);
     }
 
     void KilledUnit(Unit* victim) override
     {
-        if (victim->IsPlayer())
-            Talk(SAY_SLAY);
+        if (victim->GetTypeId() == TYPEID_PLAYER)
+            Talk(SAY_KILL);
     }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
-        if (!_triggeredText && me->HealthBelowPctDamaged(50, damage))
+        if (!_hpYell && me->HealthBelowPctDamaged(35, damage))
         {
-            Talk(SAY_HEALTH_BELOW_50);
-            _triggeredText = true;
+            Talk(SAY_HEALTH);
+            _hpYell = true;
         }
     }
 
-    void UpdateAI(uint32 diff) override
+    void ExecuteEvent(uint32 eventId) override
     {
-        if (!UpdateVictim())
-            return;
-
-        events.Update(diff);
-
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        while (uint32 eventId = events.ExecuteEvent())
+        switch (eventId)
         {
-            switch (eventId)
-            {
-                case EVENT_SHADOW_BOLT:
-                    DoCastVictim(SPELL_SHADOW_BOLT);
-                    ScheduleNextEvent();
-                    break;
-                case EVENT_FLAME_SHOCK:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 20.f, true, true, -SPELL_FLAME_SHOCK))
-                        DoCast(target, SPELL_FLAME_SHOCK);
-                    else
-                        DoCastVictim(SPELL_FLAME_SHOCK);
-
-                    ScheduleNextEvent();
-                    break;
-                case EVENT_FIRE_NOVA:
-                    DoCastAOE(SPELL_FIRE_NOVA);
-                    ScheduleNextEvent();
-                    break;
-                case EVENT_FLAME_SPIKE:
-                    DoCastVictim(SPELL_FLAME_SPIKE);
-                    events.Repeat(3min);
-                    break;
-                default:
-                    break;
-            }
+            case EVENT_FLAME_SHOCK:
+                DoCastVictim(SPELL_FLAMESHOCK);
+                events.Repeat(10s, 15s);
+                break;
+            case EVENT_SHADOW_BOLT:
+                DoCastVictim(SPELL_SHADOWBOLT);
+                events.Repeat(2s);
+                break;
+            case EVENT_FLAME_SPIKE:
+                DoCastVictim(SPELL_FLAMESPIKE);
+                events.Repeat(30s);
+                break;
+            case EVENT_FIRE_NOVA:
+                DoCastVictim(SPELL_FIRENOVA);
+                events.Repeat(40s);
+                break;
+            default:
+                break;
         }
-
-        if (!me->HasSpellFocus())
-            DoMeleeAttackIfReady();
     }
 
 private:
-    bool _triggeredText;
-    int8 _remainingEventCycles[MaxChainedEvents];
-
-    void InitializeEventCooldowns()
-    {
-        _remainingEventCycles[EVENT_SHADOW_BOLT] = 0;
-        _remainingEventCycles[EVENT_FLAME_SHOCK] = 1;
-        _remainingEventCycles[EVENT_FIRE_NOVA] = 3;
-    }
-
-    void UpdateEventCooldowns()
-    {
-        for (uint8 i : { EVENT_FIRE_NOVA, EVENT_FLAME_SHOCK })
-        {
-            if (_remainingEventCycles[i] == 0)
-            {
-                if (i == EVENT_FLAME_SHOCK)
-                    _remainingEventCycles[i] = 2;
-                else if (i == EVENT_FIRE_NOVA)
-                    _remainingEventCycles[i] = 3;
-            }
-            else
-                _remainingEventCycles[i]--;
-        }
-    }
-
-    uint32 GetNextEventId() const
-    {
-        std::vector<uint32> possibleEventIds;
-        for (uint8 i : { EVENT_SHADOW_BOLT, EVENT_FIRE_NOVA, EVENT_FLAME_SHOCK })
-        {
-            // We have an long overdue event pending. Prioritize it.
-            if (_remainingEventCycles[i] <= -3)
-                return i;
-
-            // Otherwise pick a random event that's ready for execution
-            if (_remainingEventCycles[i] == 0)
-                possibleEventIds.push_back(i);
-        }
-
-        if (!possibleEventIds.empty())
-            return Trinity::Containers::SelectRandomContainerElement(possibleEventIds);
-
-        return 0;
-    }
-
-    void ScheduleNextEvent()
-    {
-        UpdateEventCooldowns();
-        events.ScheduleEvent(GetNextEventId(), 3s);
-    }
+    bool _hpYell;
 };
 
 void AddSC_boss_bloodmage_thalnos()

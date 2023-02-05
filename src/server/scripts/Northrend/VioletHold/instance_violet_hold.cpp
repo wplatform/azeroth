@@ -15,16 +15,17 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
+#include "violet_hold.h"
+#include "Creature.h"
+#include "CreatureAI.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Map.h"
 #include "MotionMaster.h"
 #include "Player.h"
-#include "ScriptedCreature.h"
+#include "TaskScheduler.h"
+#include "ScriptMgr.h"
 #include "TemporarySummon.h"
-#include "violet_hold.h"
-#include "WorldPacket.h"
 
 /*
  * TODO:
@@ -185,7 +186,14 @@ ObjectData const gameObjectData[] =
 MinionData const minionData[] =
 {
     { NPC_EREKEM_GUARD, DATA_EREKEM },
-    { 0,                0,          } // END
+    { 0,                0           } // END
+};
+
+DungeonEncounterData const encounters[] =
+{
+    { DATA_1ST_BOSS, {{ 2019 }} },
+    { DATA_2ND_BOSS, {{ 2018 }} },
+    { DATA_CYANIGOSA, {{ 2020 }} }
 };
 
 class instance_violet_hold : public InstanceMapScript
@@ -195,15 +203,15 @@ class instance_violet_hold : public InstanceMapScript
 
         struct instance_violet_hold_InstanceMapScript : public InstanceScript
         {
-            instance_violet_hold_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
+            instance_violet_hold_InstanceMapScript(InstanceMap* map) : InstanceScript(map),
+                FirstBossId(*this, "FirstBossId", 0),
+                SecondBossId(*this, "SecondBossId", 0)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
                 LoadObjectData(creatureData, gameObjectData);
                 LoadMinionData(minionData);
-
-                FirstBossId         = 0;
-                SecondBossId        = 0;
+                LoadDungeonEncounterData(encounters);
 
                 DoorIntegrity       = 100;
                 WaveCount           = 0;
@@ -402,14 +410,20 @@ class instance_violet_hold : public InstanceMapScript
 
                             for (uint8 i = 0; i < ActivationCrystalCount; ++i)
                                 if (GameObject* crystal = instance->GetGameObject(ActivationCrystalGUIDs[i]))
-                                    crystal->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                    crystal->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
+
+                            Scheduler.Schedule(Seconds(3), [this](TaskContext task)
+                            {
+                                CheckEventState();
+                                task.Repeat(Seconds(3));
+                            });
                         }
                         else if (data == NOT_STARTED)
                         {
                             if (GameObject* mainDoor = GetGameObject(DATA_MAIN_DOOR))
                             {
                                 mainDoor->SetGoState(GO_STATE_ACTIVE);
-                                mainDoor->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_LOCKED);
+                                mainDoor->RemoveFlag(GO_FLAG_LOCKED);
                             }
 
                             DoUpdateWorldState(WORLD_STATE_VH_SHOW, 0);
@@ -418,21 +432,21 @@ class instance_violet_hold : public InstanceMapScript
 
                             for (uint8 i = 0; i < ActivationCrystalCount; ++i)
                                 if (GameObject* crystal = instance->GetGameObject(ActivationCrystalGUIDs[i]))
-                                    crystal->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                    crystal->SetFlag(GO_FLAG_NOT_SELECTABLE);
                         }
                         else if (data == DONE)
                         {
                             if (GameObject* mainDoor = GetGameObject(DATA_MAIN_DOOR))
                             {
                                 mainDoor->SetGoState(GO_STATE_ACTIVE);
-                                mainDoor->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_LOCKED);
+                                mainDoor->RemoveFlag(GO_FLAG_LOCKED);
                             }
 
                             DoUpdateWorldState(WORLD_STATE_VH_SHOW, 0);
 
                             for (uint8 i = 0; i < ActivationCrystalCount; ++i)
                                 if (GameObject* crystal = instance->GetGameObject(ActivationCrystalGUIDs[i]))
-                                    crystal->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                    crystal->SetFlag(GO_FLAG_NOT_SELECTABLE);
 
                             if (Creature* sinclari = GetCreature(DATA_SINCLARI))
                                 sinclari->AI()->DoAction(ACTION_SINCLARI_OUTRO);
@@ -755,7 +769,7 @@ class instance_violet_hold : public InstanceMapScript
                             FirstBossId = urand(DATA_MORAGG, DATA_ZURAMAT);
                         if (Creature* sinclari = GetCreature(DATA_SINCLARI))
                         {
-                            sinclari->SummonCreature(NPC_TELEPORTATION_PORTAL_INTRO, PortalIntroPositions[3], TEMPSUMMON_TIMED_DESPAWN, 3000);
+                            sinclari->SummonCreature(NPC_TELEPORTATION_PORTAL_INTRO, PortalIntroPositions[3], TEMPSUMMON_TIMED_DESPAWN, 3s);
                             sinclari->SummonCreature(NPC_SABOTEOUR, SaboteurSpawnLocation, TEMPSUMMON_DEAD_DESPAWN);
                         }
                         break;
@@ -767,14 +781,14 @@ class instance_violet_hold : public InstanceMapScript
                             } while (SecondBossId == FirstBossId);
                         if (Creature* sinclari = GetCreature(DATA_SINCLARI))
                         {
-                            sinclari->SummonCreature(NPC_TELEPORTATION_PORTAL_INTRO, PortalIntroPositions[3], TEMPSUMMON_TIMED_DESPAWN, 3000);
+                            sinclari->SummonCreature(NPC_TELEPORTATION_PORTAL_INTRO, PortalIntroPositions[3], TEMPSUMMON_TIMED_DESPAWN, 3s);
                             sinclari->SummonCreature(NPC_SABOTEOUR, SaboteurSpawnLocation, TEMPSUMMON_DEAD_DESPAWN);
                         }
                         break;
                     case 18:
                         if (Creature* sinclari = GetCreature(DATA_SINCLARI))
                         {
-                            sinclari->SummonCreature(NPC_TELEPORTATION_PORTAL_INTRO, PortalIntroPositions[4], TEMPSUMMON_TIMED_DESPAWN, 6000);
+                            sinclari->SummonCreature(NPC_TELEPORTATION_PORTAL_INTRO, PortalIntroPositions[4], TEMPSUMMON_TIMED_DESPAWN, 6s);
                             if (Creature* cyanigosa = sinclari->SummonCreature(NPC_CYANIGOSA, CyanigosaSpawnLocation, TEMPSUMMON_DEAD_DESPAWN))
                                 cyanigosa->CastSpell(cyanigosa, SPELL_CYANIGOSA_ARCANE_POWER_STATE, true);
                             ScheduleCyanigosaIntro();
@@ -784,17 +798,6 @@ class instance_violet_hold : public InstanceMapScript
                         SpawnPortal();
                         break;
                 }
-            }
-
-            void WriteSaveDataMore(std::ostringstream& data) override
-            {
-                data << FirstBossId << ' ' << SecondBossId;
-            }
-
-            void ReadSaveDataMore(std::istringstream& data) override
-            {
-                data >> FirstBossId;
-                data >> SecondBossId;
             }
 
             bool CheckWipe() const
@@ -845,9 +848,29 @@ class instance_violet_hold : public InstanceMapScript
 
             void Update(uint32 diff) override
             {
+                // if we don't have any player in the instance
                 if (!instance->HavePlayers())
+                {
+                    if (EventState == IN_PROGRESS) // if event is in progress, mark as fail
+                    {
+                        EventState = FAIL;
+                        CheckEventState();
+                    }
                     return;
+                }
 
+                Scheduler.Update(diff);
+
+                if (EventState == IN_PROGRESS)
+                {
+                    // if door is destroyed, event is failed
+                    if (!GetData(DATA_DOOR_INTEGRITY))
+                        EventState = FAIL;
+                }
+            }
+
+            void CheckEventState()
+            {
                 // if main event is in progress and players have wiped then reset instance
                 if ((EventState == IN_PROGRESS && CheckWipe()) || EventState == FAIL)
                 {
@@ -864,15 +887,6 @@ class instance_violet_hold : public InstanceMapScript
 
                     if (Creature* sinclari = GetCreature(DATA_SINCLARI))
                         sinclari->AI()->EnterEvadeMode();
-                }
-
-                Scheduler.Update(diff);
-
-                if (EventState == IN_PROGRESS)
-                {
-                    // if door is destroyed, event is failed
-                    if (!GetData(DATA_DOOR_INTEGRITY))
-                        EventState = FAIL;
                 }
             }
 
@@ -924,8 +938,8 @@ class instance_violet_hold : public InstanceMapScript
             static uint8 const ActivationCrystalCount = 5;
             ObjectGuid ActivationCrystalGUIDs[ActivationCrystalCount];
 
-            uint32 FirstBossId;
-            uint32 SecondBossId;
+            PersistentInstanceScriptValue<uint32> FirstBossId;
+            PersistentInstanceScriptValue<uint32> SecondBossId;
 
             uint8 DoorIntegrity;
             uint8 WaveCount;

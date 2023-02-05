@@ -21,74 +21,57 @@
 #include "CreatureAIImpl.h"
 
 uint32 const EncounterCount = 6;
-#define ZulAmanScriptName "instance_zulaman"
+#define ZulamanScriptName "instance_zulaman"
 #define DataHeader "ZA"
 
 enum ZADataTypes
 {
-    // Bosss
-    DATA_ALKILZON           = 0,
-    DATA_NALORAKK           = 1,
-    DATA_JANALAI            = 2,
-    DATA_HALAZZI            = 3,
-    DATA_HEXLORD_MALACRASS  = 4,
-    DATA_DAAKARA            = 5,
+    // BossState
+    DATA_AKILZON                = 0,
+    DATA_NALORAKK               = 1,
+    DATA_JANALAI                = 2,
+    DATA_HALAZZI                = 3,
+    DATA_HEXLORD                = 4,
+    DATA_DAAKARA                = 5,
 
-    // Additional Data
-    DATA_VOLJIN,
-    DATA_HEXLORD_MALACRASS_TRIGGER,
+    // Data64
+    DATA_HEXLORD_TRIGGER,
+
     DATA_STRANGE_GONG,
     DATA_MASSIVE_GATE,
-    DATA_ZULAMAN_SPEEDRUN_STATE,
-    DATA_TRIGGER_AMANISHI_GUARDIANS,
-    DATA_TRIGGER_AMANISHI_SAVAGES
+
+    // SetData
+    DATA_ZULAMAN_STATE
 };
 
 enum ZACreatureIds
 {
-    // Bosses
-    BOSS_AKILZON                    = 23574,
-    BOSS_NALORAKK                   = 23576,
-    BOSS_JANALAI                    = 23578,
-    BOSS_HALAZZI                    = 23577,
-    BOSS_HEXLORD_MALACRASS          = 24239,
-    BOSS_DAAKARA                    = 23863,
+    NPC_AKILZON                 = 23574,
+    NPC_NALORAKK                = 23576,
+    NPC_JANALAI                 = 23578,
+    NPC_HALAZZI                 = 23577,
+    NPC_HEXLORD                 = 24239,
+    NPC_DAAKARA                 = 23863,
 
-    // Encounter related creatures
-    /*Akil'zon*/
-    NPC_SOARING_EAGLE               = 24858,
-
-    /*Jan'alai*/
-    NPC_FIRE_BOMB_ZULAMAN           = 23920,
-    NPC_WORLD_TRIGGER_NOT_IMMUNE_PC = 21252,
-    NPC_AMANISHI_HATCHER_1          = 23818,
-    NPC_AMANISHI_HATCHER_2          = 24504,
-    NPC_AMANI_DRAGONHAWK_HATCHLING  = 23598,
-    NPC_DRAGONHAWK_EGG              = 23817,
-
-    NPC_VOLJIN                      = 52924,
-    NPC_HEXLORD_MALACRASS_TRIGGER   = 24363,
-    NPC_AMANISHI_GUARDIAN           = 23597,
-    NPC_AMANISHI_SAVAGE             = 23889
+    NPC_VOLJIN                  = 52924,
+    NPC_HEXLORD_TRIGGER         = 24363
 };
 
 enum ZAGameObjectIds
 {
     GO_STRANGE_GONG             = 187359,
     GO_MASSIVE_GATE             = 186728,
-    GO_DOODAD_ZULAMAN_WIND_DOOR = 186858,
 };
 
 enum ZAEvents
 {
-    EVENT_RIUAL_OF_POWER            = 15897,
-    EVENT_UPDATE_SPEED_RUN_TIMER    = 1,
+    EVENT_START_ZULAMAN         = 15897,
+    EVENT_UPDATE_ZULAMAN_TIMER  = 1,
 };
 
-enum ZAActions
+enum ZAAction
 {
-    ACTION_OPEN_MASSIVE_GATES       = 1,
-    ACTION_ALERT_AMANISHI_GUARDIANS = 1
+    ACTION_START_ZULAMAN        = 1
 };
 
 enum ZAWorldStates
@@ -100,9 +83,7 @@ enum ZAWorldStates
 template <class AI, class T>
 inline AI* GetZulAmanAI(T* obj)
 {
-    return GetInstanceAI<AI>(obj, ZulAmanScriptName);
+    return GetInstanceAI<AI>(obj, ZulamanScriptName);
 }
-
-#define RegisterZulAamanCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetZulAmanAI)
 
 #endif

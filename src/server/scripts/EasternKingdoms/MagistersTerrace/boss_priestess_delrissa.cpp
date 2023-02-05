@@ -23,8 +23,8 @@ SDCategory: Magister's Terrace
 EndScriptData */
 
 #include "ScriptMgr.h"
-#include "InstanceScript.h"
 #include "magisters_terrace.h"
+#include "InstanceScript.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
 #include "TemporarySummon.h"
@@ -109,6 +109,11 @@ class boss_priestess_delrissa : public CreatureScript
 {
 public:
     boss_priestess_delrissa() : CreatureScript("boss_priestess_delrissa") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetMagistersTerraceAI<boss_priestess_delrissaAI>(creature);
+    }
 
     struct boss_priestess_delrissaAI : public ScriptedAI
     {
@@ -195,7 +200,7 @@ public:
                 //summon all the remaining in vector
                 for (std::vector<uint32>::const_iterator itr = LackeyEntryList.begin(); itr != LackeyEntryList.end(); ++itr)
                 {
-                    if (Creature* pAdd = me->SummonCreature((*itr), LackeyLocations[j][0], LackeyLocations[j][1], fZLocation, fOrientation, TEMPSUMMON_CORPSE_DESPAWN, 0))
+                    if (Creature* pAdd = me->SummonCreature((*itr), LackeyLocations[j][0], LackeyLocations[j][1], fZLocation, fOrientation, TEMPSUMMON_CORPSE_DESPAWN))
                         m_auiLackeyGUID[j] = pAdd->GetGUID();
 
                     ++j;
@@ -210,7 +215,7 @@ public:
                     //object already removed, not exist
                     if (!pAdd)
                     {
-                        pAdd = me->SummonCreature((*itr), LackeyLocations[j][0], LackeyLocations[j][1], fZLocation, fOrientation, TEMPSUMMON_CORPSE_DESPAWN, 0);
+                        pAdd = me->SummonCreature((*itr), LackeyLocations[j][0], LackeyLocations[j][1], fZLocation, fOrientation, TEMPSUMMON_CORPSE_DESPAWN);
                         if (pAdd)
                             m_auiLackeyGUID[j] = pAdd->GetGUID();
                     }
@@ -237,10 +242,7 @@ public:
             if (instance->GetData(DATA_DELRISSA_DEATH_COUNT) == MAX_ACTIVE_LACKEY)
                 instance->SetBossState(DATA_PRIESTESS_DELRISSA, DONE);
             else
-            {
-                if (me->HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE))
-                    me->RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
-            }
+                me->RemoveDynamicFlag(UNIT_DYNFLAG_LOOTABLE);
         }
 
         void UpdateAI(uint32 diff) override
@@ -308,7 +310,7 @@ public:
                 Unit* target = nullptr;
 
                 if (urand(0, 1))
-                    target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true);
+                    target = SelectTarget(SelectTargetMethod::Random, 0, 100, true);
                 else
                 {
                     if (urand(0, 1))
@@ -327,7 +329,7 @@ public:
 
             if (SWPainTimer <= diff)
             {
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
                     DoCast(target, SPELL_SW_PAIN_NORMAL);
 
                 SWPainTimer = 10000;
@@ -336,11 +338,6 @@ public:
             DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetMagistersTerraceAI<boss_priestess_delrissaAI>(creature);
-    }
 };
 
 enum HealingPotion
@@ -398,7 +395,6 @@ struct boss_priestess_lackey_commonAI : public ScriptedAI
                 if (!pAdd->IsEngaged() && pAdd != me)
                     AddThreat(who, 0.0f, pAdd);
 
-
         if (Creature* delrissa = instance->GetCreature(DATA_PRIESTESS_DELRISSA))
             if (delrissa->IsAlive() && !delrissa->IsEngaged())
                 AddThreat(who, 0.0f, delrissa);
@@ -425,8 +421,7 @@ struct boss_priestess_lackey_commonAI : public ScriptedAI
             //time to make her lootable and complete event if she died before lackeys
             if (!delrissa->IsAlive())
             {
-                if (!delrissa->HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE))
-                    delrissa->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
+                delrissa->SetDynamicFlag(UNIT_DYNFLAG_LOOTABLE);
 
                 instance->SetBossState(DATA_PRIESTESS_DELRISSA, DONE);
             }
@@ -479,6 +474,11 @@ class boss_kagani_nightstrike : public CreatureScript
 public:
     boss_kagani_nightstrike() : CreatureScript("boss_kagani_nightstrike") { }
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetMagistersTerraceAI<boss_kagani_nightstrikeAI>(creature);
+    }
+
     struct boss_kagani_nightstrikeAI : public boss_priestess_lackey_commonAI
     {
         //Rogue
@@ -523,7 +523,7 @@ public:
             {
                 DoCast(me, SPELL_VANISH);
 
-                Unit* unit = SelectTarget(SELECT_TARGET_RANDOM, 0);
+                Unit* unit = SelectTarget(SelectTargetMethod::Random, 0);
 
                 ResetThreatList();
 
@@ -568,11 +568,6 @@ public:
                 DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetMagistersTerraceAI<boss_kagani_nightstrikeAI>(creature);
-    }
 };
 
 enum WarlockSpells
@@ -590,6 +585,11 @@ class boss_ellris_duskhallow : public CreatureScript
 {
 public:
     boss_ellris_duskhallow() : CreatureScript("boss_ellris_duskhallow") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetMagistersTerraceAI<boss_ellris_duskhallowAI>(creature);
+    }
 
     struct boss_ellris_duskhallowAI : public boss_priestess_lackey_commonAI
     {
@@ -647,7 +647,7 @@ public:
 
             if (Seed_of_Corruption_Timer <= diff)
             {
-                if (Unit* unit = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                if (Unit* unit = SelectTarget(SelectTargetMethod::Random, 0))
                     DoCast(unit, SPELL_SEED_OF_CORRUPTION);
 
                 Seed_of_Corruption_Timer = 10000;
@@ -655,7 +655,7 @@ public:
 
             if (Curse_of_Agony_Timer <= diff)
             {
-                if (Unit* unit = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                if (Unit* unit = SelectTarget(SelectTargetMethod::Random, 0))
                     DoCast(unit, SPELL_CURSE_OF_AGONY);
 
                 Curse_of_Agony_Timer = 13000;
@@ -663,7 +663,7 @@ public:
 
             if (Fear_Timer <= diff)
             {
-                if (Unit* unit = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                if (Unit* unit = SelectTarget(SelectTargetMethod::Random, 0))
                     DoCast(unit, SPELL_FEAR);
 
                 Fear_Timer = 10000;
@@ -672,11 +672,6 @@ public:
             DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetMagistersTerraceAI<boss_ellris_duskhallowAI>(creature);
-    }
 };
 
 enum KickDown
@@ -689,6 +684,11 @@ class boss_eramas_brightblaze : public CreatureScript
 {
 public:
     boss_eramas_brightblaze() : CreatureScript("boss_eramas_brightblaze") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetMagistersTerraceAI<boss_eramas_brightblazeAI>(creature);
+    }
 
     struct boss_eramas_brightblazeAI : public boss_priestess_lackey_commonAI
     {
@@ -736,11 +736,6 @@ public:
             DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetMagistersTerraceAI<boss_eramas_brightblazeAI>(creature);
-    }
 };
 
 enum MageSpells
@@ -758,6 +753,11 @@ class boss_yazzai : public CreatureScript
 {
 public:
     boss_yazzai() : CreatureScript("boss_yazzai") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetMagistersTerraceAI<boss_yazzaiAI>(creature);
+    }
 
     struct boss_yazzaiAI : public boss_priestess_lackey_commonAI
     {
@@ -808,7 +808,7 @@ public:
 
             if (Polymorph_Timer <= diff)
             {
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                 {
                     DoCast(target, SPELL_POLYMORPH);
                     Polymorph_Timer = 20000;
@@ -823,7 +823,7 @@ public:
 
             if (Blizzard_Timer <= diff)
             {
-                if (Unit* unit = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                if (Unit* unit = SelectTarget(SelectTargetMethod::Random, 0))
                     DoCast(unit, SPELL_BLIZZARD);
 
                 Blizzard_Timer = 8000;
@@ -869,11 +869,6 @@ public:
             DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetMagistersTerraceAI<boss_yazzaiAI>(creature);
-    }
 };
 
 enum WarriorSpells
@@ -891,6 +886,11 @@ class boss_warlord_salaris : public CreatureScript
 {
 public:
     boss_warlord_salaris() : CreatureScript("boss_warlord_salaris") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetMagistersTerraceAI<boss_warlord_salarisAI>(creature);
+    }
 
     struct boss_warlord_salarisAI : public boss_priestess_lackey_commonAI
     {
@@ -951,7 +951,7 @@ public:
                 //if nobody is in melee range than try to use Intercept
                 if (!InMeleeRange)
                 {
-                    if (Unit* unit = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                    if (Unit* unit = SelectTarget(SelectTargetMethod::Random, 0))
                         DoCast(unit, SPELL_INTERCEPT_STUN);
                 }
 
@@ -991,11 +991,6 @@ public:
             DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetMagistersTerraceAI<boss_warlord_salarisAI>(creature);
-    }
 };
 
 enum HunterSpells
@@ -1014,6 +1009,11 @@ class boss_garaxxas : public CreatureScript
 {
 public:
     boss_garaxxas() : CreatureScript("boss_garaxxas") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetMagistersTerraceAI<boss_garaxxasAI>(creature);
+    }
 
     struct boss_garaxxasAI : public boss_priestess_lackey_commonAI
     {
@@ -1048,7 +1048,7 @@ public:
 
             Unit* pPet = ObjectAccessor::GetUnit(*me, m_uiPetGUID);
             if (!pPet)
-                me->SummonCreature(NPC_SLIVER, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSUMMON_CORPSE_DESPAWN, 0);
+                me->SummonCreature(NPC_SLIVER, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSUMMON_CORPSE_DESPAWN);
 
             boss_priestess_lackey_commonAI::Reset();
         }
@@ -1119,17 +1119,17 @@ public:
             }
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetMagistersTerraceAI<boss_garaxxasAI>(creature);
-    }
 };
 
 class boss_apoko : public CreatureScript
 {
 public:
     boss_apoko() : CreatureScript("boss_apoko") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetMagistersTerraceAI<boss_apokoAI>(creature);
+    }
 
     struct boss_apokoAI : public boss_priestess_lackey_commonAI
     {
@@ -1185,7 +1185,7 @@ public:
 
             if (Purge_Timer <= diff)
             {
-                if (Unit* unit = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                if (Unit* unit = SelectTarget(SelectTargetMethod::Random, 0))
                     DoCast(unit, SPELL_PURGE);
 
                 Purge_Timer = 15000;
@@ -1206,11 +1206,6 @@ public:
             DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetMagistersTerraceAI<boss_apokoAI>(creature);
-    }
 };
 
 enum EngineerSpells
@@ -1227,6 +1222,11 @@ class boss_zelfan : public CreatureScript
 {
 public:
     boss_zelfan() : CreatureScript("boss_zelfan") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetMagistersTerraceAI<boss_zelfanAI>(creature);
+    }
 
     struct boss_zelfanAI : public boss_priestess_lackey_commonAI
     {
@@ -1308,11 +1308,6 @@ public:
             DoMeleeAttackIfReady();
         }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetMagistersTerraceAI<boss_zelfanAI>(creature);
-    }
 };
 
 /*

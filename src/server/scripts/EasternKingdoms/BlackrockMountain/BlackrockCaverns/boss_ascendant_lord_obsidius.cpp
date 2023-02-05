@@ -15,347 +15,98 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "InstanceScript.h"
 #include "ScriptMgr.h"
-#include "blackrock_caverns.h"
-#include "Map.h"
-#include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
-#include "SpellAuraEffects.h"
-#include "SpellMgr.h"
-#include "SpellScript.h"
-#include "Position.h"
+#include "blackrock_caverns.h"
 
 enum Text
 {
-    // Ascendant Lord Obsidius
-    SAY_AGGRO                   = 0,
-    SAY_SLAY                    = 1,
-    SAY_TRANSFORMATION          = 2,
-    SAY_DEATH                   = 3,
-    SAY_ANNOUNCE_TRANSFORMATION = 4
+    YELL_AGGRO                     = 0,
+    YELL_KILL                      = 1,
+    YELL_SWITCHING_SHADOWS         = 2,
+    YELL_DEATH                     = 3,
+    EMOTE_SWITCHING_SHADOWS        = 4
 };
 
 enum Spells
 {
-    // Ascendant Lord Obsidius
-    SPELL_STOP_HEART            = 82393,
-    SPELL_STONE_BLOW            = 76185,
-    SPELL_THUNDERCLAP           = 76186,
-    SPELL_TRANSFORMATION        = 76196,
-
-    // Shadow of Obsidius
-    SPELL_SHADOWY_CORRUPTION    = 75054,
-};
-
-#define SPELL_TWILIGHT_CORRUPTION RAID_MODE<int32>(76188, 93613)
-
-enum SpellVisualKits
-{
-    SPELL_VISUAL_SPOTTED = 14893
+    SPELL_MANA_TAP                 = 36021,
+    SPELL_ARCANE_TORRENT           = 36022,
+    SPELL_DOMINATION               = 35280,
 };
 
 enum Events
 {
-    // Ascendant Lord Obsidius
-    EVENT_FINISH_RAZ_INTRO = 1,
-    EVENT_STONE_BLOW ,
-    EVENT_TWILIGHT_CORRUPTION,
-    EVENT_THUNDERCLAP,
+    EVENT_MANA_TAP                 = 1,
+    EVENT_ARCANE_TORRENT           = 2,
+    EVENT_DOMINATION               = 3
 };
 
-enum Data
+class boss_ascendant_lord_obsidius : public CreatureScript
 {
-    DATA_DEAD_ELEMENTAL_WARDEN = 0
-};
+    public:
+        boss_ascendant_lord_obsidius(): CreatureScript("boss_ascendant_lord_obsidius") { }
 
-Position const ShadowOfObsidiusPositions[] =
-{
-    { 331.6267f, 563.5573f, 66.08982f, 3.141593f },
-    { 332.2361f, 544.75f,   66.08982f, 3.141593f },
-    { 324.6545f, 554.1979f, 66.10867f, 3.141593f }
-};
-
-struct boss_ascendant_lord_obsidius : public BossAI
-{
-    boss_ascendant_lord_obsidius(Creature* creature) : BossAI(creature, DATA_ASCENDANT_LORD_OBSIDIUS) { }
-
-    void Reset() override
-    {
-        _Reset();
-        _transformationCount = 0;
-        _deadElementalWardenCount = 0;
-
-        if (instance->GetData(DATA_RAZ_LAST_AREA_INDEX) == RAZ_AREA_INDEX_OBSIDIUS)
+        struct boss_ascendant_lord_obsidiusAI : public BossAI
         {
-            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_STUNNED);
-            me->RemoveAurasDueToSpell(SPELL_SHADOWY_CORRUPTION);
-        }
+            boss_ascendant_lord_obsidiusAI(Creature* creature) : BossAI(creature, DATA_ASCENDANT_LORD_OBSIDIUS) { }
 
-        for (uint8 i = 0; i < (IsHeroic() ? 3 : 2); i++)
-        {
-            if (Creature* shadow = DoSummon(NPC_SHADOW_OF_OBSIDIUS, ShadowOfObsidiusPositions[i], 0, TEMPSUMMON_MANUAL_DESPAWN))
+            void Reset() override
             {
-                if (instance->GetData(DATA_RAZ_LAST_AREA_INDEX) == RAZ_AREA_INDEX_OBSIDIUS)
-                {
-                    shadow->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
-                    shadow->RemoveAurasDueToSpell(SPELL_SHADOWY_CORRUPTION);
-                }
+                _Reset();
             }
-        }
-    }
 
-    void JustEngagedWith(Unit* who) override
-    {
-        BossAI::JustEngagedWith(who);
-        instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
-        instance->DoUpdateWorldState(WORLD_STATE_ID_ASCENDANT_DESCENDING, 0);
-        Talk(SAY_AGGRO);
-        events.ScheduleEvent(EVENT_STONE_BLOW, 8s);
-        events.ScheduleEvent(EVENT_TWILIGHT_CORRUPTION, 12s);
+            void JustEngagedWith(Unit* who) override
+            {
+                BossAI::JustEngagedWith(who);
+                events.ScheduleEvent(EVENT_MANA_TAP, 30s);
+                Talk(YELL_AGGRO);
+            }
 
-        if (IsHeroic())
-            events.ScheduleEvent(EVENT_THUNDERCLAP, 15s + 600ms);
+            void KilledUnit(Unit* who) override
+            {
+                if (who->GetTypeId() == TYPEID_PLAYER)
+                    Talk(YELL_KILL);
+            }
 
-        for (ObjectGuid guid : summons)
-            if (Creature* shadow = ObjectAccessor::GetCreature(*me, guid))
-                shadow->AI()->DoZoneInCombat();
-    }
+            void JustDied(Unit* /*killer*/) override
+            {
+                _JustDied();
+                Talk(YELL_DEATH);
+            }
 
-    void KilledUnit(Unit* who) override
-    {
-        if (who->GetTypeId() == TYPEID_PLAYER)
-            Talk(SAY_SLAY);
-    }
+            void UpdateAI(uint32 diff) override
+            {
+                if (!UpdateVictim())
+                    return;
 
-    void JustDied(Unit* /*killer*/) override
-    {
-        _JustDied();
-        instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_TWILIGHT_CORRUPTION);
-        instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
-        Talk(SAY_DEATH);
-    }
+                events.Update(diff);
 
-    void EnterEvadeMode(EvadeReason /*why*/) override
-    {
-        _EnterEvadeMode();
-        instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_TWILIGHT_CORRUPTION);
-        instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
-        summons.DespawnAll();
-        _DespawnAtEvade();
-    }
+                if (me->HasUnitState(UNIT_STATE_CASTING))
+                    return;
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
-    {
-        if (damage >= me->GetHealth())
-            return;
-
-        if ((me->HealthBelowPctDamaged(69, damage) && _transformationCount == 0)
-            || (me->HealthBelowPctDamaged(34, damage) && _transformationCount == 1))
-        {
-            Talk(SAY_TRANSFORMATION);
-            Talk(SAY_ANNOUNCE_TRANSFORMATION);
-            DoCastAOE(SPELL_TRANSFORMATION, true);
-            _transformationCount++;
-        }
-    }
-
-    void SetData(uint32 type, uint32 /*data*/) override
-    {
-        switch (type)
-        {
-            case DATA_DEAD_ELEMENTAL_WARDEN:
-                _deadElementalWardenCount++;
-                if (_deadElementalWardenCount == 7)
+                while (uint32 eventId = events.ExecuteEvent())
                 {
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_STUNNED);
-                    me->RemoveAurasDueToSpell(SPELL_SHADOWY_CORRUPTION);
-
-                    for (ObjectGuid guid : summons)
+                    switch (eventId)
                     {
-                        if (Creature* shadow = ObjectAccessor::GetCreature(*me, guid))
-                        {
-                            shadow->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
-                            shadow->RemoveAurasDueToSpell(SPELL_SHADOWY_CORRUPTION);
-                        }
+                        case EVENT_MANA_TAP:
+                            DoCastVictim(SPELL_MANA_TAP, true);
+                            events.ScheduleEvent(EVENT_MANA_TAP, 14s, 22s);
+                            break;
                     }
-                    DoCastAOE(SPELL_STOP_HEART);
                 }
-                break;
-            default:
-                break;
-        }
-    }
 
-    void UpdateAI(uint32 diff) override
-    {
-        if (!UpdateVictim())
-            return;
-
-        events.Update(diff);
-
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        while (uint32 eventId = events.ExecuteEvent())
-        {
-            switch (eventId)
-            {
-                case EVENT_STONE_BLOW:
-                    DoCastVictim(SPELL_STONE_BLOW);
-                    events.Repeat(12s);
-                    break;
-                case EVENT_TWILIGHT_CORRUPTION:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true, true, -SPELL_TWILIGHT_CORRUPTION))
-                        DoCast(target, SPELL_TWILIGHT_CORRUPTION);
-                    events.Repeat(12s);
-                    break;
-                case EVENT_THUNDERCLAP:
-                    DoCastAOE(SPELL_THUNDERCLAP);
-                    events.Repeat(23s);
-                    break;
-                default:
-                    break;
+                DoMeleeAttackIfReady();
             }
-        }
+        };
 
-        DoMeleeAttackIfReady();
-    }
-private:
-    uint8 _transformationCount;
-    uint8 _deadElementalWardenCount;
-};
-
-class spell_obsidius_twitchy : public AuraScript
-{
-    void HandleProc(AuraEffect const* /*aurEff*/, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-
-        Unit* target = GetTarget();
-        if (DamageInfo* damage = eventInfo.GetDamageInfo())
+        CreatureAI* GetAI(Creature* creature) const override
         {
-            if (Unit* attacker = damage->GetAttacker())
-            {
-                target->SendPlaySpellVisualKit(SPELL_VISUAL_SPOTTED, 0, 0);
-                target->GetThreatManager().ResetAllThreat();
-                target->GetThreatManager().AddThreat(attacker, 100000000.0f);
-            }
+            return GetBlackrockCavernsAI<boss_ascendant_lord_obsidiusAI>(creature);
         }
-    }
-
-    void Register() override
-    {
-        OnEffectProc.Register(&spell_obsidius_twitchy::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
-    }
-};
-
-class spell_obsidius_transformation : public SpellScript
-{
-    void HandleEffect(SpellEffIndex /*effIndex*/)
-    {
-        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; i++)
-            if (SpellInfo const* spell = sSpellMgr->GetSpellInfo(GetSpellInfo()->Effects[i].BasePoints))
-                if (Unit* caster = GetCaster())
-                    caster->CastSpell(GetHitUnit(), spell->Id, true);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget.Register(&spell_obsidius_transformation::HandleEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
-    }
-};
-
-class spell_obsidius_transformation_not_selectable : public AuraScript
-{
-    void AfterRemmove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        Unit* caster = GetCaster();
-        if (!caster)
-            return;
-
-        Unit* target = GetTarget();
-        if (caster == target)
-            return;
-
-        Position pos1 = target->GetPosition();
-        Position pos2 = caster->GetPosition();
-        caster->NearTeleportTo(pos1);
-        target->NearTeleportTo(pos2);
-    }
-
-    void Register() override
-    {
-        AfterEffectRemove.Register(&spell_obsidius_transformation_not_selectable::AfterRemmove, EFFECT_0, SPELL_AURA_MOD_UNATTACKABLE, AURA_EFFECT_HANDLE_REAL);
-    }
-};
-
-class spell_obsidius_transformation_scale : public AuraScript
-{
-    void HandlePeriodic(AuraEffect const* aurEff)
-    {
-        if (SpellInfo const* spell = sSpellMgr->GetSpellInfo(GetSpellInfo()->Effects[aurEff->GetEffIndex()].BasePoints))
-            GetTarget()->CastSpell(GetTarget(), spell->Id, true);
-
-        Remove();
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic.Register(&spell_obsidius_transformation_scale::HandlePeriodic, EFFECT_2, SPELL_AURA_PERIODIC_DUMMY);
-    }
-};
-
-class spell_obsidius_crepuscular_veil : public SpellScript
-{
-    void HandleAchievement()
-    {
-        Unit* target = GetHitUnit();
-        if (!target)
-            return;
-
-        Aura* aura = target->GetAura(GetSpellInfo()->Id);
-        if (!aura)
-            return;
-
-        if (aura->GetStackAmount() == GetSpellInfo()->StackAmount)
-            if (InstanceScript* instance = target->GetInstanceScript())
-                if (!instance->instance->GetWorldStateValue(WORLD_STATE_ID_ASCENDANT_DESCENDING))
-                    instance->DoUpdateWorldState(WORLD_STATE_ID_ASCENDANT_DESCENDING, 1);
-    }
-
-    void Register() override
-    {
-        AfterHit.Register(&spell_obsidius_crepuscular_veil::HandleAchievement);
-    }
-};
-
-class spell_obsidius_shadow_of_obsidius : public AuraScript
-{
-    void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
-    {
-        amount = -1;
-    }
-
-    void Absorb(AuraEffect* /*aurEff*/, DamageInfo& dmgInfo, uint32& absorbAmount)
-    {
-        absorbAmount = dmgInfo.GetDamage();
-    }
-
-    void Register() override
-    {
-        DoEffectCalcAmount.Register(&spell_obsidius_shadow_of_obsidius::CalculateAmount, EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
-        OnEffectAbsorb.Register(&spell_obsidius_shadow_of_obsidius::Absorb, EFFECT_0);
-    }
 };
 
 void AddSC_boss_ascendant_lord_obsidius()
 {
-    RegisterBlackrockCavernsCreatureAI(boss_ascendant_lord_obsidius);
-    RegisterSpellScript(spell_obsidius_twitchy);
-    RegisterSpellScript(spell_obsidius_transformation);
-    RegisterSpellScript(spell_obsidius_transformation_not_selectable);
-    RegisterSpellScript(spell_obsidius_transformation_scale);
-    RegisterSpellScript(spell_obsidius_crepuscular_veil);
-    RegisterSpellScript(spell_obsidius_shadow_of_obsidius);
+    new boss_ascendant_lord_obsidius();
 }

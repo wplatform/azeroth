@@ -33,20 +33,28 @@ DoorData const doorData[] =
 
 ObjectData const creatureData[] =
 {
-    { NPC_GENERAL_BJARNGRIM,    DATA_GENERAL_BJARNGRIM },
-    { NPC_VOLKHAN,              DATA_VOLKHAN           },
-    { NPC_IONAR,                DATA_IONAR             },
-    { NPC_LOKEN,                DATA_LOKEN             },
+    { NPC_GENERAL_BJARNGRIM,    DATA_GENERAL_BJARNGRIM  },
+    { NPC_VOLKHAN,              DATA_VOLKHAN            },
+    { NPC_IONAR,                DATA_IONAR              },
+    { NPC_LOKEN,                DATA_LOKEN              },
     { NPC_INVISIBLE_STALKER,    DATA_INVISIBLE_STALKER  },
-    { NPC_VOLKHANS_ANVIL,       DATA_VOLKHANS_ANVIL    },
-    { 0,                        0                      } // END
+    { NPC_VOLKHANS_ANVIL,       DATA_VOLKHANS_ANVIL     },
+    { 0,                        0                       } // END
 };
 
 ObjectData const gameObjectData[] =
 {
     { GO_VOLKHAN_TEMPER_VISUAL, DATA_VOLKHAN_TEMPER_VISUAL },
-    { GO_LOKEN_THRONE,          DATA_LOKEN_THRONE          },
+    { GO_LOKEN_THRONE,          DATA_LOKEN_GLOBE           },
     { 0,                        0                          } // END
+};
+
+DungeonEncounterData const encounters[] =
+{
+    { DATA_GENERAL_BJARNGRIM, {{ 1987 }} },
+    { DATA_VOLKHAN, {{ 1985 }} },
+    { DATA_IONAR, {{ 1984 }} },
+    { DATA_LOKEN, {{ 1986 }} }
 };
 
 class instance_halls_of_lightning : public InstanceMapScript
@@ -62,6 +70,7 @@ class instance_halls_of_lightning : public InstanceMapScript
                 SetBossNumber(EncounterCount);
                 LoadObjectData(creatureData, gameObjectData);
                 LoadDoorData(doorData);
+                LoadDungeonEncounterData(encounters);
             }
 
             void OnCreatureCreate(Creature* creature) override
@@ -94,7 +103,7 @@ class instance_halls_of_lightning : public InstanceMapScript
                 {
                     case DATA_LOKEN:
                         if (state == DONE)
-                            if (GameObject* globe = GetGameObject(DATA_LOKEN_THRONE))
+                            if (GameObject* globe = GetGameObject(DATA_LOKEN_GLOBE))
                                 globe->SendCustomAnim(0);
                         break;
                     default:

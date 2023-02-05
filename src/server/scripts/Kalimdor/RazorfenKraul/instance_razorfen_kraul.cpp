@@ -25,9 +25,7 @@ EndScriptData */
 #include "ScriptMgr.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
-#include "Log.h"
 #include "Map.h"
-#include "Player.h"
 #include "razorfen_kraul.h"
 
 #define WARD_KEEPERS_NR 2
@@ -35,7 +33,12 @@ EndScriptData */
 class instance_razorfen_kraul : public InstanceMapScript
 {
 public:
-    instance_razorfen_kraul() : InstanceMapScript("instance_razorfen_kraul", 47) { }
+    instance_razorfen_kraul() : InstanceMapScript(RFKScriptName, 47) { }
+
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override
+    {
+        return new instance_razorfen_kraul_InstanceMapScript(map);
+    }
 
     struct instance_razorfen_kraul_InstanceMapScript : public InstanceScript
     {
@@ -47,18 +50,6 @@ public:
 
         ObjectGuid DoorWardGUID;
         int WardKeeperDeath;
-
-        Player* GetPlayerInMap()
-        {
-            Map::PlayerList const& players = instance->GetPlayers();
-            for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
-            {
-                if (Player* player = itr->GetSource())
-                    return player;
-            }
-            TC_LOG_DEBUG("scripts", "Instance Razorfen Kraul: GetPlayerInMap, but PlayerList is empty!");
-            return nullptr;
-        }
 
         void OnGameObjectCreate(GameObject* go) override
         {
@@ -74,7 +65,7 @@ public:
             if (WardKeeperDeath == WARD_KEEPERS_NR)
                 if (GameObject* go = instance->GetGameObject(DoorWardGUID))
                 {
-                    go->SetUInt32Value(GAMEOBJECT_FLAGS, 33);
+                    go->SetFlag(GO_FLAG_IN_USE | GO_FLAG_NODESPAWN);
                     go->SetGoState(GO_STATE_ACTIVE);
                 }
         }
@@ -86,12 +77,9 @@ public:
                 case EVENT_WARD_KEEPER: WardKeeperDeath++; break;
             }
         }
+
     };
 
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_razorfen_kraul_InstanceMapScript(map);
-    }
 };
 
 void AddSC_instance_razorfen_kraul()

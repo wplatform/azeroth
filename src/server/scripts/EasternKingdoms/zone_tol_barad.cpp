@@ -16,11 +16,15 @@
  */
 
 #include "ScriptMgr.h"
+#include "Battlefield.h"
+#include "Containers.h"
 #include "Battlefield/BattlefieldTB.h"
-#include "DBCStores.h"
+#include "DB2Stores.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
+#include "ScriptSystem.h"
 #include "SpellScript.h"
 
 enum TBSpiritGuide
@@ -50,9 +54,9 @@ class npc_tb_spirit_guide : public CreatureScript
                     DoCast(me, SPELL_CHANNEL_SPIRIT_HEAL);
             }
 
-            bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+            bool OnGossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
             {
-                CloseGossipMenuFor(player);
+                player->PlayerTalkClass->SendCloseGossip();
 
                 uint32 areaId = 0;
                 switch (gossipListId)
@@ -79,9 +83,10 @@ class npc_tb_spirit_guide : public CreatureScript
                         return true;
                 }
 
-                if (WorldSafeLocsEntry const* safeLoc = sWorldSafeLocsStore.LookupEntry(areaId))
-                    player->TeleportTo(safeLoc->Continent, safeLoc->Loc.X, safeLoc->Loc.Y, safeLoc->Loc.Z, 0);
-                return true;
+                if (WorldSafeLocsEntry const* safeLoc = sObjectMgr->GetWorldSafeLoc(areaId))
+                    player->TeleportTo(safeLoc->Loc);
+
+                return false;
             }
         };
 
@@ -99,6 +104,8 @@ public:
 
     class spell_siege_cannon_SpellScript : public SpellScript
     {
+        PrepareSpellScript(spell_siege_cannon_SpellScript);
+
         void SelectRandomTarget(std::list<WorldObject*>& targets)
         {
             if (targets.empty())
@@ -111,7 +118,7 @@ public:
 
         void Register() override
         {
-            OnObjectAreaTargetSelect.Register(&spell_siege_cannon_SpellScript::SelectRandomTarget, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
+            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_siege_cannon_SpellScript::SelectRandomTarget, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
         }
     };
 
@@ -121,33 +128,8 @@ public:
     }
 };
 
-enum MagnestsHowDoTheyWork
-{
-    SPELL_SCRAPS = 88440
-};
-
-// 88443 - Scrap Master Summon
-class spell_tb_scrap_master_summon : public SpellScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SCRAPS });
-    }
-
-    void HandleScriptEffect(SpellEffIndex /*effIndex*/)
-    {
-        GetHitUnit()->CastSpell(nullptr, SPELL_SCRAPS);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget.Register(&spell_tb_scrap_master_summon::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-    }
-};
-
 void AddSC_tol_barad()
 {
     new npc_tb_spirit_guide();
     new spell_siege_cannon();
-    RegisterSpellScript(spell_tb_scrap_master_summon);
 }

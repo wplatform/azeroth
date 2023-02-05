@@ -16,6 +16,7 @@
  */
 
 #include "culling_of_stratholme.h"
+#include "Containers.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Log.h"
@@ -30,7 +31,7 @@
 #include "ScriptedGossip.h"
 #include "ScriptMgr.h"
 #include "ScriptSystem.h"
-#include "SpellInfo.h"
+#include "SmartEnum.h"
 #include "SpellScript.h"
 #include "SplineChainMovementGenerator.h"
 #include "TemporarySummon.h"
@@ -40,38 +41,38 @@
 
 enum Entries
 {
-    NPC_MALGANIS_BUNNY          = 20562,
-    NPC_UTHER                   = 26528,
-    NPC_JAINA                   = 26497,
-    NPC_CITIZEN                 = 28167,
-    NPC_RESIDENT                = 28169,
-    NPC_FOOTMAN                 = 27745,
-    NPC_KNIGHT                  = 27746,
-    NPC_PRIEST                  = 27747,
-    NPC_SORCERESS               = 27752,
-    NPC_RISEN_ZOMBIE            = 27737,
-    NPC_CITIZEN_INFINITE        = 28340,
-    NPC_RESIDENT_INFINITE       = 28341,
-    NPC_TIME_RIFT               = 28409,
-    NPC_TIME_RIFT_LARGE         = 28439,
-    NPC_INFINITE_ADVERSARY      = 27742,
-    NPC_INFINITE_HUNTER         = 27743,
-    NPC_INFINITE_AGENT          = 27744,
-    NPC_EPOCH                   = 26532,
-    NPC_MALGANIS                = 26533,
-    NPC_CHROMIE_3               = 30997,
+    NPC_MALGANIS_BUNNY = 20562,
+    NPC_UTHER = 26528,
+    NPC_JAINA = 26497,
+    NPC_CITIZEN = 28167,
+    NPC_RESIDENT = 28169,
+    NPC_FOOTMAN = 27745,
+    NPC_KNIGHT = 27746,
+    NPC_PRIEST = 27747,
+    NPC_SORCERESS = 27752,
+    NPC_RISEN_ZOMBIE = 27737,
+    NPC_CITIZEN_INFINITE = 28340,
+    NPC_RESIDENT_INFINITE = 28341,
+    NPC_TIME_RIFT = 28409,
+    NPC_TIME_RIFT_LARGE = 28439,
+    NPC_INFINITE_ADVERSARY = 27742,
+    NPC_INFINITE_HUNTER = 27743,
+    NPC_INFINITE_AGENT = 27744,
+    NPC_EPOCH = 26532,
+    NPC_MALGANIS = 26533,
+    NPC_CHROMIE_3 = 30997,
 
-    SPELL_HOLY_LIGHT            = 52444,
-    SPELL_EXORCISM              = 52445,
-    SPELL_DEVOTION_AURA         = 52442,
-    SPELL_CRUSADER_STRIKE       = 50773,
-    SPELL_SHADOWSTEP_VISUAL     = 51908,
-    SPELL_TRANSFORM_VISUAL      = 33133,
+    SPELL_HOLY_LIGHT = 52444,
+    SPELL_EXORCISM = 52445,
+    SPELL_DEVOTION_AURA = 52442,
+    SPELL_CRUSADER_STRIKE = 50773,
+    SPELL_SHADOWSTEP_VISUAL = 51908,
+    SPELL_TRANSFORM_VISUAL = 33133,
     SPELL_MALGANIS_QUEST_CREDIT = 58124,
-    SPELL_MALGANIS_KILL_CREDIT  = 58630,
-    SPELL_CHROMIE_3_TRANSFORM   = 58986,
-    GO_CHEST_NORMAL             = 190663,
-    GO_CHEST_HEROIC             = 193597
+    SPELL_MALGANIS_KILL_CREDIT = 58630,
+    SPELL_CHROMIE_3_TRANSFORM = 58986,
+    GO_CHEST_NORMAL = 190663,
+    GO_CHEST_HEROIC = 193597
 };
 
 enum SplineChains
@@ -556,10 +557,10 @@ public:
 
         void AdvanceToState(COSProgressStates newState)
         {
-            TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::AdvanceToState: advancing to 0x%X", newState);
+            TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::AdvanceToState: advancing to 0x{:X}", newState);
             if (!_progressRP)
             {
-                TC_LOG_WARN("scripts.cos", "npc_arthas_stratholmeAI::AdvanceToState: advancing to instance state 0x%X, but RP is paused. Overriding!", newState);
+                TC_LOG_WARN("scripts.cos", "npc_arthas_stratholmeAI::AdvanceToState: advancing to instance state 0x{:X}, but RP is paused. Overriding!", newState);
                 _progressRP = true;
             }
 
@@ -571,17 +572,17 @@ public:
                 // Adjust react state and npc flags based on current state
                 me->SetReactState(target.ReactState);
                 if (target.ReactState == REACT_PASSIVE)
-                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_IMMUNE_TO_PC);
+                    me->SetImmuneToAll(true, false);
                 else
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_IMMUNE_TO_PC);
+                    me->SetImmuneToAll(false);
 
                 // Adjust gossip flag based on whether we have a gossip menu or not
                 if (target.HasGossip)
-                    me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                    me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                 else
-                    me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                    me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
 
-                TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::AdvanceToState: has snapback for this state, distance = %f", target.SnapbackPosition->GetExactDist(me));
+                TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::AdvanceToState: has snapback for this state, distance = {}", target.SnapbackPosition->GetExactDist(me));
                 // Snapback handling - if we're too far from where we're supposed to be, teleport there
                 if (target.SnapbackPosition->GetExactDist(me) > ArthasSnapbackDistanceThreshold)
                     me->NearTeleportTo(*target.SnapbackPosition);
@@ -877,7 +878,7 @@ public:
         {
             if (me->HasReactState(REACT_AGGRESSIVE))
             {
-                Position const& relativePos = me->IsInCombat() ? me->GetHomePosition() : me->GetPosition();
+                Position const& relativePos = me->IsEngaged() ? me->GetHomePosition() : me->GetPosition();
                 // Don't let us chase too far from home
                 if (relativePos.GetExactDist2d(who) > 30.0f)
                     return false;
@@ -899,7 +900,7 @@ public:
             {
                 if (me->HasUnitState(UNIT_STATE_CASTING))
                     _exorcismCooldown = 0;
-                else if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                else if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                 {
                     DoCast(target, SPELL_EXORCISM);
                     _exorcismCooldown = urandms(7, 14);
@@ -913,7 +914,7 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            if (me->IsInCombat())
+            if (me->IsEngaged())
             {
                 UpdateAICombat(diff);
                 return;
@@ -1072,10 +1073,10 @@ public:
                         break;
                     case RP2_EVENT_KILL1:
                         if (Creature* citizen = me->FindNearestCreature(NPC_CITIZEN, 100.0f, true))
-                            DoCast(citizen, SPELL_CRUSADER_STRIKE);
+                            DoCast(citizen, SPELL_CRUSADER_STRIKE, TRIGGERED_IGNORE_SET_FACING);
                         if (Creature* resident = me->FindNearestCreature(NPC_RESIDENT, 100.0f, true))
                         {
-                            resident->SetFlag(UNIT_NPC_EMOTESTATE, EMOTE_STATE_COWER);
+                            resident->SetEmoteState(EMOTE_STATE_COWER);
                             resident->AI()->Talk(RP2_LINE_RESIDENT1, ObjectAccessor::GetUnit(*me, _eventStarterGuid));
                         }
                         break;
@@ -1084,7 +1085,7 @@ public:
                         break;
                     case RP2_EVENT_KILL2:
                         if (Creature* resident = me->FindNearestCreature(NPC_RESIDENT, 100.0f, true))
-                            DoCast(resident, SPELL_CRUSADER_STRIKE);
+                            DoCast(resident, SPELL_CRUSADER_STRIKE, TRIGGERED_IGNORE_SET_FACING);
                         break;
                     case RP2_EVENT_REACT1:
                     case RP2_EVENT_REACT2:
@@ -1096,28 +1097,17 @@ public:
                         me->GetCreatureListWithEntryInGrid(nearbyVictims, urand(0, 1) ? NPC_CITIZEN : NPC_RESIDENT, 60.0f);
                         if (!nearbyVictims.empty())
                         {
-                            std::list<Creature*>::iterator it = nearbyVictims.begin();
-                            std::advance(it, urand(0, nearbyVictims.size()-1));
-                            Emote emote = EMOTE_ONESHOT_NONE;
-                            switch (urand(0, 3))
+                            Emote emotes[] =
                             {
-                                case 0:
-                                    emote = EMOTE_ONESHOT_TALK;
-                                    break;
-                                case 1:
-                                    emote = EMOTE_ONESHOT_EXCLAMATION;
-                                    break;
-                                case 2:
-                                    emote = EMOTE_ONESHOT_RUDE;
-                                    break;
-                                case 3:
-                                    emote = EMOTE_ONESHOT_ROAR;
-                                    break;
-                                default:
-                                    break;
-                            }
-                            if ((*it)->IsAlive())
-                                (*it)->HandleEmoteCommand(emote);
+                                EMOTE_ONESHOT_TALK,
+                                EMOTE_ONESHOT_EXCLAMATION,
+                                EMOTE_ONESHOT_RUDE,
+                                EMOTE_ONESHOT_ROAR
+                            };
+
+                            Creature* victim = Trinity::Containers::SelectRandomContainerElement(nearbyVictims);
+                            if (victim->IsAlive())
+                                victim->HandleEmoteCommand(Trinity::Containers::SelectRandomContainerElement(emotes));
                         }
                         break;
                     }
@@ -1161,7 +1151,7 @@ public:
                         break;
                     case RP2_EVENT_MALGANIS_LEAVE2:
                         if (Creature* malganis = me->FindNearestCreature(NPC_MALGANIS, 80.0f, true))
-                            malganis->DespawnOrUnsummon(0);
+                            malganis->DespawnOrUnsummon();
                         if (Creature* bunny = me->FindNearestCreature(NPC_MALGANIS_BUNNY, 80.0f, true))
                             bunny->CastSpell(bunny, SPELL_SHADOWSTEP_VISUAL);
                         break;
@@ -1364,10 +1354,9 @@ public:
                         talkerEntry = NPC_EPOCH, talkerLine = RP3_LINE_EPOCH2;
                         if (Creature* epoch = me->FindNearestCreature(NPC_EPOCH, 100.0f, true))
                         {
-                            epoch->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_IMMUNE_TO_PC);
-                            AttackStart(epoch);
-                            if (epoch->IsAIEnabled())
-                                epoch->AI()->AttackStart(me);
+                            epoch->SetImmuneToAll(false);
+                            me->EngageWithTarget(epoch);
+                            epoch->EngageWithTarget(me);
                         }
                         ScheduleActionOOC(RP3_ACTION_AFTER_EPOCH);
                         break;
@@ -1419,10 +1408,9 @@ public:
                         if (Creature* malganis = me->FindNearestCreature(NPC_MALGANIS, 100.0f, true))
                         {
                             malganis->AI()->Talk(RP5_LINE_MALGANIS1, ObjectAccessor::GetUnit(*malganis, _eventStarterGuid));
-                            malganis->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_IMMUNE_TO_PC);
-                            AttackStart(malganis);
-                            if (malganis->IsAIEnabled())
-                                malganis->AI()->AttackStart(me);
+                            malganis->SetImmuneToAll(false);
+                            me->EngageWithTarget(malganis);
+                            malganis->EngageWithTarget(me);
                         }
                         ScheduleActionOOC(RP5_ACTION_AFTER_MALGANIS);
                         break;
@@ -1433,7 +1421,7 @@ public:
                             malganis->CastSpell(malganis, SPELL_MALGANIS_QUEST_CREDIT, true);
                             malganis->CastSpell(malganis, SPELL_MALGANIS_KILL_CREDIT, true);
                             if (GameObject* chest = malganis->FindNearestGameObject(RAID_MODE(GO_CHEST_NORMAL, GO_CHEST_HEROIC), 100.0f))
-                                chest->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                chest->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                         }
                         events.ScheduleEvent(RP5_EVENT_MALGANIS12, 3s);
                         events.ScheduleEvent(RP5_EVENT_MALGANIS_LEAVE, 19s);
@@ -1479,25 +1467,27 @@ public:
                     case RP5_EVENT_CHROMIE_SPAWN:
                         if (Creature* chromie = instance->instance->SummonCreature(NPC_CHROMIE_3, ArthasPositions[RP5_CHROMIE_SPAWN]))
                         {
-                            chromie->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
-                            Movement::PointsArray path(ChromieSplinePos, ChromieSplinePos + chromiePathSize);
-                            Movement::MoveSplineInit init(chromie);
-                            init.SetFly();
-                            init.SetWalk(true);
-                            init.MovebyPath(path, 0);
-                            init.Launch();
+                            chromie->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
+                            std::function<void(Movement::MoveSplineInit&)> initializer = [](Movement::MoveSplineInit& init)
+                            {
+                                Movement::PointsArray path(ChromieSplinePos, ChromieSplinePos + chromiePathSize);
+                                init.SetFly();
+                                init.SetWalk(true);
+                                init.MovebyPath(path, 0);
+                            };
+                            chromie->GetMotionMaster()->LaunchMoveSpline(std::move(initializer), 0, MOTION_PRIORITY_NORMAL, POINT_MOTION_TYPE);
                         }
                         break;
                     case RP5_EVENT_CHROMIE_LAND:
                         if (Creature* chromie = me->FindNearestCreature(NPC_CHROMIE_3, 100.0f, true))
-                            chromie->SetByteValue(UNIT_FIELD_BYTES_1, 3, 0);
+                            chromie->SetAnimTier(AnimTier::Ground, true);
                         break;
                     case RP5_EVENT_CHROMIE_TRANSFORM:
                         if (Creature* chromie = me->FindNearestCreature(NPC_CHROMIE_3, 100.0f, true))
                         {
                             chromie->CastSpell(chromie, SPELL_CHROMIE_3_TRANSFORM);
                             chromie->AI()->Talk(RP5_LINE_CHROMIE0);
-                            chromie->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
+                            chromie->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                         }
                         break;
                     default:
@@ -1525,10 +1515,9 @@ public:
             me->GetCreatureListWithEntryInGrid(infinites, NPC_INFINITE_HUNTER, 100.0f);
             for (Creature* target : infinites)
             {
-                target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_IMMUNE_TO_PC);
-                me->AI()->AttackStart(target);
-                if (target->IsAIEnabled())
-                    target->AI()->AttackStart(me);
+                target->SetImmuneToAll(false);
+                me->EngageWithTarget(target);
+                target->EngageWithTarget(me);
             }
         }
 
@@ -1546,13 +1535,13 @@ public:
 
         void JustEngagedWith(Unit* who) override
         {
-            TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::JustEngagedWith: RP in progress? '%s'", _progressRP ? "YES" : "NO");
+            TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::JustEngagedWith: RP in progress? '{}'", _progressRP ? "YES" : "NO");
             if (_progressRP)
             {
                 _progressRP = false;
                 me->SetHomePosition(me->GetPosition());
 
-                SplineChainMovementGenerator::GetResumeInfo(me, _resumeMovement);
+                SplineChainMovementGenerator::GetResumeInfo(_resumeMovement, me);
                 if (!_resumeMovement.Empty())
                     TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::JustEngagedWith: spline chain motion paused");
                 else
@@ -1563,7 +1552,7 @@ public:
 
         void EnterEvadeMode(EvadeReason why) override
         {
-            TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::EnterEvadeMode: why = %u ", why);
+            TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::EnterEvadeMode: why = {} ", EnumUtils::ToConstant(why));
             ScriptedAI::EnterEvadeMode(why);
         }
 
@@ -1610,10 +1599,10 @@ public:
                 instance->SetGuidData(command, cause->GetGUID());
         }
 
-        bool GossipSelect(Player* player, uint32 /*sender*/, uint32 listId) override
+        bool OnGossipSelect(Player* player, uint32 /*sender*/, uint32 listId) override
         {
             uint32 const action = GetGossipActionFor(player, listId);
-            TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::GossipSelect: '%s' selects action '%u' on '%s'", player->GetGUID().ToString().c_str(), action, me->GetGUID().ToString().c_str());
+            TC_LOG_TRACE("scripts.cos", "npc_arthas_stratholmeAI::GossipSelect: '{}' selects action '{}' on '{}'", player->GetGUID().ToString(), action, me->GetGUID().ToString());
 
             AdvanceDungeon(player, PURGE_PENDING, DATA_START_PURGE);
             AdvanceDungeon(player, TOWN_HALL_PENDING, DATA_START_TOWN_HALL);
@@ -1623,7 +1612,7 @@ public:
             return true;
         }
 
-        bool GossipHello(Player* /*player*/) override
+        bool OnGossipHello(Player* /*player*/) override
         {
             return false;
         }
@@ -1666,8 +1655,11 @@ struct npc_stratholme_rp_dummy : NullCreatureAI
     }
 };
 
+// 50773 - Crusader Strike
 class spell_stratholme_crusader_strike : public SpellScript
 {
+    PrepareSpellScript(spell_stratholme_crusader_strike);
+
     void HandleDummy(SpellEffIndex /*effIndex*/)
     {
         if (Unit* target = GetHitUnit())
@@ -1677,7 +1669,7 @@ class spell_stratholme_crusader_strike : public SpellScript
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_stratholme_crusader_strike::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnEffectHitTarget += SpellEffectFn(spell_stratholme_crusader_strike::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 

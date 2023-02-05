@@ -20,14 +20,6 @@
 
 #include "OutdoorPvP.h"
 
-namespace WorldPackets
-{
-    namespace WorldState
-    {
-        class InitWorldStates;
-    }
-}
-
 enum OutdoorPvPSISpells
 {
     SI_SILITHYST_FLAG_GO_SPELL = 29518,
@@ -49,12 +41,11 @@ class OutdoorPvPSI : public OutdoorPvP
         OutdoorPvPSI(Map* map);
 
         bool SetupOutdoorPvP() override;
-
         void HandlePlayerEnterZone(Player* player, uint32 zone) override;
         void HandlePlayerLeaveZone(Player* player, uint32 zone) override;
         bool Update(uint32 diff) override;
         void SendRemoveWorldStates(Player* player) override;
-        bool HandleAreaTrigger(Player* player, uint32 trigger) override;
+        bool HandleAreaTrigger(Player* player, uint32 trigger, bool entered) override;
         bool HandleDropFlag(Player* player, uint32 spellId) override;
         bool HandleCustomSpell(Player* player, uint32 spellId, GameObject* go) override;
 

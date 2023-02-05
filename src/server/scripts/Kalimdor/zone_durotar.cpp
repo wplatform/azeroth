@@ -15,12 +15,104 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
 #include "CreatureAIImpl.h"
+#include "GameObject.h"
+#include "MotionMaster.h"
 #include "Player.h"
+#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
+#include "ScriptedGossip.h"
+
+/*######
+## Quest 37446: Lazy Peons
+## npc_lazy_peon
+######*/
+
+enum LazyPeonYells
+{
+    SAY_SPELL_HIT                                 = 0
+};
+
+enum LazyPeon
+{
+    QUEST_LAZY_PEONS    = 37446,
+    GO_LUMBERPILE       = 175784,
+    SPELL_BUFF_SLEEP    = 17743,
+    SPELL_AWAKEN_PEON   = 19938
+};
+
+class npc_lazy_peon : public CreatureScript
+{
+public:
+    npc_lazy_peon() : CreatureScript("npc_lazy_peon") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return new npc_lazy_peonAI(creature);
+    }
+
+    struct npc_lazy_peonAI : public ScriptedAI
+    {
+        npc_lazy_peonAI(Creature* creature) : ScriptedAI(creature)
+        {
+            Initialize();
+        }
+
+        void Initialize()
+        {
+            RebuffTimer = 0;
+            work = false;
+        }
+
+        uint32 RebuffTimer;
+        bool work;
+
+        void Reset() override
+        {
+            Initialize();
+        }
+
+        void MovementInform(uint32 /*type*/, uint32 id) override
+        {
+            if (id == 1)
+                work = true;
+        }
+
+        void SpellHit(WorldObject* caster, SpellInfo const* spell) override
+        {
+            if (spell->Id != SPELL_AWAKEN_PEON)
+                return;
+
+            Player* player = caster->ToPlayer();
+            if (player && player->GetQuestStatus(QUEST_LAZY_PEONS) == QUEST_STATUS_INCOMPLETE)
+            {
+                player->KilledMonsterCredit(me->GetEntry(), me->GetGUID());
+                Talk(SAY_SPELL_HIT, caster);
+                me->RemoveAllAuras();
+                if (GameObject* Lumberpile = me->FindNearestGameObject(GO_LUMBERPILE, 20))
+                    me->GetMotionMaster()->MovePoint(1, Lumberpile->GetPositionX()-1, Lumberpile->GetPositionY(), Lumberpile->GetPositionZ());
+            }
+        }
+
+        void UpdateAI(uint32 diff) override
+        {
+            if (work == true)
+                me->HandleEmoteCommand(EMOTE_ONESHOT_WORK_CHOPWOOD);
+            if (RebuffTimer <= diff)
+            {
+                DoCast(me, SPELL_BUFF_SLEEP);
+                RebuffTimer = 300000; //Rebuff agian in 5 minutes
+            }
+            else
+                RebuffTimer -= diff;
+            if (!UpdateVictim())
+                return;
+            DoMeleeAttackIfReady();
+        }
+    };
+};
 
 enum VoodooSpells
 {
@@ -33,53 +125,63 @@ enum VoodooSpells
     SPELL_LAUNCH    = 16716, // Launch (Whee!)
 };
 
-// 17009
-class spell_voodoo : public SpellScriptLoader
+// 17009 - Voodoo
+class spell_voodoo : public SpellScript
 {
-    public:
-        spell_voodoo() : SpellScriptLoader("spell_voodoo") { }
+    PrepareSpellScript(spell_voodoo);
 
-        class spell_voodoo_SpellScript : public SpellScript
-        {
-            bool Validate(SpellInfo const* /*spellInfo*/) override
-            {
-                return ValidateSpellInfo({ SPELL_BREW, SPELL_GHOSTLY, SPELL_HEX1, SPELL_HEX2, SPELL_HEX3, SPELL_GROW, SPELL_LAUNCH });
-            }
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_BREW, SPELL_GHOSTLY, SPELL_HEX1, SPELL_HEX2, SPELL_HEX3, SPELL_GROW, SPELL_LAUNCH });
+    }
 
-            void HandleDummy(SpellEffIndex /*effIndex*/)
-            {
-                uint32 spellid = RAND(SPELL_BREW, SPELL_GHOSTLY, RAND(SPELL_HEX1, SPELL_HEX2, SPELL_HEX3), SPELL_GROW, SPELL_LAUNCH);
-                if (Unit* target = GetHitUnit())
-                    GetCaster()->CastSpell(target, spellid, false);
-            }
-
-            void Register() override
-            {
-                OnEffectHitTarget.Register(&spell_voodoo_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-            }
-        };
-
-        SpellScript* GetSpellScript() const override
-        {
-            return new spell_voodoo_SpellScript();
-        }
-};
-
-class spell_zuni_lvl_1_trigger_aura : public SpellScript
-{
     void HandleDummy(SpellEffIndex /*effIndex*/)
     {
-        GetCaster()->CastSpell(GetCaster(), GetSpellInfo()->Effects[EFFECT_0].BasePoints, true);
+        uint32 spellid = RAND(SPELL_BREW, SPELL_GHOSTLY, RAND(SPELL_HEX1, SPELL_HEX2, SPELL_HEX3), SPELL_GROW, SPELL_LAUNCH);
+        if (Unit* target = GetHitUnit())
+            GetCaster()->CastSpell(target, spellid, false);
     }
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_zuni_lvl_1_trigger_aura::HandleDummy, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
+        OnEffectHitTarget += SpellEffectFn(spell_voodoo::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
+};
+
+enum Mithaka
+{
+    DATA_SHIP_DOCKED    = 1,
+    GOSSIP_MENU_MITHAKA = 23225,
+    GOSSIP_TEXT_MITHAKA = 35969
+};
+
+struct npc_mithaka : ScriptedAI
+{
+    npc_mithaka(Creature* creature) : ScriptedAI(creature), _shipInPort(false) { }
+
+    void SetData(uint32 /*type*/, uint32 data) override
+    {
+        if (data == DATA_SHIP_DOCKED)
+            _shipInPort = true;
+        else
+            _shipInPort = false;
+    }
+
+    bool OnGossipHello(Player* player) override
+    {
+        InitGossipMenuFor(player, GOSSIP_MENU_MITHAKA);
+        if (!_shipInPort)
+            AddGossipItemFor(player, GOSSIP_MENU_MITHAKA, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+        SendGossipMenuFor(player, GOSSIP_TEXT_MITHAKA, me->GetGUID());
+        return true;
+    }
+private:
+    bool _shipInPort;
 };
 
 void AddSC_durotar()
 {
-    new spell_voodoo();
-    RegisterSpellScript(spell_zuni_lvl_1_trigger_aura);
+    new npc_lazy_peon();
+    RegisterSpellScript(spell_voodoo);
+    RegisterCreatureAI(npc_mithaka);
 }

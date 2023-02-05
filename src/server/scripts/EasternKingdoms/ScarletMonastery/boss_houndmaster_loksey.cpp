@@ -16,82 +16,53 @@
  */
 
 #include "scarlet_monastery.h"
-#include "InstanceScript.h"
-#include "Map.h"
-#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
+#include "ScriptMgr.h"
 
-enum Yells
+enum HoundmasterLokseyYells
 {
-    SAY_AGGRO = 0
+    SAY_AGGRO = 0,
 };
 
-enum Spells
+enum HoundmasterLokseySpells
 {
-    SPELL_BATTLE_SHOUT  = 77808,
-    SPELL_BLOODLUST     = 6742
+    SPELL_SUMMON_SCARLET_HOUND = 17164,
+    SPELL_BLOODLUST = 6742
 };
 
-enum Events
+enum HoundmasterLokseyEvents
 {
-    EVENT_BATTLE_SHOUT = 1,
-    EVENT_BLOODLUST
-};
-
-enum SpawnGroups
-{
-    SPAWN_GROUP_ID_HOUNDS = 433
+    EVENT_BLOODLUST = 1
 };
 
 struct boss_houndmaster_loksey : public BossAI
 {
     boss_houndmaster_loksey(Creature* creature) : BossAI(creature, DATA_HOUNDMASTER_LOKSEY) { }
 
-    void Reset() override
-    {
-       BossAI::Reset();
-
-       // The dogs will respawn after a wipe
-       instance->instance->SpawnGroupSpawn(SPAWN_GROUP_ID_HOUNDS, true);
-    }
-
     void JustEngagedWith(Unit* who) override
     {
         BossAI::JustEngagedWith(who);
         Talk(SAY_AGGRO);
-        events.ScheduleEvent(EVENT_BATTLE_SHOUT, 7s);
-        events.ScheduleEvent(EVENT_BLOODLUST, 10s);
+        DoCast(SPELL_SUMMON_SCARLET_HOUND);
+        events.ScheduleEvent(EVENT_BLOODLUST, 20s);
     }
 
-    void UpdateAI(uint32 diff) override
+    void ExecuteEvent(uint32 eventId) override
     {
-        if (!UpdateVictim())
-            return;
-
-        events.Update(diff);
-
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        while (uint32 eventId = events.ExecuteEvent())
+        switch (eventId)
         {
-            switch (eventId)
-            {
-                case EVENT_BATTLE_SHOUT:
-                    DoCastAOE(SPELL_BATTLE_SHOUT);
-                    events.Repeat(17s, 20s);
-                    break;
-                case EVENT_BLOODLUST:
-                    if (Creature* hound = me->FindNearestCreature(NPC_SCARLET_TRACKING_HOUND, 10.f, true))
-                        DoCast(hound, SPELL_BLOODLUST);
-                    events.Repeat(46s);
-                    break;
-                default:
-                    break;
-            }
+            case EVENT_BLOODLUST:
+                if (me->HealthBelowPct(60))
+                {
+                    DoCastSelf(SPELL_BLOODLUST);
+                    events.Repeat(60s);
+                }
+                else
+                    events.Repeat(1s);
+                break;
+            default:
+                break;
         }
-
-        DoMeleeAttackIfReady();
     }
 };
 

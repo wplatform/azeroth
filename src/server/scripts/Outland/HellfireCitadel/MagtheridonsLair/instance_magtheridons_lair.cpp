@@ -17,12 +17,11 @@
 
 #include "ScriptMgr.h"
 #include "AreaBoundary.h"
-#include "Creature.h"
-#include "CreatureAI.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "magtheridons_lair.h"
 #include "Map.h"
+#include "ScriptedCreature.h"
 
 BossBoundaryData const boundaries =
 {
@@ -65,6 +64,11 @@ static MLDataTypes const collapseObjectDatas[] =
     DATA_MAGTHERIDON_COLUMN_5,
 };
 
+DungeonEncounterData const encounters[] =
+{
+    { DATA_MAGTHERIDON, {{ 651 }} }
+};
+
 class instance_magtheridons_lair : public InstanceMapScript
 {
     public:
@@ -79,6 +83,7 @@ class instance_magtheridons_lair : public InstanceMapScript
                 LoadDoorData(doorData);
                 LoadBossBoundaries(boundaries);
                 LoadObjectData(creatureData, gameObjectData);
+                LoadDungeonEncounterData(encounters);
             }
 
             void OnGameObjectCreate(GameObject* go) override
@@ -106,9 +111,9 @@ class instance_magtheridons_lair : public InstanceMapScript
                             if (GameObject* cube = instance->GetGameObject(gobGUID))
                             {
                                 if (value == ACTION_ENABLE)
-                                    cube->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                    cube->RemoveFlag(GO_FLAG_NOT_SELECTABLE);
                                 else
-                                    cube->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                                    cube->SetFlag(GO_FLAG_NOT_SELECTABLE);
                             }
                         break;
                     case DATA_COLLAPSE:

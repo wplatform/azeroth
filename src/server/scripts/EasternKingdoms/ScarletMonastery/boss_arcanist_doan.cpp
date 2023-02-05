@@ -15,29 +15,28 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
-#include "ScriptedCreature.h"
 #include "scarlet_monastery.h"
+#include "ScriptedCreature.h"
+#include "ScriptMgr.h"
 
-enum Yells
+enum ArcanistDoanYells
 {
-    SAY_AGGRO       = 0,
-    SAY_DETONATION  = 1
+    SAY_AGGRO = 0,
+    SAY_SPECIALAE = 1
 };
 
-enum Spells
+enum ArcanistDoanSpells
 {
-    SPELL_DETONATION        = 9435,
-    SPELL_SILENCE           = 8988,
-    SPELL_ARCANE_EXPLOSION  = 9433,
-    SPELL_ARCANE_BUBBLE     = 9438,
-    SPELL_POLYMORPH         = 13323
+    SPELL_SILENCE = 8988,
+    SPELL_ARCANE_EXPLOSION = 9433,
+    SPELL_DETONATION = 9435,
+    SPELL_ARCANE_BUBBLE = 9438,
+    SPELL_POLYMORPH = 13323
 };
 
-enum Events
+enum ArcanistDoanEvents
 {
-    EVENT_DETONATION = 1,
-    EVENT_SILENCE,
+    EVENT_SILENCE = 1,
     EVENT_ARCANE_EXPLOSION,
     EVENT_ARCANE_BUBBLE,
     EVENT_POLYMORPH
@@ -45,30 +44,25 @@ enum Events
 
 struct boss_arcanist_doan : public BossAI
 {
-    boss_arcanist_doan(Creature* creature) : BossAI(creature, DATA_ARCANIST_DOAN), _detonationTriggered(false) { }
+    boss_arcanist_doan(Creature* creature) : BossAI(creature, DATA_ARCANIST_DOAN)
+    {
+        _healthAbove50Pct = true;
+    }
 
     void Reset() override
     {
         _Reset();
-        _detonationTriggered = false;
+        _healthAbove50Pct = true;
     }
 
     void JustEngagedWith(Unit* who) override
     {
         BossAI::JustEngagedWith(who);
         Talk(SAY_AGGRO);
-        events.ScheduleEvent(EVENT_SILENCE, 6s);
-        events.ScheduleEvent(EVENT_ARCANE_EXPLOSION, 11s);
-        events.ScheduleEvent(EVENT_POLYMORPH, 45s);
-    }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage) override
-    {
-        if (!_detonationTriggered && me->HealthBelowPctDamaged(50, damage))
-        {
-            events.ScheduleEvent(EVENT_ARCANE_BUBBLE, 1ms);
-            _detonationTriggered = true;
-        }
+        events.ScheduleEvent(EVENT_SILENCE, 15s);
+        events.ScheduleEvent(EVENT_ARCANE_EXPLOSION, 3s);
+        events.ScheduleEvent(EVENT_POLYMORPH, 30s);
     }
 
     void UpdateAI(uint32 diff) override
@@ -85,41 +79,41 @@ struct boss_arcanist_doan : public BossAI
         {
             switch (eventId)
             {
-                case EVENT_DETONATION:
-                    Talk(SAY_DETONATION);
-                    DoCastAOE(SPELL_DETONATION);
-                    events.DelayEvents(3s);
-                    break;
                 case EVENT_SILENCE:
-                    DoCastAOE(SPELL_SILENCE);
-                    events.Repeat(21s, 24s);
+                    DoCastVictim(SPELL_SILENCE);
+                    events.Repeat(15s, 20s);
                     break;
                 case EVENT_ARCANE_EXPLOSION:
-                    DoCastAOE(SPELL_ARCANE_EXPLOSION);
-                    events.Repeat(4s, 14s);
-                    break;
-                case EVENT_ARCANE_BUBBLE:
-                    DoCastSelf(SPELL_ARCANE_BUBBLE);
-                    me->resetAttackTimer();
-                    events.ScheduleEvent(EVENT_DETONATION, 1s);
+                    DoCastVictim(SPELL_ARCANE_EXPLOSION);
+                    events.Repeat(8s);
                     break;
                 case EVENT_POLYMORPH:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 30.f, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1, 30.0f, true))
                         DoCast(target, SPELL_POLYMORPH);
-                    events.Repeat(20s); // To-do: validate
+                    events.Repeat(20s);
                     break;
                 default:
                     break;
             }
+
+            if (me->HasUnitState(UNIT_STATE_CASTING))
+                return;
+        }
+
+        if (_healthAbove50Pct && HealthBelowPct(50))
+        {
+            _healthAbove50Pct = false;
+            Talk(SAY_SPECIALAE);
+            DoCastSelf(SPELL_ARCANE_BUBBLE);
+            DoCastAOE(SPELL_DETONATION);
         }
 
         DoMeleeAttackIfReady();
     }
 
 private:
-    bool _detonationTriggered;
+    bool _healthAbove50Pct;
 };
-
 
 void AddSC_boss_arcanist_doan()
 {

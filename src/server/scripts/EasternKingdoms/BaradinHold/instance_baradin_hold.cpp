@@ -15,7 +15,6 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "CreatureAI.h"
 #include "ScriptMgr.h"
 #include "baradin_hold.h"
 #include "Creature.h"
@@ -23,20 +22,19 @@
 #include "InstanceScript.h"
 #include "Map.h"
 
-ObjectData const creatureData[] =
-{
-    { BOSS_ARGALOTH,    DATA_ARGALOTH },
-    { BOSS_OCCUTHAR,    DATA_OCCUTHAR },
-    { BOSS_ALIZABAL,    DATA_ALIZABAL },
-    { 0,                0             }  // END
-};
-
 DoorData const doorData[] =
 {
     { GO_ARGALOTH_DOOR,  DATA_ARGALOTH, DOOR_TYPE_ROOM },
     { GO_OCCUTHAR_DOOR,  DATA_OCCUTHAR, DOOR_TYPE_ROOM },
     { GO_ALIZABAL_DOOR,  DATA_ALIZABAL, DOOR_TYPE_ROOM },
     { 0,                 0,             DOOR_TYPE_ROOM }  // END
+};
+
+DungeonEncounterData const encounters[] =
+{
+    { DATA_ARGALOTH, {{ 1033 }} },
+    { DATA_OCCUTHAR, {{ 1250 }} },
+    { DATA_ALIZABAL, {{ 1332 }} }
 };
 
 class instance_baradin_hold: public InstanceMapScript
@@ -50,27 +48,74 @@ class instance_baradin_hold: public InstanceMapScript
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
-                LoadObjectData(creatureData, nullptr);
                 LoadDoorData(doorData);
+                LoadDungeonEncounterData(encounters);
             }
 
             void OnCreatureCreate(Creature* creature) override
             {
-                InstanceScript::OnCreatureCreate(creature);
-
-                switch (creature->GetEntry())
+                switch(creature->GetEntry())
                 {
-                    case NPC_FEL_FLAMES:
-                        if (Creature* argaloth = GetCreature(DATA_ARGALOTH))
-                            argaloth->AI()->JustSummoned(creature);
+                    case BOSS_ARGALOTH:
+                        ArgalothGUID = creature->GetGUID();
                         break;
-                    default:
+                    case BOSS_OCCUTHAR:
+                        OccutharGUID = creature->GetGUID();
+                        break;
+                    case BOSS_ALIZABAL:
+                        AlizabalGUID = creature->GetGUID();
                         break;
                 }
             }
+
+            void OnGameObjectCreate(GameObject* go) override
+            {
+                switch(go->GetEntry())
+                {
+                    case GO_ARGALOTH_DOOR:
+                    case GO_OCCUTHAR_DOOR:
+                    case GO_ALIZABAL_DOOR:
+                        AddDoor(go, true);
+                        break;
+                }
+            }
+
+            ObjectGuid GetGuidData(uint32 data) const override
+            {
+                switch (data)
+                {
+                    case DATA_ARGALOTH:
+                        return ArgalothGUID;
+                    case DATA_OCCUTHAR:
+                        return OccutharGUID;
+                    case DATA_ALIZABAL:
+                        return AlizabalGUID;
+                    default:
+                        break;
+                }
+
+                return ObjectGuid::Empty;
+            }
+
+            void OnGameObjectRemove(GameObject* go) override
+            {
+                switch(go->GetEntry())
+                {
+                    case GO_ARGALOTH_DOOR:
+                    case GO_OCCUTHAR_DOOR:
+                    case GO_ALIZABAL_DOOR:
+                        AddDoor(go, false);
+                        break;
+                }
+            }
+
+        protected:
+            ObjectGuid ArgalothGUID;
+            ObjectGuid OccutharGUID;
+            ObjectGuid AlizabalGUID;
         };
 
-        InstanceScript* GetInstanceScript(InstanceMap* map) const
+        InstanceScript* GetInstanceScript(InstanceMap* map) const override
         {
             return new instance_baradin_hold_InstanceMapScript(map);
         }

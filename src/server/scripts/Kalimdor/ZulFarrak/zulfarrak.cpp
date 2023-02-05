@@ -51,10 +51,14 @@ enum blySays
 enum blySpells
 {
     SPELL_SHIELD_BASH          = 11972,
-    SPELL_REVENGE              = 12170
+    SPELL_REVENGE              = 12170,
 };
 
-#define GOSSIP_BLY                  "[PH] In that case, I will take my reward!"
+enum blygossip
+{
+    GOSSIP_BLY_MID             = 941, //That's it!  I'm tired of helping you out.  It's time we settled things on the battlefield!
+    GOSSIP_BLY_OID             = 1
+};
 
 class npc_sergeant_bly : public CreatureScript
 {
@@ -84,34 +88,6 @@ public:
         uint32 ShieldBash_Timer;
         uint32 Revenge_Timer;                                   //this is wrong, spell should never be used unless me->GetVictim() dodge, parry or block attack. Trinity support required.
         ObjectGuid PlayerGUID;
-
-        bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
-        {
-            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
-            ClearGossipMenuFor(player);
-            if (action == GOSSIP_ACTION_INFO_DEF + 1)
-            {
-                CloseGossipMenuFor(player);
-                PlayerGUID = player->GetGUID();
-                DoAction(0);
-            }
-            return true;
-        }
-
-        bool GossipHello(Player* player) override
-        {
-            if (instance->GetData(EVENT_PYRAMID) == PYRAMID_KILLED_ALL_TROLLS)
-            {
-                AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_BLY, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-                SendGossipMenuFor(player, 1517, me->GetGUID());
-            }
-            else
-                if (instance->GetData(EVENT_PYRAMID) == PYRAMID_NOT_STARTED)
-                    SendGossipMenuFor(player, 1515, me->GetGUID());
-                else
-                    SendGossipMenuFor(player, 1516, me->GetGUID());
-            return true;
-        }
 
         void Reset() override
         {
@@ -187,6 +163,35 @@ public:
                if (crew->IsAlive())
                    crew->SetFaction(FACTION_MONSTER);
         }
+
+        bool OnGossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+        {
+            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
+            ClearGossipMenuFor(player);
+            if (action == GOSSIP_ACTION_INFO_DEF + 1)
+            {
+                CloseGossipMenuFor(player);
+                PlayerGUID = player->GetGUID();
+                DoAction(0);
+            }
+            return true;
+        }
+
+        bool OnGossipHello(Player* player) override
+        {
+            InitGossipMenuFor(player, GOSSIP_BLY_MID);
+            if (instance->GetData(EVENT_PYRAMID) == PYRAMID_KILLED_ALL_TROLLS)
+            {
+                AddGossipItemFor(player, GOSSIP_BLY_MID, GOSSIP_BLY_OID, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                SendGossipMenuFor(player, 1517, me->GetGUID());
+            }
+            else
+                if (instance->GetData(EVENT_PYRAMID) == PYRAMID_NOT_STARTED)
+                    SendGossipMenuFor(player, 1515, me->GetGUID());
+                else
+                    SendGossipMenuFor(player, 1516, me->GetGUID());
+            return true;
+        }
     };
 
     CreatureAI* GetAI(Creature* creature) const override
@@ -210,7 +215,7 @@ public:
 
         InstanceScript* instance;
 
-        bool GossipHello(Player* /*player*/) override
+        bool OnGossipHello(Player* /*player*/) override
         {
             instance->SetData(EVENT_PYRAMID, PYRAMID_CAGES_OPEN);
             //set bly & co to aggressive & start moving to top of stairs
@@ -223,7 +228,7 @@ public:
         }
 
     private:
-        void initBlyCrewMember(uint32 entry, float x, float y, float z) const
+        void initBlyCrewMember(uint32 entry, float x, float y, float z)
         {
             if (Creature* crew = ObjectAccessor::GetCreature(*me, instance->GetGuidData(entry)))
             {
@@ -260,7 +265,11 @@ enum weegliSays
     SAY_WEEGLI_OK_I_GO          = 1
 };
 
-#define GOSSIP_WEEGLI               "[PH] Please blow up the door."
+enum weegligossip
+{
+    GOSSIP_WEEGLI_MID             = 940, // Will you blow up that door now?
+    GOSSIP_WEEGLI_OID             = 0
+};
 
 class npc_weegli_blastfuse : public CreatureScript
 {
@@ -272,7 +281,7 @@ public:
         npc_weegli_blastfuseAI(Creature* creature) : ScriptedAI(creature)
         {
             instance = creature->GetInstanceScript();
-            destroyingDoor=false;
+            destroyingDoor = false;
             Bomb_Timer = 10000;
             LandMine_Timer = 30000;
         }
@@ -281,40 +290,6 @@ public:
         uint32 LandMine_Timer;
         bool destroyingDoor;
         InstanceScript* instance;
-
-        bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
-        {
-            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
-            ClearGossipMenuFor(player);
-            if (action == GOSSIP_ACTION_INFO_DEF + 1)
-            {
-                CloseGossipMenuFor(player);
-                //here we make him run to door, set the charge and run away off to nowhere
-                DestroyDoor();
-            }
-            return true;
-        }
-
-        bool GossipHello(Player* player) override
-        {
-            if (InstanceScript* instance = me->GetInstanceScript())
-            {
-                switch (instance->GetData(EVENT_PYRAMID))
-                {
-                    case PYRAMID_KILLED_ALL_TROLLS:
-                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_WEEGLI, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-                        SendGossipMenuFor(player, 1514, me->GetGUID());  //if event can proceed to end
-                        break;
-                    case PYRAMID_NOT_STARTED:
-                        SendGossipMenuFor(player, 1511, me->GetGUID());  //if event not started
-                        break;
-                    default:
-                        SendGossipMenuFor(player, 1513, me->GetGUID());  //if event are in progress
-                }
-                return true;
-            }
-            return false;
-        }
 
         void Reset() override
         {
@@ -381,8 +356,39 @@ public:
                 me->GetMotionMaster()->MovePoint(0, 1858.57f, 1146.35f, 14.745f);
                 me->SetHomePosition(1858.57f, 1146.35f, 14.745f, 3.85f); // in case he gets interrupted
                 Talk(SAY_WEEGLI_OK_I_GO);
-                destroyingDoor=true;
+                destroyingDoor = true;
             }
+        }
+
+        bool OnGossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+        {
+            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
+            ClearGossipMenuFor(player);
+            if (action == GOSSIP_ACTION_INFO_DEF + 1)
+            {
+                CloseGossipMenuFor(player);
+                //here we make him run to door, set the charge and run away off to nowhere
+                DestroyDoor();
+            }
+            return true;
+        }
+
+        bool OnGossipHello(Player* player) override
+        {
+            InitGossipMenuFor(player, GOSSIP_WEEGLI_MID);
+            switch (instance->GetData(EVENT_PYRAMID))
+            {
+                case PYRAMID_KILLED_ALL_TROLLS:
+                    AddGossipItemFor(player, GOSSIP_WEEGLI_MID, GOSSIP_WEEGLI_OID, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                    SendGossipMenuFor(player, 1514, me->GetGUID());  //if event can proceed to end
+                    break;
+                case PYRAMID_NOT_STARTED:
+                    SendGossipMenuFor(player, 1511, me->GetGUID());  //if event not started
+                    break;
+                default:
+                    SendGossipMenuFor(player, 1513, me->GetGUID());  //if event are in progress
+            }
+            return true;
         }
     };
 
@@ -406,34 +412,34 @@ enum ShallowGrave
 
 class go_shallow_grave : public GameObjectScript
 {
-    public:
-        go_shallow_grave() : GameObjectScript("go_shallow_grave") { }
+public:
+    go_shallow_grave() : GameObjectScript("go_shallow_grave") { }
 
-        struct go_shallow_graveAI : public GameObjectAI
+    struct go_shallow_graveAI : public GameObjectAI
+    {
+        go_shallow_graveAI(GameObject* go) : GameObjectAI(go) { }
+
+        bool OnGossipHello(Player* /*player*/) override
         {
-            go_shallow_graveAI(GameObject* go) : GameObjectAI(go) { }
-
-            bool GossipHello(Player* /*player*/) override
+            // randomly summon a zombie or dead hero the first time a grave is used
+            if (me->GetUseCount() == 0)
             {
-                // randomly summon a zombie or dead hero the first time a grave is used
-                if (me->GetUseCount() == 0)
-                {
-                    uint32 randomchance = urand(0, 100);
-                    if (randomchance < CHANCE_ZOMBIE)
-                        me->SummonCreature(NPC_ZOMBIE, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30000);
-                    else
-                        if ((randomchance - CHANCE_ZOMBIE) < CHANCE_DEAD_HERO)
-                            me->SummonCreature(NPC_DEAD_HERO, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30000);
-                }
-                me->AddUse();
-                return false;
+                uint32 randomchance = urand(0, 100);
+                if (randomchance < CHANCE_ZOMBIE)
+                    me->SummonCreature(NPC_ZOMBIE, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30s);
+                else
+                    if ((randomchance - CHANCE_ZOMBIE) < CHANCE_DEAD_HERO)
+                        me->SummonCreature(NPC_DEAD_HERO, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30s);
             }
-        };
-
-        GameObjectAI* GetAI(GameObject* go) const override
-        {
-            return GetZulFarrakAI<go_shallow_graveAI>(go);
+            me->AddUse();
+            return false;
         }
+    };
+
+    GameObjectAI* GetAI(GameObject* go) const override
+    {
+        return GetZulFarrakAI<go_shallow_graveAI>(go);
+    }
 };
 
 /*######
@@ -442,8 +448,7 @@ class go_shallow_grave : public GameObjectScript
 
 enum zumrahConsts
 {
-    ZUMRAH_ID = 7271,
-    ZUMRAH_HOSTILE_FACTION = 37
+    ZUMRAH_ID = 7271
 };
 
 class at_zumrah : public AreaTriggerScript
@@ -451,14 +456,14 @@ class at_zumrah : public AreaTriggerScript
 public:
     at_zumrah() : AreaTriggerScript("at_zumrah") { }
 
-    bool OnTrigger(Player* player, AreaTriggerEntry const* /*at*/) override
+    bool OnTrigger(Player* player, AreaTriggerEntry const* /*areaTrigger*/) override
     {
         Creature* pZumrah = player->FindNearestCreature(ZUMRAH_ID, 30.0f);
 
         if (!pZumrah)
             return false;
 
-        pZumrah->SetFaction(ZUMRAH_HOSTILE_FACTION);
+        pZumrah->SetFaction(FACTION_TROLL_FROSTMANE);
         return true;
     }
 

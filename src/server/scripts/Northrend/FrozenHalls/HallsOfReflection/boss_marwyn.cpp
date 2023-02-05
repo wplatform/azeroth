@@ -68,10 +68,10 @@ class boss_marwyn : public CreatureScript
                 DoZoneInCombat();
                 instance->SetBossState(DATA_MARWYN, IN_PROGRESS);
 
-                events.ScheduleEvent(EVENT_OBLITERATE, urand(8000, 13000));
-                events.ScheduleEvent(EVENT_WELL_OF_CORRUPTION, 13000);
-                events.ScheduleEvent(EVENT_CORRUPTED_FLESH, 20000);
-                events.ScheduleEvent(EVENT_SHARED_SUFFERING, urand(14000, 15000));
+                events.ScheduleEvent(EVENT_OBLITERATE, 8s, 13s);
+                events.ScheduleEvent(EVENT_WELL_OF_CORRUPTION, 12s);
+                events.ScheduleEvent(EVENT_CORRUPTED_FLESH, 20s);
+                events.ScheduleEvent(EVENT_SHARED_SUFFERING, 14s, 15s);
             }
 
             void JustDied(Unit* /*killer*/) override
@@ -101,22 +101,22 @@ class boss_marwyn : public CreatureScript
                 {
                     case EVENT_OBLITERATE:
                         DoCastVictim(SPELL_OBLITERATE);
-                        events.ScheduleEvent(EVENT_OBLITERATE, urand(8000, 13000));
+                        events.ScheduleEvent(EVENT_OBLITERATE, 8s, 13s);
                         break;
                     case EVENT_WELL_OF_CORRUPTION:
-                        if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true))
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
                             DoCast(target, SPELL_WELL_OF_CORRUPTION);
-                        events.ScheduleEvent(EVENT_WELL_OF_CORRUPTION, 13000);
+                        events.ScheduleEvent(EVENT_WELL_OF_CORRUPTION, 13s);
                         break;
                     case EVENT_CORRUPTED_FLESH:
                         Talk(SAY_CORRUPTED_FLESH);
                         DoCastAOE(SPELL_CORRUPTED_FLESH);
-                        events.ScheduleEvent(EVENT_CORRUPTED_FLESH, 20000);
+                        events.ScheduleEvent(EVENT_CORRUPTED_FLESH, 20s);
                         break;
                     case EVENT_SHARED_SUFFERING:
-                        if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true))
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true))
                             DoCast(target, SPELL_SHARED_SUFFERING);
-                        events.ScheduleEvent(EVENT_SHARED_SUFFERING, urand(14000, 15000));
+                        events.ScheduleEvent(EVENT_SHARED_SUFFERING, 14s, 15s);
                         break;
                     default:
                         break;
@@ -140,22 +140,28 @@ class spell_marwyn_shared_suffering : public SpellScriptLoader
 
         class spell_marwyn_shared_suffering_AuraScript : public AuraScript
         {
+            PrepareAuraScript(spell_marwyn_shared_suffering_AuraScript);
+
             void HandleEffectRemove(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
             {
-                if (!GetTargetApplication()->GetRemoveMode().HasFlag(AuraRemoveFlags::ByEnemySpell))
+                if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_ENEMY_SPELL)
                     return;
 
                 if (Unit* caster = GetCaster())
                 {
-                    int32 remainingDamage = aurEff->GetAmount() * (aurEff->GetTotalTicks() - aurEff->GetTickNumber());
+                    int32 remainingDamage = aurEff->GetAmount() * aurEff->GetRemainingTicks();
                     if (remainingDamage > 0)
-                        caster->CastSpell(GetTarget(), SPELL_SHARED_SUFFERING_DISPEL, CastSpellExtraArgs(true).AddSpellMod(SPELLVALUE_BASE_POINT1, remainingDamage));
+                    {
+                        CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
+                        args.AddSpellMod(SPELLVALUE_BASE_POINT1, remainingDamage);
+                        caster->CastSpell(GetTarget(), SPELL_SHARED_SUFFERING_DISPEL, args);
+                    }
                 }
             }
 
             void Register() override
             {
-                AfterEffectRemove.Register(&spell_marwyn_shared_suffering_AuraScript::HandleEffectRemove, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
+                AfterEffectRemove += AuraEffectRemoveFn(spell_marwyn_shared_suffering_AuraScript::HandleEffectRemove, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
             }
         };
 

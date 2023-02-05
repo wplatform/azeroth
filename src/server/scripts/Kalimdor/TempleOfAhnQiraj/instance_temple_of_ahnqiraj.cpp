@@ -15,23 +15,26 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* ScriptData
+SDName: Instance_Temple_of_Ahnqiraj
+SD%Complete: 80
+SDComment:
+SDCategory: Temple of Ahn'Qiraj
+EndScriptData */
+
 #include "ScriptMgr.h"
-#include "Creature.h"
 #include "InstanceScript.h"
 #include "temple_of_ahnqiraj.h"
 
-#include <array>
-
 ObjectData const creatureData[] =
 {
-    { BOSS_VEM,         DATA_VEM            },
-    { BOSS_KRI,         DATA_KRI            },
-    { BOSS_VEKLOR,      DATA_VEKLOR         },
-    { BOSS_VEKNILASH,   DATA_VEKNILASH      },
-    { BOSS_VISCIDUS,    DATA_VISCIDUS       },
-    { BOSS_SARTURA,     DATA_SARTURA        },
-    { BOSS_OURO,        DATA_OURO           },
-    { 0,                0                   } // END
+    { NPC_VEM,       DATA_VEM       },
+    { NPC_KRI,       DATA_KRI       },
+    { NPC_VEKLOR,    DATA_VEKLOR    },
+    { NPC_VEKNILASH, DATA_VEKNILASH },
+    { NPC_VISCIDUS,  DATA_VISCIDUS  },
+    { NPC_SARTURA,   DATA_SARTURA   },
+    { 0,             0              } // END
 };
 
 DoorData const doorData[] =
@@ -43,12 +46,28 @@ DoorData const doorData[] =
     { 0,           0,                  DOOR_TYPE_ROOM    } // END
 };
 
-constexpr uint8 const BUG_TRIO_COUNT = 3;
+DungeonEncounterData const encounters[] =
+{
+    { DATA_SKERAM, {{ 709 }} },
+    { DATA_SARTURA, {{ 711 }} },
+    { DATA_FRANKRIS, {{ 712 }} },
+    { DATA_HUHURAN, {{ 714 }} },
+    { DATA_TWIN_EMPERORS, {{ 715 }} },
+    { DATA_CTHUN, {{ 717 }} },
+    { DATA_BUG_TRIO, {{ 710 }} },
+    { DATA_VISCIDUS, {{ 713 }} },
+    { DATA_OURO, {{ 716 }} }
+};
 
 class instance_temple_of_ahnqiraj : public InstanceMapScript
 {
     public:
         instance_temple_of_ahnqiraj() : InstanceMapScript(AQ40ScriptName, 531) { }
+
+        InstanceScript* GetInstanceScript(InstanceMap* map) const override
+        {
+            return new instance_temple_of_ahnqiraj_InstanceMapScript(map);
+        }
 
         struct instance_temple_of_ahnqiraj_InstanceMapScript : public InstanceScript
         {
@@ -58,11 +77,22 @@ class instance_temple_of_ahnqiraj : public InstanceMapScript
                 LoadObjectData(creatureData, nullptr);
                 SetBossNumber(EncounterCount);
                 LoadDoorData(doorData);
+                LoadDungeonEncounterData(encounters);
+                IsBossDied[0] = false;
+                IsBossDied[1] = false;
+                IsBossDied[2] = false;
 
-                _bugTrioMemberDead.fill(false);
-                _bugTrioDeathCount = 0;
-                _cthunPhase = 0;
+                BugTrioDeathCount = 0;
+
+                CthunPhase = 0;
             }
+
+            //If Vem is dead...
+            bool IsBossDied[3];
+
+            uint32 BugTrioDeathCount;
+
+            uint32 CthunPhase;
 
             bool IsEncounterInProgress() const override
             {
@@ -75,56 +105,57 @@ class instance_temple_of_ahnqiraj : public InstanceMapScript
                 switch (type)
                 {
                     case DATA_VEMISDEAD:
-                        return uint8(_bugTrioMemberDead[0]);
+                        if (IsBossDied[0])
+                            return 1;
+                        break;
+
                     case DATA_VEKLORISDEAD:
-                        return uint8(_bugTrioMemberDead[1]);
+                        if (IsBossDied[1])
+                            return 1;
+                        break;
+
                     case DATA_VEKNILASHISDEAD:
-                        return uint8(_bugTrioMemberDead[2]);
+                        if (IsBossDied[2])
+                            return 1;
+                        break;
+
                     case DATA_BUG_TRIO_DEATH:
-                        return _bugTrioDeathCount;
+                        return BugTrioDeathCount;
+
                     case DATA_CTHUN_PHASE:
-                        return _cthunPhase;
-                    default:
-                        return 0;
+                        return CthunPhase;
                 }
                 return 0;
             }
-
 
             void SetData(uint32 type, uint32 data) override
             {
                 switch (type)
                 {
-                     case DATA_VEM_DEATH:
-                         _bugTrioMemberDead[0] = true;
-                         break;
-                     case DATA_BUG_TRIO_DEATH:
-                         ++_bugTrioDeathCount;
-                         break;
-                     case DATA_VEKLOR_DEATH:
-                         _bugTrioMemberDead[1] = true;
-                         break;
-                     case DATA_VEKNILASH_DEATH:
-                         _bugTrioMemberDead[2] = true;
-                         break;
-                     case DATA_CTHUN_PHASE:
-                         _cthunPhase = data;
-                         break;
-                     default:
-                         break;
+                    case DATA_VEM_DEATH:
+                        IsBossDied[0] = true;
+                        break;
+
+                    case DATA_BUG_TRIO_DEATH:
+                        if (++BugTrioDeathCount >= 3)
+                            SetBossState(DATA_BUG_TRIO, DONE);
+                        break;
+
+                    case DATA_VEKLOR_DEATH:
+                        IsBossDied[1] = true;
+                        break;
+
+                    case DATA_VEKNILASH_DEATH:
+                        IsBossDied[2] = true;
+                        break;
+
+                    case DATA_CTHUN_PHASE:
+                        CthunPhase = data;
+                        break;
                 }
             }
-            private:
-                //If Vem is dead...
-                std::array<bool, BUG_TRIO_COUNT> _bugTrioMemberDead;
-                uint8 _bugTrioDeathCount;
-                uint8 _cthunPhase;
         };
 
-        InstanceScript* GetInstanceScript(InstanceMap* map) const override
-        {
-            return new instance_temple_of_ahnqiraj_InstanceMapScript(map);
-        }
 };
 
 void AddSC_instance_temple_of_ahnqiraj()

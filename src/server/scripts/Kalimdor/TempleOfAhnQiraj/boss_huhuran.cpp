@@ -22,9 +22,9 @@ SDComment:
 SDCategory: Temple of Ahn'Qiraj
 EndScriptData */
 
-#include "temple_of_ahnqiraj.h"
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
+#include "temple_of_ahnqiraj.h"
 
 enum Huhuran
 {
@@ -46,7 +46,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return new boss_huhuranAI(creature);
+        return GetAQ40AI<boss_huhuranAI>(creature);
     }
 
     struct boss_huhuranAI : public BossAI
@@ -104,7 +104,7 @@ public:
             // Wyvern Timer
             if (Wyvern_Timer <= diff)
             {
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                     DoCast(target, SPELL_WYVERNSTING);
                 Wyvern_Timer = urand(15000, 32000);
             } else Wyvern_Timer -= diff;

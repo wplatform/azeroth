@@ -17,12 +17,10 @@
 
 #include "ScriptMgr.h"
 #include "Creature.h"
-#include "CreatureAI.h"
 #include "CreatureGroups.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Map.h"
-#include "EventMap.h"
 #include "stonecore.h"
 
 #define MAX_ENCOUNTER 4
@@ -34,21 +32,26 @@
 3 - High Priestess Azil
 */
 
+// TO-DO:
+// - Find out spell IDs for both Stonecore Teleporters (spellclick).
+
 ObjectData const creatureData[] =
 {
-    { NPC_MILLHOUSE_MANASTORM,      DATA_MILLHOUSE_MANASTORM    },
-    { BOSS_CORBORUS,                DATA_CORBORUS               },
-    { BOSS_SLABHIDE,                DATA_SLABHIDE               },
-    { BOSS_OZRUK,                   DATA_OZRUK,                 },
-    { BOSS_HIGH_PRIESTESS_AZIL,     DATA_HIGH_PRIESTESS_AZIL    },
-    { NPC_STONECORE_TELEPORTER_1,   DATA_STONECORE_TELEPORTER_1 },
-    { NPC_STONECORE_TELEPORTER_2,   DATA_STONECORE_TELEPORTER_2 },
-    { 0,                            0                           } // END
+    { NPC_MILLHOUSE_MANASTORM,    DATA_MILLHOUSE_MANASTORM },
+    { NPC_CORBORUS,               DATA_CORBORUS },
+    { NPC_SLABHIDE,               DATA_SLABHIDE },
+    { NPC_HIGH_PRIESTESS_AZIL,    DATA_HIGH_PRIESTESS_AZIL },
+    { NPC_STONECORE_TELEPORTER,   DATA_STONECORE_TELEPORTER },
+    { NPC_STONECORE_TELEPORTER_2, DATA_STONECORE_TELEPORTER_2 },
+    { 0, 0 } // END
 };
 
-enum Spells
+DungeonEncounterData const encounters[] =
 {
-    SPELL_TELEPORTER_ACTIVE_VISUAL = 95298
+    { DATA_CORBORUS, {{ 1056 }} },
+    { DATA_SLABHIDE, {{ 1059 }} },
+    { DATA_OZRUK, {{ 1058 }} },
+    { DATA_HIGH_PRIESTESS_AZIL, {{ 1057 }} }
 };
 
 class instance_stonecore : public InstanceMapScript
@@ -63,26 +66,7 @@ class instance_stonecore : public InstanceMapScript
                 SetHeaders(DataHeader);
                 SetBossNumber(MAX_ENCOUNTER);
                 LoadObjectData(creatureData, nullptr);
-                _initialSetupDone = false;
-                _eventIndex = EVENT_INDEX_NONE;
-            }
-
-            void OnPlayerEnter(Player* /*player*/) override
-            {
-                if (!_initialSetupDone)
-                {
-                    if (_eventIndex >= EVENT_INDEX_CORBORUS_INTRO && GetBossState(DATA_CORBORUS) != DONE)
-                        instance->SummonCreature(BOSS_CORBORUS, CorborusRespawnPos);
-                    else if (GetBossState(DATA_CORBORUS) != DONE)
-                        instance->SummonCreature(BOSS_CORBORUS, CorborusSpawnPos);
-
-                    if (_eventIndex == EVENT_INDEX_SLABHIDE_INTRO && GetBossState(DATA_SLABHIDE) != DONE)
-                        instance->SummonCreature(BOSS_SLABHIDE, SlabhideRespawnPos);
-                    else if (GetBossState(DATA_SLABHIDE) != DONE)
-                        instance->SummonCreature(BOSS_SLABHIDE, SlabhideSpawnPos);
-
-                    _initialSetupDone = true;
-                }
+                LoadDungeonEncounterData(encounters);
             }
 
             void OnGameObjectCreate(GameObject* go) override
@@ -90,43 +74,25 @@ class instance_stonecore : public InstanceMapScript
                 switch (go->GetEntry())
                 {
                     case GAMEOBJECT_CORBORUS_ROCKDOOR:
-                        _corborusRockDoorGUID = go->GetGUID();
-                        if (_eventIndex >= EVENT_INDEX_CORBORUS_INTRO)
-                            go->SetGoState(GO_STATE_ACTIVE);
+                        corborusRockDoorGUID = go->GetGUID();
+                        go->SetGoState(GetBossState(DATA_CORBORUS) != DONE ? GO_STATE_READY : GO_STATE_ACTIVE);
                         break;
                     case GAMEOBJECT_SLABHIDE_ROCK_WALL:
-                        _slabhideRockWallGUIDs.push_back(go->GetGUID());
+                        slabhideRockWallGUIDs.push_back(go->GetGUID());
                         break;
                     default:
                         break;
                 }
             }
 
-            uint32 GetData(uint32 type) const override
-            {
-                switch (type)
-                {
-                    case DATA_EVENT_PROGRESS:
-                        return _eventIndex;
-                }
-                return 0;
-            }
-
             void OnCreatureCreate(Creature* creature) override
             {
                 switch (creature->GetEntry())
                 {
-                    case NPC_STONECORE_TELEPORTER_1:
+                    case NPC_STONECORE_TELEPORTER:
                     case NPC_STONECORE_TELEPORTER_2:
                         if (GetBossState(DATA_SLABHIDE) == DONE)
-                        {
-                            creature->CastSpell(creature, SPELL_TELEPORTER_ACTIVE_VISUAL);
-                            creature->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
-                        }
-                        break;
-                    case BOSS_CORBORUS:
-                    case BOSS_SLABHIDE:
-                        creature->setActive(true);
+                            ActivateTeleporter(creature);
                         break;
                     default:
                         break;
@@ -136,17 +102,15 @@ class instance_stonecore : public InstanceMapScript
                 creature->SearchFormation();
                 if (CreatureGroup* group = creature->GetFormation())
                 {
-                    switch (group->GetId())
+                    switch (group->GetLeaderSpawnId())
                     {
                         case CREATURE_FORMATION_MILLHOUSE_EVENT_TRASH:
-                            _millhouseTrashGUIDs.push_back(creature->GetGUID());
+                            millhouseTrashGUIDs.push_back(creature->GetGUID());
                             break;
                         case CREATURE_FORMATION_MILLHOUSE_EVENT_LAST_GROUP:
-                            _millhouseLastGroupGUIDs.push_back(creature->GetGUID());
+                            millhouseLastGroupGUIDs.push_back(creature->GetGUID());
                             creature->SetReactState(REACT_PASSIVE);
                             creature->SetMeleeAnimKitId(ANIM_READY2H);
-                            break;
-                        default:
                             break;
                     }
                 }
@@ -158,10 +122,6 @@ class instance_stonecore : public InstanceMapScript
             {
                 switch (type)
                 {
-                    case DATA_CORBORUS:
-                        if (state == FAIL)
-                            _events.ScheduleEvent(EVENT_RESPAWN_CORBORUS, 30s);
-                        break;
                     case DATA_SLABHIDE:
                         // Open rock walls (Slabhide AI handles closing because it must be delayed)
                         if (state != IN_PROGRESS)
@@ -170,21 +130,9 @@ class instance_stonecore : public InstanceMapScript
                         // Activate teleporters
                         if (state == DONE)
                         {
-                            if (Creature* teleporter1 = GetCreature(DATA_STONECORE_TELEPORTER_1))
-                            {
-                                teleporter1->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
-                                teleporter1->CastSpell(teleporter1, SPELL_TELEPORTER_ACTIVE_VISUAL);
-                            }
-
-                            if (Creature* teleporter2 = GetCreature(DATA_STONECORE_TELEPORTER_2))
-                            {
-                                teleporter2->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
-                                teleporter2->CastSpell(teleporter2, SPELL_TELEPORTER_ACTIVE_VISUAL);
-                            }
+                            ActivateTeleporter(GetCreature(DATA_STONECORE_TELEPORTER));
+                            ActivateTeleporter(GetCreature(DATA_STONECORE_TELEPORTER_2));
                         }
-
-                        if (state == FAIL)
-                            _events.ScheduleEvent(EVENT_RESPAWN_SLABHIDE, 30s);
                         break;
                     default:
                         break;
@@ -193,12 +141,25 @@ class instance_stonecore : public InstanceMapScript
                 return InstanceScript::SetBossState(type, state);
             }
 
+            uint32 GetData(uint32 type) const override
+            {
+                switch (type)
+                {
+                    case DATA_SLABHIDE_INTRO:
+                        return slabhideIntro;
+                    default:
+                        break;
+                }
+
+                return 0;
+            }
+
             void SetData(uint32 type, uint32 data) override
             {
                 switch (type)
                 {
                     case DATA_HANDLE_CORBORUS_ROCKDOOR:
-                        HandleGameObject(_corborusRockDoorGUID, true);
+                        HandleGameObject(corborusRockDoorGUID, true);
                         break;
                     case DATA_MILLHOUSE_EVENT_FACE:
                         MillhouseEvent_Face();
@@ -209,58 +170,16 @@ class instance_stonecore : public InstanceMapScript
                     case DATA_MILLHOUSE_EVENT_DESPAWN:
                         MillhouseEvent_Despawn();
                         break;
-                    case DATA_SLABHIDE_ROCK_WALL: // Handles rock walls
-                        for (ObjectGuid guid : _slabhideRockWallGUIDs)
-                            HandleGameObject((guid), data ? true : false);
+                    case DATA_SLABHIDE_INTRO:
+                        slabhideIntro = EncounterState(data);
                         break;
-                    case DATA_EVENT_PROGRESS:
-                        if (data == EVENT_INDEX_CORBORUS_INTRO)
-                        {
-                            if (Creature* corborus = GetCreature(DATA_CORBORUS))
-                                corborus->AI()->DoAction(ACTION_CORBORUS_INTRO);
-                        }
-                        else if (data == EVENT_INDEX_SLABHIDE_INTRO)
-                        {
-                            if (Creature* slabhide = GetCreature(DATA_SLABHIDE))
-                                slabhide->AI()->DoAction(ACTION_SLABHIDE_INTRO);
-                        }
-
-                        _eventIndex = data;
-                        SaveToDB();
+                    case DATA_SLABHIDE_ROCK_WALL: // Handles rock walls
+                        for (std::vector<ObjectGuid>::iterator itr = slabhideRockWallGUIDs.begin(); itr != slabhideRockWallGUIDs.end(); ++itr)
+                            HandleGameObject((*itr), data ? true : false);
                         break;
                     default:
                         break;
                 }
-            }
-
-            void Update(uint32 diff) override
-            {
-                _events.Update(diff);
-
-                while (uint32 eventId = _events.ExecuteEvent())
-                {
-                    switch (eventId)
-                    {
-                        case EVENT_RESPAWN_CORBORUS:
-                            instance->SummonCreature(BOSS_CORBORUS, CorborusRespawnPos);
-                            break;
-                        case EVENT_RESPAWN_SLABHIDE:
-                            instance->SummonCreature(BOSS_SLABHIDE, SlabhideRespawnPos);
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            }
-
-            void WriteSaveDataMore(std::ostringstream& data) override
-            {
-                data << _eventIndex;
-            }
-
-            void ReadSaveDataMore(std::istringstream& data) override
-            {
-                data >> _eventIndex;
             }
 
         private:
@@ -269,8 +188,8 @@ class instance_stonecore : public InstanceMapScript
             {
                 if (Creature* Millhouse = GetCreature(DATA_MILLHOUSE_MANASTORM))
                     Millhouse->SetFacingTo(1.570796f);
-                for (ObjectGuid guid : _millhouseLastGroupGUIDs)
-                    if (Creature* creature = instance->GetCreature(guid))
+                for (GuidVector::const_iterator i = millhouseLastGroupGUIDs.begin(); i != millhouseLastGroupGUIDs.end(); ++i)
+                    if (Creature* creature = instance->GetCreature(*i))
                         creature->SetFacingTo(1.570796f);
             }
 
@@ -279,8 +198,8 @@ class instance_stonecore : public InstanceMapScript
             {
                 if (Creature* Millhouse = GetCreature(DATA_MILLHOUSE_MANASTORM))
                     Millhouse->CastSpell(Millhouse, SPELL_RING_WYRM_KNOCKBACK, true);
-                for (ObjectGuid guid : _millhouseLastGroupGUIDs)
-                    if (Creature* creature = instance->GetCreature(guid))
+                for (GuidVector::const_iterator itr = millhouseLastGroupGUIDs.begin(); itr != millhouseLastGroupGUIDs.end(); ++itr)
+                    if (Creature* creature = instance->GetCreature(*itr))
                         creature->CastSpell(creature, SPELL_RING_WYRM_KNOCKBACK, true);
             }
 
@@ -288,22 +207,30 @@ class instance_stonecore : public InstanceMapScript
             void MillhouseEvent_Despawn()
             {
                 if (Creature* Millhouse = GetCreature(DATA_MILLHOUSE_MANASTORM))
-                    Millhouse->DespawnOrUnsummon(Seconds(3));
-                for (ObjectGuid guid : _millhouseTrashGUIDs)
-                    if (Creature* creature = instance->GetCreature(guid))
-                        creature->DespawnOrUnsummon(Seconds(3));
-                for (ObjectGuid guid : _millhouseLastGroupGUIDs)
-                    if (Creature* creature = instance->GetCreature(guid))
-                        creature->DespawnOrUnsummon(Seconds(3));
+                    Millhouse->DespawnOrUnsummon(3s);
+                for (GuidVector::const_iterator itr = millhouseTrashGUIDs.begin(); itr != millhouseTrashGUIDs.end(); ++itr)
+                    if (Creature* creature = instance->GetCreature(*itr))
+                        creature->DespawnOrUnsummon(3s);
+                for (GuidVector::const_iterator itr = millhouseLastGroupGUIDs.begin(); itr != millhouseLastGroupGUIDs.end(); ++itr)
+                    if (Creature* creature = instance->GetCreature(*itr))
+                        creature->DespawnOrUnsummon(3s);
             }
 
-            EventMap _events;
-            GuidVector _millhouseTrashGUIDs;
-            GuidVector _millhouseLastGroupGUIDs;
-            ObjectGuid _corborusRockDoorGUID;
-            GuidVector _slabhideRockWallGUIDs;
-            uint8 _eventIndex;
-            bool _initialSetupDone;
+            void ActivateTeleporter(Creature* teleporter)
+            {
+                if (!teleporter)
+                    return;
+
+                teleporter->CastSpell(teleporter, SPELL_TELEPORTER_ACTIVE_VISUAL, true);
+                teleporter->SetNpcFlag(UNIT_NPC_FLAG_SPELLCLICK);
+            }
+
+            GuidVector millhouseTrashGUIDs;
+            GuidVector millhouseLastGroupGUIDs;
+            ObjectGuid corborusRockDoorGUID;
+            GuidVector slabhideRockWallGUIDs;
+
+            EncounterState slabhideIntro = NOT_STARTED;
         };
 
         InstanceScript* GetInstanceScript(InstanceMap* map) const override

@@ -24,6 +24,7 @@ EndScriptData */
 
 #include "ScriptMgr.h"
 #include "Chat.h"
+#include "ChatCommand.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
@@ -32,8 +33,6 @@ EndScriptData */
 #include "Language.h"
 #include "Log.h"
 #include "MySQLThreading.h"
-#include "ObjectAccessor.h"
-#include "Player.h"
 #include "RBAC.h"
 #include "Realm.h"
 #include "UpdateTime.h"
@@ -42,12 +41,14 @@ EndScriptData */
 #include "VMapManager2.h"
 #include "World.h"
 #include "WorldSession.h"
-
-#include <numeric>
-
 #include <boost/filesystem/operations.hpp>
 #include <openssl/crypto.h>
 #include <openssl/opensslv.h>
+#include <numeric>
+
+#if TRINITY_COMPILER == TRINITY_COMPILER_GNU
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 class server_commandscript : public CommandScript
 {
@@ -84,7 +85,6 @@ public:
 
         static std::vector<ChatCommand> serverSetCommandTable =
         {
-            { "difftime", rbac::RBAC_PERM_COMMAND_SERVER_SET_DIFFTIME, true, &HandleServerSetDiffTimeCommand, "" },
             { "loglevel", rbac::RBAC_PERM_COMMAND_SERVER_SET_LOGLEVEL, true, &HandleServerSetLogLevelCommand, "" },
             { "motd",     rbac::RBAC_PERM_COMMAND_SERVER_SET_MOTD,     true, &HandleServerSetMotdCommand,     "" },
             { "closed",   rbac::RBAC_PERM_COMMAND_SERVER_SET_CLOSED,   true, &HandleServerSetClosedCommand,   "" },
@@ -126,13 +126,13 @@ public:
 
         {
             uint16 dbPort = 0;
-            if (QueryResult res = LoginDatabase.PQuery("SELECT port FROM realmlist WHERE id = %u", realm.Id.Realm))
+            if (QueryResult res = LoginDatabase.PQuery("SELECT port FROM realmlist WHERE id = {}", realm.Id.Realm))
                 dbPort = (*res)[0].GetUInt16();
 
             if (dbPort)
-                dbPortOutput = Trinity::StringFormat("Realmlist (Realm Id: %u) configured in port %" PRIu16, realm.Id.Realm, dbPort);
+                dbPortOutput = Trinity::StringFormat("Realmlist (Realm Id: {}) configured in port %" PRIu16, realm.Id.Realm, dbPort);
             else
-                dbPortOutput = Trinity::StringFormat("Realm Id: %u not found in `realmlist` table. Please check your setup", realm.Id.Realm);
+                dbPortOutput = Trinity::StringFormat("Realm Id: {} not found in `realmlist` table. Please check your setup", realm.Id.Realm);
         }
 
         handler->PSendSysMessage("%s", GitRevision::GetFullVersion());
@@ -148,21 +148,23 @@ public:
             handler->SendSysMessage("Automatic database updates are disabled for all databases!");
         else
         {
-            static char const* const databaseNames[3 /*TOTAL_DATABASES*/] =
+            static char const* const databaseNames[] =
             {
                 "Auth",
                 "Characters",
-                "World"
+                "World",
+                "Hotfixes"
             };
+            static size_t constexpr databaseCount = std::extent<decltype(databaseNames)>::value;
 
             std::string availableUpdateDatabases;
-            for (uint32 i = 0; i < 3 /* TOTAL_DATABASES*/; ++i)
+            for (uint32 i = 0; i < databaseCount; ++i)
             {
                 if (!(updateFlags & (1 << i)))
                     continue;
 
                 availableUpdateDatabases += databaseNames[i];
-                if (i != 3 /*TOTAL_DATABASES*/ - 1)
+                if (i != databaseCount - 1)
                     availableUpdateDatabases += ", ";
             }
 
@@ -200,7 +202,7 @@ public:
         for (std::string const& subDir : subDirs)
         {
             boost::filesystem::path mapPath(dataDir);
-            mapPath.append(subDir);
+            mapPath /= subDir;
 
             if (!boost::filesystem::exists(mapPath))
             {
@@ -211,7 +213,8 @@ public:
             auto end = boost::filesystem::directory_iterator();
             std::size_t folderSize = std::accumulate(boost::filesystem::directory_iterator(mapPath), end, std::size_t(0), [](std::size_t val, boost::filesystem::path const& mapFile)
             {
-                if (boost::filesystem::is_regular_file(mapFile))
+                boost::system::error_code ec;
+                if (boost::filesystem::is_regular_file(mapFile, ec))
                     val += boost::filesystem::file_size(mapFile);
                 return val;
             });
@@ -246,6 +249,10 @@ public:
         handler->PSendSysMessage("Using %s DBC Locale as default. All available DBC locales: %s", localeNames[defaultLocale], availableLocales.c_str());
 
         handler->PSendSysMessage("Using World DB: %s", sWorld->GetDBVersion());
+
+        handler->PSendSysMessage("LoginDatabase queue size: %zu", LoginDatabase.QueueSize());
+        handler->PSendSysMessage("CharacterDatabase queue size: %zu", CharacterDatabase.QueueSize());
+        handler->PSendSysMessage("WorldDatabase queue size: %zu", WorldDatabase.QueueSize());
         return true;
     }
 
@@ -365,7 +372,7 @@ public:
 
     static bool HandleServerRestartCommand(ChatHandler* handler, char const* args)
     {
-       return ShutdownServer(handler, args, SHUTDOWN_MASK_RESTART, RESTART_EXIT_CODE);
+        return ShutdownServer(handler, args, SHUTDOWN_MASK_RESTART, RESTART_EXIT_CODE);
     }
 
     static bool HandleServerForceShutDownCommand(ChatHandler* handler, char const* args)
@@ -426,39 +433,12 @@ public:
     }
 
     // Set the level of logging
-    static bool HandleServerSetLogLevelCommand(ChatHandler* /*handler*/, char const* args)
+    static bool HandleServerSetLogLevelCommand(ChatHandler* /*handler*/, std::string const& type, std::string const& name, int32 level)
     {
-        if (!*args)
+        if (name.empty() || level < 0 || (type != "a" && type != "l"))
             return false;
 
-        char* type = strtok((char*)args, " ");
-        char* name = strtok(nullptr, " ");
-        char* level = strtok(nullptr, " ");
-
-        if (!type || !name || !level || *name == '\0' || *level == '\0' || (*type != 'a' && *type != 'l'))
-            return false;
-
-        sLog->SetLogLevel(name, level, *type == 'l');
-        return true;
-    }
-
-    // set diff time record interval
-    static bool HandleServerSetDiffTimeCommand(ChatHandler* /*handler*/, char const* args)
-    {
-        if (!*args)
-            return false;
-
-        char* newTimeStr = strtok((char*)args, " ");
-        if (!newTimeStr)
-            return false;
-
-        int32 newTime = atoi(newTimeStr);
-        if (newTime < 0)
-            return false;
-
-        sWorldUpdateTime.SetRecordUpdateTimeInterval(newTime);
-        printf("Record diff every %i ms\n", newTime);
-
+        sLog->SetLogLevel(name, level, type == "l");
         return true;
     }
 
@@ -537,7 +517,7 @@ private:
         // Override parameter "delay" with the configuration value if there are still players connected and "force" parameter was not specified
         if (delay < (int32)sWorld->getIntConfig(CONFIG_FORCE_SHUTDOWN_THRESHOLD) && !(shutdownMask & SHUTDOWN_MASK_FORCE) && !IsOnlyUser(handler->GetSession()))
         {
-              delay = (int32)sWorld->getIntConfig(CONFIG_FORCE_SHUTDOWN_THRESHOLD);
+            delay = (int32)sWorld->getIntConfig(CONFIG_FORCE_SHUTDOWN_THRESHOLD);
             handler->PSendSysMessage(LANG_SHUTDOWN_DELAYED, delay);
         }
 

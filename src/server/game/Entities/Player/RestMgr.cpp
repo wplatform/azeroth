@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,6 +16,7 @@
  */
 
 #include "RestMgr.h"
+#include "GameTime.h"
 #include "Log.h"
 #include "Player.h"
 #include "Random.h"
@@ -30,65 +31,61 @@ RestMgr::RestMgr(Player* player) : _player(player), _restTime(0), _innAreaTrigge
 
 void RestMgr::SetRestBonus(RestTypes restType, float restBonus)
 {
-    uint8 rest_rested_offset;
-    uint8 rest_state_offset;
-    uint16 next_level_xp_field;
+    int32 next_level_xp;
     bool affectedByRaF = false;
 
     switch (restType)
     {
         case REST_TYPE_XP:
             // Reset restBonus (XP only) for max level players
-            if (_player->getLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL))
+            if (_player->GetLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL))
                 restBonus = 0;
 
-            rest_rested_offset = REST_RESTED_XP;
-            rest_state_offset = REST_STATE_XP;
-            next_level_xp_field = PLAYER_NEXT_LEVEL_XP;
+            next_level_xp = _player->m_activePlayerData->NextLevelXP;
             affectedByRaF = true;
             break;
         case REST_TYPE_HONOR:
             // Reset restBonus (Honor only) for players with max honor level.
-            if (_player->IsMaxHonorLevelAndPrestige())
+            if (_player->IsMaxHonorLevel())
                 restBonus = 0;
 
-            rest_rested_offset = REST_RESTED_HONOR;
-            rest_state_offset = REST_STATE_HONOR;
-            next_level_xp_field = PLAYER_FIELD_HONOR_NEXT_LEVEL;
+            next_level_xp = _player->m_activePlayerData->HonorNextLevel;
             break;
         default:
             return;
     }
 
+    float rest_bonus_max = float(next_level_xp) * 1.5f / 2;
+
     if (restBonus < 0)
         restBonus = 0;
 
-    float rest_bonus_max = float(_player->GetUInt32Value(next_level_xp_field)) * 1.5f / 2;
-
     if (restBonus > rest_bonus_max)
-        _restBonus[restType] = rest_bonus_max;
-    else
-        _restBonus[restType] = restBonus;
+        restBonus = rest_bonus_max;
+
+    uint32 oldBonus = uint32(_restBonus[restType]);
+    _restBonus[restType] = restBonus;
+
+    PlayerRestState oldRestState = static_cast<PlayerRestState>(*_player->m_activePlayerData->RestInfo[restType].StateID);
+    PlayerRestState newRestState = REST_STATE_NORMAL;
+
+    if (affectedByRaF && _player->GetsRecruitAFriendBonus(true) && (_player->GetSession()->IsARecruiter() || _player->GetSession()->GetRecruiterId() != 0))
+        newRestState = REST_STATE_RAF_LINKED;
+    else if (_restBonus[restType] >= 1)
+        newRestState = REST_STATE_RESTED;
+
+    if (oldBonus == uint32(restBonus) && oldRestState == newRestState)
+        return;
 
     // update data for client
-    if (affectedByRaF && _player->GetsRecruitAFriendBonus(true) && (_player->GetSession()->IsARecruiter() || _player->GetSession()->GetRecruiterId() != 0))
-        _player->SetUInt32Value(PLAYER_FIELD_REST_INFO + rest_state_offset, REST_STATE_RAF_LINKED);
-    else
-    {
-        if (_restBonus[restType] > 10)
-            _player->SetUInt32Value(PLAYER_FIELD_REST_INFO + rest_state_offset, REST_STATE_RESTED);
-        else if (_restBonus[restType] <= 1)
-            _player->SetUInt32Value(PLAYER_FIELD_REST_INFO + rest_state_offset, REST_STATE_NOT_RAF_LINKED);
-    }
-
-    // RestTickUpdate
-    _player->SetUInt32Value(PLAYER_FIELD_REST_INFO + rest_rested_offset, uint32(_restBonus[restType]));
+    _player->SetRestThreshold(restType, uint32(_restBonus[restType]));
+    _player->SetRestState(restType, newRestState);
 }
 
 void RestMgr::AddRestBonus(RestTypes restType, float restBonus)
 {
     // Don't add extra rest bonus to max level players. Note: Might need different condition in next expansion for honor XP (PLAYER_LEVEL_MIN_HONOR perhaps).
-    if (_player->getLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL))
+    if (_player->GetLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL))
         restBonus = 0;
 
     float totalRestBonus = GetRestBonus(restType) + restBonus;
@@ -102,8 +99,8 @@ void RestMgr::SetRestFlag(RestFlag restFlag, uint32 triggerID)
 
     if (!oldRestMask && _restFlagMask) // only set flag/time on the first rest state
     {
-        _restTime = time(nullptr);
-        _player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING);
+        _restTime = GameTime::GetGameTime();
+        _player->SetPlayerFlag(PLAYER_FLAGS_RESTING);
     }
 
     if (triggerID)
@@ -118,7 +115,7 @@ void RestMgr::RemoveRestFlag(RestFlag restFlag)
     if (oldRestMask && !_restFlagMask) // only remove flag/time on the last rest state remove
     {
         _restTime = 0;
-        _player->RemoveFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING);
+        _player->RemovePlayerFlag(PLAYER_FLAGS_RESTING);
     }
 }
 
@@ -129,9 +126,13 @@ uint32 RestMgr::GetRestBonusFor(RestTypes restType, uint32 xp)
     if (rested_bonus > xp) // max rested_bonus == xp or (r+x) = 200% xp
         rested_bonus = xp;
 
-    SetRestBonus(restType, GetRestBonus(restType) - rested_bonus);
+    uint32 rested_loss = rested_bonus;
+    if (restType == REST_TYPE_XP)
+        AddPct(rested_loss, _player->GetTotalAuraModifier(SPELL_AURA_MOD_RESTED_XP_CONSUMPTION));
 
-    TC_LOG_DEBUG("entities.player", "RestMgr::GetRestBonus: Player '%s' (%s) gain %u xp (+%u Rested Bonus). Rested points=%f", _player->GetGUID().ToString().c_str(), _player->GetName().c_str(), xp + rested_bonus, rested_bonus, GetRestBonus(restType));
+    SetRestBonus(restType, GetRestBonus(restType) - rested_loss);
+
+    TC_LOG_DEBUG("entities.player", "RestMgr::GetRestBonus: Player '{}' ({}) gain {} xp (+{} Rested Bonus). Rested points={}", _player->GetGUID().ToString(), _player->GetName(), xp + rested_bonus, rested_bonus, GetRestBonus(restType));
     return rested_bonus;
 }
 
@@ -153,8 +154,8 @@ void RestMgr::Update(time_t now)
 void RestMgr::LoadRestBonus(RestTypes restType, PlayerRestState state, float restBonus)
 {
     _restBonus[restType] = restBonus;
-    _player->SetUInt32Value(PLAYER_FIELD_REST_INFO + restType * 2, state);
-    _player->SetUInt32Value(PLAYER_FIELD_REST_INFO + restType * 2 + 1, uint32(restBonus));
+    _player->SetRestState(restType, state);
+    _player->SetRestThreshold(restType, uint32(restBonus));
 }
 
 float RestMgr::CalcExtraPerSec(RestTypes restType, float bubble) const
@@ -162,9 +163,9 @@ float RestMgr::CalcExtraPerSec(RestTypes restType, float bubble) const
     switch (restType)
     {
         case REST_TYPE_HONOR:
-            return float(_player->GetUInt32Value(PLAYER_FIELD_HONOR_NEXT_LEVEL)) / 72000.0f * bubble;
+            return float(_player->m_activePlayerData->HonorNextLevel) / 72000.0f * bubble;
         case REST_TYPE_XP:
-            return float(_player->GetUInt32Value(PLAYER_NEXT_LEVEL_XP)) / 72000.0f * bubble;
+            return float(_player->m_activePlayerData->NextLevelXP) / 72000.0f * bubble;
         default:
             return 0.0f;
     }

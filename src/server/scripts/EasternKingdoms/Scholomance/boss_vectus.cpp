@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "scholomance.h"
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 
@@ -54,17 +55,17 @@ public:
 
         void JustEngagedWith(Unit* /*who*/) override
         {
-            events.ScheduleEvent(EVENT_FIRE_SHIELD, 2000);
-            events.ScheduleEvent(EVENT_BLAST_WAVE, 14000);
+            events.ScheduleEvent(EVENT_FIRE_SHIELD, 2s);
+            events.ScheduleEvent(EVENT_BLAST_WAVE, 14s);
         }
 
-        void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+        void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
         {
             if (me->HealthBelowPctDamaged(25, damage))
             {
                 DoCast(me, SPELL_FRENZY);
                 Talk(EMOTE_FRENZY);
-                events.ScheduleEvent(EVENT_FRENZY, 24000);
+                events.ScheduleEvent(EVENT_FRENZY, 24s);
             }
         }
 
@@ -84,16 +85,16 @@ public:
                 {
                     case EVENT_FIRE_SHIELD:
                         DoCast(me, SPELL_FIRE_SHIELD);
-                        events.ScheduleEvent(EVENT_FIRE_SHIELD, 90000);
+                        events.ScheduleEvent(EVENT_FIRE_SHIELD, 90s);
                         break;
                     case EVENT_BLAST_WAVE:
                         DoCast(me, SPELL_BLAST_WAVE);
-                        events.ScheduleEvent(EVENT_BLAST_WAVE, 12000);
+                        events.ScheduleEvent(EVENT_BLAST_WAVE, 12s);
                         break;
                     case EVENT_FRENZY:
                         DoCast(me, SPELL_FRENZY);
                         Talk(EMOTE_FRENZY);
-                        events.ScheduleEvent(EVENT_FRENZY, 24000);
+                        events.ScheduleEvent(EVENT_FRENZY, 24s);
                         break;
                     default:
                         break;
@@ -112,7 +113,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return new boss_vectusAI(creature);
+        return GetScholomanceAI<boss_vectusAI>(creature);
     }
 };
 

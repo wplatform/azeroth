@@ -15,31 +15,25 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
-#include "DBCStores.h"
+#include "OutdoorPvPSI.h"
+#include "DB2Stores.h"
 #include "GameObject.h"
 #include "Language.h"
 #include "Map.h"
-#include "MapManager.h"
 #include "ObjectMgr.h"
-#include "OutdoorPvPMgr.h"
-#include "OutdoorPvPSI.h"
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "ReputationMgr.h"
+#include "ScriptMgr.h"
 #include "World.h"
-#include "WorldPacket.h"
 #include "WorldStatePackets.h"
 
 constexpr int32 SI_MAX_RESOURCES = 200;
 uint32 const SI_AREATRIGGER_H = 4168;
 uint32 const SI_AREATRIGGER_A = 4162;
-
 uint32 const SI_TURNIN_QUEST_CM_A = 17090;
 uint32 const SI_TURNIN_QUEST_CM_H = 18199;
-
 uint32 const SI_SILITHYST_MOUND = 181597;
-
 uint8 const OutdoorPvPSIBuffZonesNum = 3;
 uint32 const OutdoorPvPSIBuffZones[OutdoorPvPSIBuffZonesNum] = { 1377, 3428, 3429 };
 
@@ -91,7 +85,7 @@ void OutdoorPvPSI::HandlePlayerLeaveZone(Player* player, uint32 zone)
     OutdoorPvP::HandlePlayerLeaveZone(player, zone);
 }
 
-bool OutdoorPvPSI::HandleAreaTrigger(Player* player, uint32 trigger)
+bool OutdoorPvPSI::HandleAreaTrigger(Player* player, uint32 trigger, bool /*entered*/)
 {
     switch (trigger)
     {
@@ -156,67 +150,24 @@ bool OutdoorPvPSI::HandleDropFlag(Player* player, uint32 spellId)
     if (spellId == SI_SILITHYST_FLAG)
     {
         // if it was dropped away from the player's turn-in point, then create a silithyst mound, if it was dropped near the areatrigger, then it was dispelled by the outdoorpvp, so do nothing
-        switch (player->GetTeam())
+        if (AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(player->GetTeam() == ALLIANCE ? SI_AREATRIGGER_A : SI_AREATRIGGER_H))
         {
-            case ALLIANCE:
+            // 5.0f is safe-distance
+            if (player->GetDistance(atEntry->Pos.X, atEntry->Pos.Y, atEntry->Pos.Z) > 5.0f + atEntry->Radius)
             {
-                AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(SI_AREATRIGGER_A);
-                if (atEntry)
+                // he dropped it further, summon mound
+                Map* map = player->GetMap();
+                if (GameObject* go = GameObject::CreateGameObject(SI_SILITHYST_MOUND, map, *player, QuaternionData::fromEulerAnglesZYX(player->GetOrientation(), 0.0f, 0.0f), 255, GO_STATE_READY))
                 {
-                    // 5.0f is safe-distance
-                    if (player->GetDistance(atEntry->Pos.X, atEntry->Pos.Y, atEntry->Pos.Z) > 5.0f + atEntry->Radius)
+                    PhasingHandler::InheritPhaseShift(go, player);
+                    go->SetRespawnTime(0);
+
+                    if (!map->AddToMap(go))
                     {
-                        // he dropped it further, summon mound
-                        GameObject* go = new GameObject();
-                        Map* map = player->GetMap();
-
-                        if (!go->Create(map->GenerateLowGuid<HighGuid::GameObject>(), SI_SILITHYST_MOUND, map, *player, QuaternionData(), 255, GO_STATE_READY))
-                        {
-                            delete go;
-                            return true;
-                        }
-
-                        PhasingHandler::InheritPhaseShift(go, player);
-                        go->SetRespawnTime(0);
-
-                        if (!map->AddToMap(go))
-                        {
-                            delete go;
-                            return true;
-                        }
+                        delete go;
+                        return true;
                     }
                 }
-                break;
-            }
-            case HORDE:
-            {
-                AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(SI_AREATRIGGER_H);
-                if (atEntry)
-                {
-                    // 5.0f is safe-distance
-                    if (player->GetDistance(atEntry->Pos.X, atEntry->Pos.Y, atEntry->Pos.Z) > 5.0f + atEntry->Radius)
-                    {
-                        // he dropped it further, summon mound
-                        GameObject* go = new GameObject;
-                        Map* map = player->GetMap();
-
-                        if (!go->Create(map->GenerateLowGuid<HighGuid::GameObject>(), SI_SILITHYST_MOUND, map, *player, QuaternionData(), 255, GO_STATE_READY))
-                        {
-                            delete go;
-                            return true;
-                        }
-
-                        PhasingHandler::InheritPhaseShift(go, player);
-                        go->SetRespawnTime(0);
-
-                        if (!map->AddToMap(go))
-                        {
-                            delete go;
-                            return true;
-                        }
-                    }
-                }
-                break;
             }
         }
         return true;

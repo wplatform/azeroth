@@ -21,7 +21,7 @@
 #include "CreatureGroups.h"
 #include "InstanceScript.h"
 #include "Map.h"
-#include "MotionMaster.h"
+#include "MovementDefines.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
 #include "SpellAuras.h"
@@ -272,7 +272,7 @@ struct boss_general_bjarngrim : public BossAI
                     break;
                 case EVENT_CHECK_STANCE_COOLDOWN:
                     // General Bjarngrim uses a category cooldown to handle the stance switching, so we do as well.
-                    if (!me->GetSpellHistory()->GetRemainingCooldown(sSpellMgr->AssertSpellInfo(SPELL_STANCE_COOLDOWN)))
+                    if (me->GetSpellHistory()->GetRemainingCooldown(sSpellMgr->AssertSpellInfo(SPELL_STANCE_COOLDOWN, GetDifficulty())) == 0s)
                         DoAction(ACTION_SWITCH_STANCE);
                     events.Repeat(1s);
                     break;
@@ -288,7 +288,7 @@ struct boss_general_bjarngrim : public BossAI
                     DoCastSelf(SPELL_WHIRLWIND);
                     break;
                 case EVENT_INTERCEPT:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, -8.f, true, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, -8.f, true, true))
                         DoCast(target, SPELL_INTERCEPT);
                     break;
                 case EVENT_CLEAVE:
@@ -352,7 +352,7 @@ struct npc_bjarngrim_stormforged_lieutenant : public ScriptedAI
             switch (eventId)
             {
                 case EVENT_ARC_WELD:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.f, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.f, true))
                         DoCast(target, SPELL_ARC_WELD);
                     _events.Repeat(22s);
                     break;
@@ -380,6 +380,8 @@ private:
 // 53792 - Battle Stance
 class spell_bjarngrim_stance_dummy : public AuraScript
 {
+    PrepareAuraScript(spell_bjarngrim_stance_dummy);
+
 public:
     spell_bjarngrim_stance_dummy(uint8 stanceId) : AuraScript(), _stanceId(stanceId) { }
 
@@ -397,19 +399,19 @@ public:
         switch (_stanceId)
         {
             case STANCE_DEFENSIVE:
-                target->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0, ITEM_ID_AXE);
-                target->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1, ITEM_ID_SHIELD);
+                target->SetVirtualItem(0, ITEM_ID_AXE);
+                target->SetVirtualItem(1, ITEM_ID_SHIELD);
                 target->CastSpell(nullptr, SPELL_DEFENSIVE_AURA);
                 break;
             case STANCE_BERSERKER:
-                target->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0, ITEM_ID_AXE);
-                target->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1, ITEM_ID_AXE);
+                target->SetVirtualItem(0, ITEM_ID_AXE);
+                target->SetVirtualItem(1, ITEM_ID_AXE);
                 target->CastSpell(nullptr, SPELL_BERSERKER_AURA);
                 target->SetCanDualWield(true);
                 break;
             case STANCE_BATTLE:
-                target->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0, ITEM_ID_GREATAXE);
-                target->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1, 0);
+                target->SetVirtualItem(0, ITEM_ID_GREATAXE);
+                target->SetVirtualItem(1, 0);
                 target->CastSpell(nullptr, SPELL_BATTLE_AURA);
                 break;
             default:
@@ -444,8 +446,8 @@ public:
 
     void Register() override
     {
-        AfterEffectApply.Register(&spell_bjarngrim_stance_dummy::AfterApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
-        AfterEffectRemove.Register(&spell_bjarngrim_stance_dummy::AfterRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectApply += AuraEffectApplyFn(spell_bjarngrim_stance_dummy::AfterApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_bjarngrim_stance_dummy::AfterRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 private:
     uint8 _stanceId;
@@ -454,6 +456,8 @@ private:
 // 52098 - Charge Up
 class spell_bjarngrim_charge_up : public AuraScript
 {
+    PrepareAuraScript(spell_bjarngrim_charge_up);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_TEMPOARY_ELECTRICAL_CHARGE });
@@ -467,13 +471,15 @@ class spell_bjarngrim_charge_up : public AuraScript
 
     void Register() override
     {
-        AfterEffectRemove.Register(&spell_bjarngrim_charge_up::AfterRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_bjarngrim_charge_up::AfterRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
 // 59085 - Arc Weld
 class spell_bjarngrim_arc_weld : public AuraScript
 {
+    PrepareAuraScript(spell_bjarngrim_arc_weld);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_ARC_WELD_DAMAGE });
@@ -487,7 +493,7 @@ class spell_bjarngrim_arc_weld : public AuraScript
 
     void Register() override
     {
-        OnEffectPeriodic.Register(&spell_bjarngrim_arc_weld::HandlePeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_bjarngrim_arc_weld::HandlePeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
     }
 };
 

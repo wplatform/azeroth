@@ -24,6 +24,7 @@ EndScriptData */
 
 #include "ScriptMgr.h"
 #include "Chat.h"
+#include "ChatCommand.h"
 #include "Creature.h"
 #include "DatabaseEnv.h"
 #include "Language.h"
@@ -33,9 +34,12 @@ EndScriptData */
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "RBAC.h"
-#include "WaypointDefines.h"
 #include "WaypointManager.h"
 #include "WorldSession.h"
+
+#if TRINITY_COMPILER == TRINITY_COMPILER_GNU
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 class wp_commandscript : public CommandScript
 {
@@ -77,7 +81,7 @@ public:
     * -> adds a waypoint to the currently selected creature
     *
     *
-    * @param args if the user did not provide a GUID, it is nullptr
+    * @param args if the user did not provide a GUID, it is NULL
     *
     * @return true - command did succeed, false - something went wrong
     */
@@ -137,6 +141,7 @@ public:
         stmt->setFloat(2, player->GetPositionX());
         stmt->setFloat(3, player->GetPositionY());
         stmt->setFloat(4, player->GetPositionZ());
+        stmt->setFloat(5, player->GetOrientation());
 
         WorldDatabase.Execute(stmt);
 
@@ -156,7 +161,7 @@ public:
             path_number = strtok((char*)args, " ");
 
         uint32 pathid = 0;
-        ObjectGuid::LowType guidLow = 0;
+        ObjectGuid::LowType guidLow = UI64LIT(0);
         Creature* target = handler->getSelectedCreature();
 
         // Did player provide a path_id?
@@ -189,7 +194,7 @@ public:
 
         WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_CREATURE_ADDON_BY_GUID);
 
-        stmt->setUInt32(0, guidLow);
+        stmt->setUInt64(0, guidLow);
 
         PreparedQueryResult result = WorldDatabase.Query(stmt);
 
@@ -198,13 +203,13 @@ public:
             stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_ADDON_PATH);
 
             stmt->setUInt32(0, pathid);
-            stmt->setUInt32(1, guidLow);
+            stmt->setUInt64(1, guidLow);
         }
         else
         {
             stmt = WorldDatabase.GetPreparedStatement(WORLD_INS_CREATURE_ADDON);
 
-            stmt->setUInt32(0, guidLow);
+            stmt->setUInt64(0, guidLow);
             stmt->setUInt32(1, pathid);
         }
 
@@ -213,7 +218,7 @@ public:
         stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_MOVEMENT_TYPE);
 
         stmt->setUInt8(0, uint8(WAYPOINT_MOTION_TYPE));
-        stmt->setUInt32(1, guidLow);
+        stmt->setUInt64(1, guidLow);
 
         WorldDatabase.Execute(stmt);
 
@@ -252,29 +257,29 @@ public:
             return true;
         }
 
-        uint32 guidLow = target->GetSpawnId();
-        if (guidLow == 0)
+        ObjectGuid::LowType guidLow = target->GetSpawnId();
+        if (!guidLow)
         {
             handler->PSendSysMessage("%s%s|r", "|cffff33ff", "Target is not saved to DB.");
             return true;
         }
 
         CreatureAddon const* addon = sObjectMgr->GetCreatureAddon(guidLow);
-        if (!addon || addon->waypointPathId == 0)
+        if (!addon || addon->path_id == 0)
         {
             handler->PSendSysMessage("%s%s|r", "|cffff33ff", "Target does not have a loaded path.");
             return true;
         }
 
         stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_CREATURE_ADDON);
-        stmt->setUInt32(0, guidLow);
+        stmt->setUInt64(0, guidLow);
         WorldDatabase.Execute(stmt);
 
         target->UpdateCurrentWaypointInfo(0, 0);
 
         stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_MOVEMENT_TYPE);
         stmt->setUInt8(0, uint8(IDLE_MOTION_TYPE));
-        stmt->setUInt32(1, guidLow);
+        stmt->setUInt64(1, guidLow);
         WorldDatabase.Execute(stmt);
 
         target->LoadPath(0);
@@ -304,7 +309,7 @@ public:
         if (show == "add")
         {
             if (arg_id)
-                id = atoi(arg_id);
+                id = atoul(arg_id);
 
             if (id)
             {
@@ -346,7 +351,7 @@ public:
                 return true;
             }
 
-            id = atoi(arg_id);
+            id = atoul(arg_id);
 
             uint32 a2, a3, a4, a5, a6;
             float a8, a9, a10, a11;
@@ -391,7 +396,7 @@ public:
                 return true;
             }
 
-            id = atoi(arg_id);
+            id = atoul(arg_id);
 
             stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_WAYPOINT_SCRIPT_ID_BY_GUID);
             stmt->setUInt32(0, id);
@@ -419,11 +424,11 @@ public:
                 return true;
             }
 
-            id = atoi(arg_id);
+            id = atoul(arg_id);
 
             if (!id)
             {
-                handler->SendSysMessage("|cffff33ffERROR: No vallid waypoint script id not present.|r");
+                handler->SendSysMessage("|cffff33ffERROR: No valid waypoint script id not present.|r");
                 return true;
             }
 
@@ -457,8 +462,8 @@ public:
 
             if (arg_str_2 == "setid")
             {
-                uint32 newid = atoi(arg_3);
-                handler->PSendSysMessage("%s%s|r|cff00ffff%u|r|cff00ff00%s|r|cff00ffff%u|r", "|cff00ff00", "Wp Event: Wypoint scipt guid: ", newid, " id changed: ", id);
+                uint32 newid = atoul(arg_3);
+                handler->PSendSysMessage("%s%s|r|cff00ffff%u|r|cff00ff00%s|r|cff00ffff%u|r", "|cff00ff00", "Wp Event: Waypoint script guid: ", newid, " id changed: ", id);
 
                 stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_WAYPOINT_SCRIPT_ID);
                 stmt->setUInt32(0, newid);
@@ -525,7 +530,7 @@ public:
                 }
                 else if (arg_str_2 == "dataint")
                 {
-                    WorldDatabase.PExecute("UPDATE waypoint_scripts SET %s='%u' WHERE guid='%u'", arg_2, atoi(arg_3), id); // Query can't be a prepared statement
+                    WorldDatabase.PExecute("UPDATE waypoint_scripts SET {}='{}' WHERE guid='{}'", arg_2, atoul(arg_3), id); // Query can't be a prepared statement
 
                     handler->PSendSysMessage("|cff00ff00Waypoint script: |r|cff00ffff%u|r|cff00ff00 dataint updated.|r", id);
                     return true;
@@ -534,7 +539,7 @@ public:
                 {
                     std::string arg_str_3 = arg_3;
                     WorldDatabase.EscapeString(arg_str_3);
-                    WorldDatabase.PExecute("UPDATE waypoint_scripts SET %s='%s' WHERE guid='%u'", arg_2, arg_str_3.c_str(), id); // Query can't be a prepared statement
+                    WorldDatabase.PExecute("UPDATE waypoint_scripts SET {}='{}' WHERE guid='{}'", arg_2, arg_str_3, id); // Query can't be a prepared statement
                 }
             }
             handler->PSendSysMessage("%s%s|r|cff00ffff%u:|r|cff00ff00 %s %s|r", "|cff00ff00", "Waypoint script:", id, arg_2, "updated.");
@@ -584,12 +589,12 @@ public:
 
         // Check the creature
         stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_WAYPOINT_DATA_BY_WPGUID);
-        stmt->setUInt32(0, target->GetSpawnId());
+        stmt->setUInt64(0, target->GetSpawnId());
         PreparedQueryResult result = WorldDatabase.Query(stmt);
 
         if (!result)
         {
-            handler->PSendSysMessage(LANG_WAYPOINT_NOTFOUNDSEARCH, target->GetSpawnId());
+            handler->PSendSysMessage(LANG_WAYPOINT_NOTFOUNDSEARCH, std::to_string(target->GetSpawnId()).c_str());
             // Select waypoint number from database
             // Since we compare float values, we have to deal with
             // some difficulties.
@@ -609,7 +614,7 @@ public:
 
             if (!result)
             {
-                handler->PSendSysMessage(LANG_WAYPOINT_NOTFOUNDDBPROBLEM, target->GetSpawnId());
+                handler->PSendSysMessage(LANG_WAYPOINT_NOTFOUNDDBPROBLEM, std::to_string(target->GetSpawnId()).c_str());
                 return true;
             }
         }
@@ -658,7 +663,7 @@ public:
                 handler->SetSentErrorMessage(true);
                 return false;
             }
-        }                                                      // del
+        }                                                       // del
 
         if (show == "move")
         {
@@ -677,22 +682,27 @@ public:
             }
 
             // re-create
-            Creature* wpCreature = new Creature();
-            if (!wpCreature->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, VISUAL_WAYPOINT, *chr))
+            Creature* wpCreature = Creature::CreateCreature(VISUAL_WAYPOINT, map, chr->GetPosition());
+            if (!wpCreature)
             {
                 handler->PSendSysMessage(LANG_WAYPOINT_VP_NOTCREATED, VISUAL_WAYPOINT);
-                delete wpCreature;
                 return false;
             }
 
             PhasingHandler::InheritPhaseShift(wpCreature, chr);
+            wpCreature->SaveToDB(map->GetId(), { map->GetDifficultyID() });
 
-            wpCreature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()));
+            ObjectGuid::LowType dbGuid = wpCreature->GetSpawnId();
+
+            // current "wpCreature" variable is deleted and created fresh new, otherwise old values might trigger asserts or cause undefined behavior
+            wpCreature->CleanupsBeforeDelete();
+            delete wpCreature;
+
             // To call _LoadGoods(); _LoadQuests(); CreateTrainerSpells();
-            if (!wpCreature->LoadFromDB(wpCreature->GetSpawnId(), map, true, true))
+            wpCreature = Creature::CreateCreatureFromDB(dbGuid, map, true, true);
+            if (!wpCreature)
             {
                 handler->PSendSysMessage(LANG_WAYPOINT_VP_NOTCREATED, VISUAL_WAYPOINT);
-                delete wpCreature;
                 return false;
             }
 
@@ -700,8 +710,9 @@ public:
             stmt->setFloat(0, chr->GetPositionX());
             stmt->setFloat(1, chr->GetPositionY());
             stmt->setFloat(2, chr->GetPositionZ());
-            stmt->setUInt32(3, pathid);
-            stmt->setUInt32(4, point);
+            stmt->setFloat(3, chr->GetOrientation());
+            stmt->setUInt32(4, pathid);
+            stmt->setUInt32(5, point);
             WorldDatabase.Execute(stmt);
 
             handler->PSendSysMessage(LANG_WAYPOINT_CHANGED);
@@ -710,17 +721,17 @@ public:
 
         const char *text = arg_str;
 
-        if (text == 0)
+        if (text == nullptr)
         {
             // show_str check for present in list of correct values, no sql injection possible
-            WorldDatabase.PExecute("UPDATE waypoint_data SET %s=nullptr WHERE id='%u' AND point='%u'", show_str, pathid, point); // Query can't be a prepared statement
+            WorldDatabase.PExecute("UPDATE waypoint_data SET {}=NULL WHERE id='{}' AND point='{}'", show_str, pathid, point); // Query can't be a prepared statement
         }
         else
         {
             // show_str check for present in list of correct values, no sql injection possible
             std::string text2 = text;
             WorldDatabase.EscapeString(text2);
-            WorldDatabase.PExecute("UPDATE waypoint_data SET %s='%s' WHERE id='%u' AND point='%u'", show_str, text2.c_str(), pathid, point); // Query can't be a prepared statement
+            WorldDatabase.PExecute("UPDATE waypoint_data SET {}='{}' WHERE id='{}' AND point='{}'", show_str, text2, pathid, point); // Query can't be a prepared statement
         }
 
         handler->PSendSysMessage(LANG_WAYPOINT_CHANGED_NO, show_str);
@@ -787,12 +798,12 @@ public:
             }
 
             stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_WAYPOINT_DATA_ALL_BY_WPGUID);
-            stmt->setUInt32(0, target->GetSpawnId());
+            stmt->setUInt64(0, target->GetSpawnId());
             PreparedQueryResult result = WorldDatabase.Query(stmt);
 
             if (!result)
             {
-                handler->PSendSysMessage(LANG_WAYPOINT_NOTFOUNDDBPROBLEM, target->GetSpawnId());
+                handler->PSendSysMessage(LANG_WAYPOINT_NOTFOUNDDBPROBLEM, std::to_string(target->GetSpawnId()).c_str());
                 return true;
             }
 
@@ -805,7 +816,7 @@ public:
                 uint32 delay            = fields[2].GetUInt32();
                 uint32 flag             = fields[3].GetUInt32();
                 uint32 ev_id            = fields[4].GetUInt32();
-                uint32 ev_chance        = fields[5].GetUInt32();
+                uint32 ev_chance        = fields[5].GetUInt16();
 
                 handler->PSendSysMessage("|cff00ff00Show info: for current point: |r|cff00ffff%u|r|cff00ff00, Path ID: |r|cff00ffff%u|r", point, pathid);
                 handler->PSendSysMessage("|cff00ff00Show info: delay: |r|cff00ffff%u|r", delay);
@@ -846,12 +857,13 @@ public:
                 do
                 {
                     Field* fields = result2->Fetch();
-                    uint32 wpguid = fields[0].GetUInt32();
+                    ObjectGuid::LowType wpguid = fields[0].GetUInt64();
                     if (!Creature::DeleteFromDB(wpguid))
                     {
-                        handler->PSendSysMessage(LANG_WAYPOINT_NOTREMOVED, wpguid);
+                        handler->PSendSysMessage(LANG_WAYPOINT_NOTREMOVED, std::to_string(wpguid).c_str());
                         hasError = true;
                     }
+
                 }
                 while (result2->NextRow());
 
@@ -870,36 +882,34 @@ public:
                 float x         = fields[1].GetFloat();
                 float y         = fields[2].GetFloat();
                 float z         = fields[3].GetFloat();
+                float o         = fields[4].GetFloat();
 
                 uint32 id = VISUAL_WAYPOINT;
 
                 Player* chr = handler->GetSession()->GetPlayer();
                 Map* map = chr->GetMap();
-                float o = chr->GetOrientation();
 
-                Creature* wpCreature = new Creature();
-                if (!wpCreature->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, id, { x, y, z, o }))
+                Creature* wpCreature = Creature::CreateCreature(id, map, { x, y, z, o });
+                if (!wpCreature)
                 {
                     handler->PSendSysMessage(LANG_WAYPOINT_VP_NOTCREATED, id);
-                    delete wpCreature;
                     return false;
                 }
 
                 PhasingHandler::InheritPhaseShift(wpCreature, chr);
+                wpCreature->SaveToDB(map->GetId(), { map->GetDifficultyID() });
 
-                // Set "wpguid" column to the visual waypoint
-                stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_WAYPOINT_DATA_WPGUID);
-                stmt->setUInt32(0, wpCreature->GetSpawnId());
-                stmt->setUInt32(1, pathid);
-                stmt->setUInt32(2, point);
-                WorldDatabase.Execute(stmt);
+                ObjectGuid::LowType dbGuid = wpCreature->GetSpawnId();
 
-                wpCreature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()));
+                // current "wpCreature" variable is deleted and created fresh new, otherwise old values might trigger asserts or cause undefined behavior
+                wpCreature->CleanupsBeforeDelete();
+                delete wpCreature;
+
                 // To call _LoadGoods(); _LoadQuests(); CreateTrainerSpells();
-                if (!wpCreature->LoadFromDB(wpCreature->GetSpawnId(), map, true, true))
+                wpCreature = Creature::CreateCreatureFromDB(dbGuid, map, true, true);
+                if (!wpCreature)
                 {
                     handler->PSendSysMessage(LANG_WAYPOINT_VP_NOTCREATED, id);
-                    delete wpCreature;
                     return false;
                 }
 
@@ -909,6 +919,13 @@ public:
                     wpCreature->SetObjectScale(0.5f);
                     wpCreature->SetLevel(std::min<uint32>(point, STRONG_MAX_LEVEL));
                 }
+
+                // Set "wpguid" column to the visual waypoint
+                stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_WAYPOINT_DATA_WPGUID);
+                stmt->setUInt64(0, wpCreature->GetSpawnId());
+                stmt->setUInt32(1, pathid);
+                stmt->setUInt32(2, point);
+                WorldDatabase.Execute(stmt);
             }
             while (result->NextRow());
 
@@ -918,7 +935,7 @@ public:
 
         if (show == "first")
         {
-            handler->PSendSysMessage("|cff00ff00DEBUG: wp first, GUID: %u|r", pathid);
+            handler->PSendSysMessage("|cff00ff00DEBUG: wp first, pathid: %u|r", pathid);
 
             stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_WAYPOINT_DATA_POS_FIRST_BY_ID);
             stmt->setUInt32(0, pathid);
@@ -935,27 +952,33 @@ public:
             float x         = fields[0].GetFloat();
             float y         = fields[1].GetFloat();
             float z         = fields[2].GetFloat();
+            float o         = fields[3].GetFloat();
+
             uint32 id = VISUAL_WAYPOINT;
 
             Player* chr = handler->GetSession()->GetPlayer();
-            float o = chr->GetOrientation();
             Map* map = chr->GetMap();
 
-            Creature* creature = new Creature();
-            if (!creature->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, id, { x, y, z, o }))
+            Creature* creature = Creature::CreateCreature(id, map, { x, y, z, o });
+            if (!creature)
             {
                 handler->PSendSysMessage(LANG_WAYPOINT_VP_NOTCREATED, id);
-                delete creature;
                 return false;
             }
 
             PhasingHandler::InheritPhaseShift(creature, chr);
+            creature->SaveToDB(map->GetId(), { map->GetDifficultyID() });
 
-            creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()));
-            if (!creature->LoadFromDB(creature->GetSpawnId(), map, true, true))
+            ObjectGuid::LowType dbGuid = creature->GetSpawnId();
+
+            // current "creature" variable is deleted and created fresh new, otherwise old values might trigger asserts or cause undefined behavior
+            creature->CleanupsBeforeDelete();
+            delete creature;
+
+            creature = Creature::CreateCreatureFromDB(dbGuid, map, true, true);
+            if (!creature)
             {
                 handler->PSendSysMessage(LANG_WAYPOINT_VP_NOTCREATED, id);
-                delete creature;
                 return false;
             }
 
@@ -991,22 +1014,28 @@ public:
 
             Player* chr = handler->GetSession()->GetPlayer();
             Map* map = chr->GetMap();
+            Position pos = { x, y, z, o };
 
-            Creature* creature = new Creature();
-            if (!creature->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, id, { x, y, z, o }))
+            Creature* creature = Creature::CreateCreature(id, map, pos);
+            if (!creature)
             {
                 handler->PSendSysMessage(LANG_WAYPOINT_NOTCREATED, id);
-                delete creature;
                 return false;
             }
 
             PhasingHandler::InheritPhaseShift(creature, chr);
+            creature->SaveToDB(map->GetId(), { map->GetDifficultyID() });
 
-            creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()));
-            if (!creature->LoadFromDB(creature->GetSpawnId(), map, true, true))
+            ObjectGuid::LowType dbGuid = creature->GetSpawnId();
+
+            // current "creature" variable is deleted and created fresh new, otherwise old values might trigger asserts or cause undefined behavior
+            creature->CleanupsBeforeDelete();
+            delete creature;
+
+            creature = Creature::CreateCreatureFromDB(dbGuid, map, true, true);
+            if (!creature)
             {
                 handler->PSendSysMessage(LANG_WAYPOINT_NOTCREATED, id);
-                delete creature;
                 return false;
             }
 
@@ -1035,11 +1064,11 @@ public:
             do
             {
                 Field* fields = result->Fetch();
-                ObjectGuid::LowType lowguid = fields[0].GetUInt32();
+                ObjectGuid::LowType lowguid = fields[0].GetUInt64();
 
                 if (!Creature::DeleteFromDB(lowguid))
                 {
-                    handler->PSendSysMessage(LANG_WAYPOINT_NOTREMOVED, lowguid);
+                    handler->PSendSysMessage(LANG_WAYPOINT_NOTREMOVED, std::to_string(lowguid).c_str());
                     hasError = true;
                 }
             }

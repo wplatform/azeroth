@@ -74,26 +74,23 @@ class OutdoorPvPHP : public OutdoorPvP
         OutdoorPvPHP(Map* map);
 
         bool SetupOutdoorPvP() override;
+
         void OnGameObjectCreate(GameObject* go) override;
 
         void HandlePlayerEnterZone(Player* player, uint32 zone) override;
         void HandlePlayerLeaveZone(Player* player, uint32 zone) override;
 
         bool Update(uint32 diff) override;
-
         void SendRemoveWorldStates(Player* player) override;
-
         void HandleKillImpl(Player* player, Unit* killed) override;
 
         uint32 GetAllianceTowersControlled() const;
         void SetAllianceTowersControlled(uint32 count);
-
         uint32 GetHordeTowersControlled() const;
         void SetHordeTowersControlled(uint32 count);
 
     private:
-        // how many towers are controlled
-        uint32 m_AllianceTowersControlled;
+        uint32 m_AllianceTowersControlled; // how many towers are controlled
         uint32 m_HordeTowersControlled;
         std::array<ObjectGuid::LowType, HP_TOWER_NUM> m_towerFlagSpawnIds;
 };

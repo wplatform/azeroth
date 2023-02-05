@@ -24,24 +24,25 @@
 
 enum Spells
 {
-    SPELL_CURSE_OF_TWISTED_FLESH    = 58845,
-    SPELL_EXPLODE_GHOUL             = 52480,
-    SPELL_SHADOW_BOLT               = 57725,
-    SPELL_STEAL_FLESH               = 52708,
-    SPELL_STEAL_FLESH_DEBUFF        = 52711,
-    SPELL_STEAL_FLESH_BUFF          = 52712,
-    SPELL_SUMMON_GHOULS             = 52451
+    SPELL_CURSE_OF_TWISTED_FLESH = 58845,
+    SPELL_STEAL_FLESH = 52708,
+    SPELL_STEAL_FLESH_DEBUFF = 52711,
+    SPELL_STEAL_FLESH_BUFF = 52712,
+    SPELL_SUMMON_GHOULS = 52451
 };
+
+#define SPELL_EXPLODE_GHOUL DUNGEON_MODE(52480,58825)
+#define SPELL_SHADOW_BOLT DUNGEON_MODE(57725,58827)
 
 enum Yells
 {
-    SAY_AGGRO           = 0,
-    SAY_SPAWN           = 1,
-    SAY_SLAY            = 2,
-    SAY_DEATH           = 3,
-    SAY_EXPLODE_GHOUL   = 4,
-    SAY_STEAL_FLESH     = 5,
-    SAY_SUMMON_GHOULS   = 6
+    SAY_AGGRO = 0,
+    SAY_SPAWN = 1,
+    SAY_SLAY = 2,
+    SAY_DEATH = 3,
+    SAY_EXPLODE_GHOUL = 4,
+    SAY_STEAL_FLESH = 5,
+    SAY_SUMMON_GHOULS = 6
 };
 
 enum Events
@@ -97,13 +98,13 @@ class boss_salramm : public CreatureScript
                         events.ScheduleEvent(EVENT_EXPLODE_GHOUL2, Seconds(25), Seconds(29));
                         break;
                     case EVENT_SHADOW_BOLT:
-                        if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
                             DoCast(target, SPELL_SHADOW_BOLT);
                         events.Repeat(Seconds(3));
                         break;
                     case EVENT_STEAL_FLESH:
                         Talk(SAY_STEAL_FLESH);
-                        if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 50.0f, true))
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1, 50.0f, true))
                             DoCast(target, SPELL_STEAL_FLESH);
                         events.Repeat(Seconds(15), Seconds(20));
                         break;
@@ -139,8 +140,11 @@ class boss_salramm : public CreatureScript
         }
 };
 
+// 52708 - Steal Flesh
 class spell_salramm_steal_flesh : public AuraScript
 {
+    PrepareAuraScript(spell_salramm_steal_flesh);
+
     void HandlePeriodic(AuraEffect const* /*eff*/)
     {
         GetCaster()->CastSpell(GetCaster(), SPELL_STEAL_FLESH_BUFF, true);
@@ -149,7 +153,7 @@ class spell_salramm_steal_flesh : public AuraScript
 
     void Register() override
     {
-        OnEffectPeriodic.Register(&spell_salramm_steal_flesh::HandlePeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_salramm_steal_flesh::HandlePeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
     }
 };
 

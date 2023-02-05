@@ -15,16 +15,12 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
 #include "GameObject.h"
 #include "Map.h"
-#include "MapManager.h"
 #include "ObjectAccessor.h"
-#include "OutdoorPvP.h"
-#include "OutdoorPvPMgr.h"
 #include "OutdoorPvPTF.h"
 #include "Player.h"
-#include "WorldPacket.h"
+#include "ScriptMgr.h"
 #include "WorldStatePackets.h"
 
 uint8 const OutdoorPvPTFBuffZonesNum = 5;
@@ -88,14 +84,11 @@ uint32 const TFTowerPlayerLeaveEvents[TF_TOWER_NUM] =
 OutdoorPvPTF::OutdoorPvPTF(Map* map) : OutdoorPvP(map)
 {
     m_TypeId = OUTDOOR_PVP_TF;
-
     m_IsLocked = false;
     m_LockTimer = TF_LOCK_TIME;
     m_LockTimerUpdate = 0;
-
     m_AllianceTowersControlled = 0;
     m_HordeTowersControlled = 0;
-
     hours_left = 6;
     second_digit = 0;
     first_digit = 0;
@@ -276,7 +269,6 @@ bool OutdoorPvPTF::SetupOutdoorPvP()
     return true;
 }
 
-
 void OutdoorPvPTF::OnGameObjectCreate(GameObject* go)
 {
     switch (go->GetEntry())
@@ -334,46 +326,46 @@ void OPvPCapturePointTF::ChangeState()
 
     switch (m_State)
     {
-    case OBJECTIVESTATE_ALLIANCE:
-    {
-        m_TowerState = TF_TOWERSTATE_A;
-        artkit = 2;
-        uint32 alliance_towers = ((OutdoorPvPTF*)m_PvP)->GetAllianceTowersControlled();
-        if (alliance_towers < TF_TOWER_NUM)
-            ((OutdoorPvPTF*)m_PvP)->SetAllianceTowersControlled(++alliance_towers);
+        case OBJECTIVESTATE_ALLIANCE:
+        {
+            m_TowerState = TF_TOWERSTATE_A;
+            artkit = 2;
+            uint32 alliance_towers = ((OutdoorPvPTF*)m_PvP)->GetAllianceTowersControlled();
+            if (alliance_towers < TF_TOWER_NUM)
+                ((OutdoorPvPTF*)m_PvP)->SetAllianceTowersControlled(++alliance_towers);
 
-        m_PvP->SendDefenseMessage(OutdoorPvPTFBuffZones[0], TEXT_SPIRIT_TOWER_TAKEN_ALLIANCE);
+            m_PvP->SendDefenseMessage(OutdoorPvPTFBuffZones[0], TEXT_SPIRIT_TOWER_TAKEN_ALLIANCE);
 
-        for (GuidSet::iterator itr = m_activePlayers[0].begin(); itr != m_activePlayers[0].end(); ++itr)
-            if (Player* player = ObjectAccessor::FindPlayer(*itr))
-                player->AreaExploredOrEventHappens(TF_ALLY_QUEST);
-        break;
+            for (GuidSet::iterator itr = m_activePlayers[0].begin(); itr != m_activePlayers[0].end(); ++itr)
+                if (Player* player = ObjectAccessor::FindPlayer(*itr))
+                    player->AreaExploredOrEventHappens(TF_ALLY_QUEST);
+            break;
+        }
+        case OBJECTIVESTATE_HORDE:
+        {
+            m_TowerState = TF_TOWERSTATE_H;
+            artkit = 1;
+            uint32 horde_towers = ((OutdoorPvPTF*)m_PvP)->GetHordeTowersControlled();
+            if (horde_towers < TF_TOWER_NUM)
+                ((OutdoorPvPTF*)m_PvP)->SetHordeTowersControlled(++horde_towers);
+
+            m_PvP->SendDefenseMessage(OutdoorPvPTFBuffZones[0], TEXT_SPIRIT_TOWER_TAKEN_HORDE);
+
+            for (GuidSet::iterator itr = m_activePlayers[1].begin(); itr != m_activePlayers[1].end(); ++itr)
+                if (Player* player = ObjectAccessor::FindPlayer(*itr))
+                    player->AreaExploredOrEventHappens(TF_HORDE_QUEST);
+            break;
+        }
+        case OBJECTIVESTATE_NEUTRAL:
+        case OBJECTIVESTATE_NEUTRAL_ALLIANCE_CHALLENGE:
+        case OBJECTIVESTATE_NEUTRAL_HORDE_CHALLENGE:
+        case OBJECTIVESTATE_ALLIANCE_HORDE_CHALLENGE:
+        case OBJECTIVESTATE_HORDE_ALLIANCE_CHALLENGE:
+            m_TowerState = TF_TOWERSTATE_N;
+            break;
     }
-    case OBJECTIVESTATE_HORDE:
-    {
-        m_TowerState = TF_TOWERSTATE_H;
-        artkit = 1;
-        uint32 horde_towers = ((OutdoorPvPTF*)m_PvP)->GetHordeTowersControlled();
-        if (horde_towers < TF_TOWER_NUM)
-            ((OutdoorPvPTF*)m_PvP)->SetHordeTowersControlled(++horde_towers);
 
-        m_PvP->SendDefenseMessage(OutdoorPvPTFBuffZones[0], TEXT_SPIRIT_TOWER_TAKEN_HORDE);
-
-        for (GuidSet::iterator itr = m_activePlayers[1].begin(); itr != m_activePlayers[1].end(); ++itr)
-            if (Player* player = ObjectAccessor::FindPlayer(*itr))
-                player->AreaExploredOrEventHappens(TF_HORDE_QUEST);
-        break;
-    }
-    case OBJECTIVESTATE_NEUTRAL:
-    case OBJECTIVESTATE_NEUTRAL_ALLIANCE_CHALLENGE:
-    case OBJECTIVESTATE_NEUTRAL_HORDE_CHALLENGE:
-    case OBJECTIVESTATE_ALLIANCE_HORDE_CHALLENGE:
-    case OBJECTIVESTATE_HORDE_ALLIANCE_CHALLENGE:
-        m_TowerState = TF_TOWERSTATE_N;
-        break;
-    }
-
-    auto bounds = sMapMgr->FindMap(530, 0)->GetGameObjectBySpawnIdStore().equal_range(m_capturePointSpawnId);
+    auto bounds = m_PvP->GetMap()->GetGameObjectBySpawnIdStore().equal_range(m_capturePointSpawnId);
     for (auto itr = bounds.first; itr != bounds.second; ++itr)
         itr->second->SetGoArtKit(artkit);
 

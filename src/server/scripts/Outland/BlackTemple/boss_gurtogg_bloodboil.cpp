@@ -89,7 +89,6 @@ enum Events
     EVENT_CHARGE_PLAYER
 };
 
-
 struct boss_gurtogg_bloodboil : public BossAI
 {
     boss_gurtogg_bloodboil(Creature* creature) : BossAI(creature, DATA_GURTOGG_BLOODBOIL)
@@ -194,7 +193,7 @@ struct boss_gurtogg_bloodboil : public BossAI
                     events.Repeat(Seconds(10));
                     break;
                 case EVENT_FEL_ACID_BREATH:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, me->GetCombatReach()))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, me->GetCombatReach()))
                         DoCast(target, SPELL_FEL_ACID_BREATH);
                     events.Repeat(Seconds(25), Seconds(30));
                     break;
@@ -209,7 +208,7 @@ struct boss_gurtogg_bloodboil : public BossAI
                     ChangePhase();
                     break;
                 case EVENT_START_PHASE_2:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1))
                     {
                         if (Unit* oldTarget = me->GetVictim())
                         {
@@ -318,6 +317,8 @@ struct npc_fel_geyser : public PassiveAI
 // 42005 - Bloodboil
 class spell_gurtogg_bloodboil_bloodboil : public SpellScript
 {
+    PrepareSpellScript(spell_gurtogg_bloodboil_bloodboil);
+
     void FilterTargets(std::list<WorldObject*>& targets)
     {
         if (targets.size() <= 5)
@@ -331,13 +332,15 @@ class spell_gurtogg_bloodboil_bloodboil : public SpellScript
 
     void Register() override
     {
-        OnObjectAreaTargetSelect.Register(&spell_gurtogg_bloodboil_bloodboil::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_gurtogg_bloodboil_bloodboil::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
     }
 };
 
 // 40618 - Insignificance
 class spell_gurtogg_bloodboil_insignificance : public SpellScript
 {
+    PrepareSpellScript(spell_gurtogg_bloodboil_insignificance);
+
     bool Validate(SpellInfo const* /*spell*/) override
     {
         return ValidateSpellInfo({ SPELL_FEL_RAGE_TARGET });
@@ -350,7 +353,7 @@ class spell_gurtogg_bloodboil_insignificance : public SpellScript
 
     void Register() override
     {
-        OnObjectAreaTargetSelect.Register(&spell_gurtogg_bloodboil_insignificance::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_gurtogg_bloodboil_insignificance::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
     }
 };
 

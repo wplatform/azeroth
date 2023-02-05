@@ -19,94 +19,24 @@
 #define DEF_SHADOWFANG_H
 
 #include "CreatureAIImpl.h"
-#include "SpellScript.h"
 
+#define SFKScriptName "instance_shadowfang_keep"
 #define DataHeader "SK"
-#define SKScriptName "instance_shadowfang_keep"
-
-uint32 const EncounterCount = 7;
 
 enum SKDataTypes
 {
-    // Bosses
-    DATA_BARON_ASHBURY          = 0,
-    DATA_BARON_SILVERLAINE      = 1,
-    DATA_COMMANDER_SPRINGVALE   = 2,
-    DATA_LORD_WALDEN            = 3,
-    DATA_LORD_GODFREY           = 4,
-    DATA_APOTHECARY_HUMMEL      = 5,
-
-    // Additional data
-    DATA_TEAM_IN_INSTANCE,
-    DATA_OUTSIDE_TROUPS_SPAWN,
-    DATA_GODFREY_INTRO_SPAWN,
-    DATA_DEBUG_ANNOUNCER,
-    DATA_ARUGAL_DOOR,
-    DATA_SORCERER_GATE,
-    DATA_COURTYARD_DOOR
+    TYPE_FREE_NPC               = 1,
+    TYPE_RETHILGORE             = 2,
+    TYPE_FENRUS                 = 3,
+    TYPE_NANDOS                 = 4,
+    BOSS_ARUGAL                 = 5,
+    DATA_APOTHECARY_HUMMEL      = 6
 };
 
-enum SKCreatures
+template <class AI, class T>
+inline AI* GetShadowfangKeepAI(T* obj)
 {
-    // Bosses
-    BOSS_BARON_ASHBURY              = 46962,
-    BOSS_BARON_SILVERLAINE          = 3887,
-    BOSS_COMMANDER_SPRINGVALE       = 4278,
-    BOSS_LORD_WALDEN                = 46963,
-    BOSS_LORD_GODFREY               = 46964,
-
-    // Encounter related creatures
-    /*Baron Silverlaine*/
-    NPC_WORGEN_SPIRIT_NANDOS        = 51047,
-    NPC_WOLF_MASTER_NANDOS          = 50851,
-    NPC_WORGEN_SPIRIT_ODO           = 50934,
-    NPC_ODO_THE_BLINDWATCHER        = 50857,
-    NPC_WORGEN_SPIRIT_RAZORCLAW     = 51080,
-    NPC_RAZORCLAW_THE_BUTCHER       = 50869,
-    NPC_WORGEN_SPIRIT_RETHILGORE    = 51085,
-    NPC_RETHILGORE                  = 50834,
-
-    /*Commander Springvale*/
-    NPC_TORMENTED_OFFICER           = 50615,
-    NPC_WAILING_GUARDSMAN           = 50613,
-    NPC_SHIELD_FOCUS                = 50547,
-    NPC_DESECRATION_STALKER         = 50503,
-
-    /*Lord Walden*/
-    NPC_MYSTERY_TOXIN               = 50522,
-
-    /*Lord Godfrey*/
-    NPC_BLOODTHIRSTY_GHOUL          = 50561,
-    NPC_PISTOL_BARRAGE_DUMMY        = 52065,
-
-    // Generic NPCs
-    NPC_HIGH_WARLORD_CROMUSH        = 47294,
-    NPC_PACKLEADER_IVAR_BLOODFANG   = 47006,
-    NPC_DEBUG_ANNOUNCER             = 43679,
-    NPC_BLOODFANG_BERSERKER         = 47027,
-    NPC_FORSAKEN_BLIGHTSPREADER     = 47031
-};
-
-enum SKGameObjectIds
-{
-    GO_COURTYARD_DOOR   = 18895,
-    GO_SORCERERS_DOOR   = 18972,
-    GO_ARUGALS_LAIR     = 18971
-};
-
-enum SKWorldStates
-{
-    // Baron Ashbury
-    WORLD_STATE_ID_PARDON_DENIED = 5670,
-
-    // Commander Springvale
-    WORLD_STATE_ID_TO_THE_GROUND = 5672
-};
-
-template<class AI>
-AI* GetShadowfangKeepAI(Creature* creature)
-{
-    return GetInstanceAI<AI>(creature, SKScriptName);
+    return GetInstanceAI<AI>(obj, SFKScriptName);
 }
 
 #define RegisterShadowfangKeepCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetShadowfangKeepAI)

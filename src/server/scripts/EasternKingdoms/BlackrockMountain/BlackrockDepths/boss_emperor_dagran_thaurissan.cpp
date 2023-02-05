@@ -65,8 +65,8 @@ class boss_emperor_dagran_thaurissan : public CreatureScript
             {
                 Talk(SAY_AGGRO);
                 me->CallForHelp(VISIBLE_RANGE);
-                _events.ScheduleEvent(EVENT_HANDOFTHAURISSAN, 4000);
-                _events.ScheduleEvent(EVENT_AVATAROFFLAME, 25000);
+                _events.ScheduleEvent(EVENT_HANDOFTHAURISSAN, 4s);
+                _events.ScheduleEvent(EVENT_AVATAROFFLAME, 25s);
             }
 
             void KilledUnit(Unit* who) override
@@ -97,13 +97,13 @@ class boss_emperor_dagran_thaurissan : public CreatureScript
                     switch (eventId)
                     {
                         case EVENT_HANDOFTHAURISSAN:
-                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                                 DoCast(target, SPELL_HANDOFTHAURISSAN);
-                            _events.ScheduleEvent(EVENT_HANDOFTHAURISSAN, 5000);
+                            _events.ScheduleEvent(EVENT_HANDOFTHAURISSAN, 5s);
                             break;
                         case EVENT_AVATAROFFLAME:
                             DoCastVictim(SPELL_AVATAROFFLAME);
-                            _events.ScheduleEvent(EVENT_AVATAROFFLAME, 18000);
+                            _events.ScheduleEvent(EVENT_AVATAROFFLAME, 18s);
                             break;
                         default:
                             break;
