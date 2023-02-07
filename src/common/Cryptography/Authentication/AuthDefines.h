@@ -15,23 +15,13 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SceneDefines_h__
-#define SceneDefines_h__
+#ifndef TRINITY_AUTHDEFINES_H
+#define TRINITY_AUTHDEFINES_H
 
 #include "Define.h"
-#include "EnumFlag.h"
+#include <array>
 
-enum class SceneFlag : uint32
-{
-    None                        = 0x00,
-    PlayerNonInteractablePhased = 0x01, // Sets UNIT_FLAG_IMMUNE_TO_PC + UNIT_FLAG_IMMUNE_TO_NPC + UNIT_FLAG_PACIFIED
-    FadeToBlackscreenOnComplete = 0x02,
-    NotCancelable               = 0x04,
-    FadeToBlackscreenOnCancel   = 0x08,
+constexpr size_t SESSION_KEY_LENGTH = 40;
+using SessionKey = std::array<uint8, SESSION_KEY_LENGTH>;
 
-    IgnoreTransport             = 0x20
-};
-
-DEFINE_ENUM_FLAG(SceneFlag);
-
-#endif // SceneDefines_h__
+#endif

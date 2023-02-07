@@ -113,21 +113,7 @@ struct RaceMask
             case RACE_HIGHMOUNTAIN_TAUREN:
             case RACE_VOID_ELF:
             case RACE_LIGHTFORGED_DRAENEI:
-            case RACE_ZANDALARI_TROLL:
-            case RACE_KUL_TIRAN:
                 return raceId - 1;
-            case RACE_DARK_IRON_DWARF:
-                return 11;
-            case RACE_VULPERA:
-                return 12;
-            case RACE_MAGHAR_ORC:
-                return 13;
-            case RACE_MECHAGNOME:
-                return 14;
-            case RACE_DRACTHYR_ALLIANCE:
-                return 16;
-            case RACE_DRACTHYR_HORDE:
-                return 15;
             default:
                 break;
         }

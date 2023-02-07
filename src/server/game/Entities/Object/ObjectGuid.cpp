@@ -510,11 +510,6 @@ namespace
         SET_GUID_INFO(CommerceObj, FormatGlobal, ParseGlobal);
         SET_GUID_INFO(ClientSession, FormatClient, ParseClient);
         SET_GUID_INFO(Cast, FormatWorldObject, ParseWorldObject);
-        SET_GUID_INFO(ClientConnection, FormatClient, ParseClient);
-        SET_GUID_INFO(ClubFinder, FormatClubFinder, ParseClubFinder);
-        SET_GUID_INFO(ToolsClient, FormatToolsClient, ParseToolsClient);
-        SET_GUID_INFO(WorldLayer, FormatWorldLayer, ParseWorldLayer);
-        SET_GUID_INFO(ArenaTeam, FormatGuild, ParseGuild);
 
 #undef SET_GUID_INFO
     }
@@ -690,32 +685,6 @@ ObjectGuid ObjectGuidFactory::CreateClient(HighGuid type, uint32 realmId, uint32
         | (uint64(GetRealmIdForObjectGuid(realmId) & 0x1FFF) << 42)
         | (uint64(arg1 & 0xFFFFFFFF) << 10)),
         counter);
-}
-
-ObjectGuid ObjectGuidFactory::CreateClubFinder(uint32 realmId, uint8 type, uint32 clubFinderId, ObjectGuid::LowType dbId)
-{
-    return ObjectGuid(uint64((uint64(HighGuid::ClubFinder) << 58)
-        | (type == 1 ? (uint64(GetRealmIdForObjectGuid(realmId) & 0x1FFF) << 42) : UI64LIT(0))
-        | (uint64(type & 0xFF) << 33)
-        | (uint64(clubFinderId & 0xFFFFFFFF))),
-        dbId);
-}
-
-ObjectGuid ObjectGuidFactory::CreateToolsClient(uint16 mapId, uint32 serverId, uint64 counter)
-{
-    return ObjectGuid(uint64((uint64(HighGuid::ToolsClient) << 58)
-        | uint64(mapId)),
-        uint64((uint64(serverId & 0xFFFFFF) << 40)
-        | (counter & UI64LIT(0xFFFFFFFFFF))));
-}
-
-ObjectGuid ObjectGuidFactory::CreateWorldLayer(uint32 arg1, uint16 arg2, uint8 arg3, uint32 arg4)
-{
-    return ObjectGuid(uint64((uint64(HighGuid::WorldLayer) << 58)
-        | (uint64(arg1 & 0xFFFFFFFF) << 10)
-        | (uint64(arg2 & 0x1FF))),
-        uint64((uint64(arg3 & 0xFF) << 24)
-        | uint64(arg4 & 0x7FFFFF)));
 }
 
 ObjectGuid const ObjectGuid::Empty = ObjectGuid();

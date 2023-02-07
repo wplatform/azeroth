@@ -30,41 +30,35 @@
 
 enum TypeID
 {
-    TYPEID_OBJECT                 = 0,
-    TYPEID_ITEM                   = 1,
-    TYPEID_CONTAINER              = 2,
-    TYPEID_AZERITE_EMPOWERED_ITEM = 3,
-    TYPEID_AZERITE_ITEM           = 4,
-    TYPEID_UNIT                   = 5,
-    TYPEID_PLAYER                 = 6,
-    TYPEID_ACTIVE_PLAYER          = 7,
-    TYPEID_GAMEOBJECT             = 8,
-    TYPEID_DYNAMICOBJECT          = 9,
-    TYPEID_CORPSE                 = 10,
-    TYPEID_AREATRIGGER            = 11,
-    TYPEID_SCENEOBJECT            = 12,
-    TYPEID_CONVERSATION           = 13
+    TYPEID_OBJECT        = 0,
+    TYPEID_ITEM          = 1,
+    TYPEID_CONTAINER     = 2,
+    TYPEID_UNIT          = 3,
+    TYPEID_PLAYER        = 4,
+    TYPEID_GAMEOBJECT    = 5,
+    TYPEID_DYNAMICOBJECT = 6,
+    TYPEID_CORPSE        = 7,
+    TYPEID_AREATRIGGER   = 8,
+    TYPEID_SCENEOBJECT   = 9,
+    TYPEID_CONVERSATION  = 10
 };
 
-#define NUM_CLIENT_OBJECT_TYPES             14
+#define NUM_CLIENT_OBJECT_TYPES             11
 
 enum TypeMask
 {
-    TYPEMASK_OBJECT                 = 0x0001,
-    TYPEMASK_ITEM                   = 0x0002,
-    TYPEMASK_CONTAINER              = 0x0004,
-    TYPEMASK_AZERITE_EMPOWERED_ITEM = 0x0008,
-    TYPEMASK_AZERITE_ITEM           = 0x0010,
-    TYPEMASK_UNIT                   = 0x0020,
-    TYPEMASK_PLAYER                 = 0x0040,
-    TYPEMASK_ACTIVE_PLAYER          = 0x0080,
-    TYPEMASK_GAMEOBJECT             = 0x0100,
-    TYPEMASK_DYNAMICOBJECT          = 0x0200,
-    TYPEMASK_CORPSE                 = 0x0400,
-    TYPEMASK_AREATRIGGER            = 0x0800,
-    TYPEMASK_SCENEOBJECT            = 0x1000,
-    TYPEMASK_CONVERSATION           = 0x2000,
-    TYPEMASK_SEER                   = TYPEMASK_PLAYER | TYPEMASK_UNIT | TYPEMASK_DYNAMICOBJECT
+    TYPEMASK_OBJECT         = 0x0001,
+    TYPEMASK_ITEM           = 0x0002,
+    TYPEMASK_CONTAINER      = 0x0004,
+    TYPEMASK_UNIT           = 0x0008,
+    TYPEMASK_PLAYER         = 0x0010,
+    TYPEMASK_GAMEOBJECT     = 0x0020,
+    TYPEMASK_DYNAMICOBJECT  = 0x0040,
+    TYPEMASK_CORPSE         = 0x0080,
+    TYPEMASK_AREATRIGGER    = 0x0100,
+    TYPEMASK_SCENEOBJECT    = 0x0200,
+    TYPEMASK_CONVERSATION   = 0x0400,
+    TYPEMASK_SEER           = TYPEMASK_PLAYER | TYPEMASK_UNIT | TYPEMASK_DYNAMICOBJECT
 };
 
 enum class HighGuid
@@ -117,11 +111,6 @@ enum class HighGuid
     CommerceObj      = 45,
     ClientSession    = 46,
     Cast             = 47,
-    ClientConnection = 48,
-    ClubFinder       = 49,
-    ToolsClient      = 50,
-    WorldLayer       = 51,
-    ArenaTeam        = 52,
 
     Count,
 };
@@ -220,11 +209,6 @@ MAKE_GUID_TRAIT(HighGuid::BattlePet, ObjectGuidSequenceSource::Global, ObjectGui
 MAKE_GUID_TRAIT(HighGuid::CommerceObj, ObjectGuidSequenceSource::Global, ObjectGuidFormatType::Global);
 MAKE_GUID_TRAIT(HighGuid::ClientSession, ObjectGuidSequenceSource::Realm, ObjectGuidFormatType::Client);
 MAKE_GUID_TRAIT(HighGuid::Cast, ObjectGuidSequenceSource::Map, ObjectGuidFormatType::WorldObject);
-MAKE_GUID_TRAIT(HighGuid::ClientConnection, ObjectGuidSequenceSource::Realm, ObjectGuidFormatType::Client);
-MAKE_GUID_TRAIT(HighGuid::ClubFinder, ObjectGuidSequenceSource::Global, ObjectGuidFormatType::ClubFinder);
-MAKE_GUID_TRAIT(HighGuid::ToolsClient, ObjectGuidSequenceSource::Realm, ObjectGuidFormatType::ToolsClient);
-MAKE_GUID_TRAIT(HighGuid::WorldLayer, ObjectGuidSequenceSource::Global, ObjectGuidFormatType::WorldLayer);
-MAKE_GUID_TRAIT(HighGuid::ArenaTeam, ObjectGuidSequenceSource::Realm, ObjectGuidFormatType::Guild);
 
 class ByteBuffer;
 class ObjectGuid;

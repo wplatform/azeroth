@@ -1,5 +1,5 @@
 /*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,10 +19,7 @@
 #define MovementInfo_h__
 
 #include "ObjectGuid.h"
-#include "Optional.h"
 #include "Position.h"
-#include <algorithm>
-#include <vector>
 
 struct MovementInfo
 {
@@ -30,7 +27,6 @@ struct MovementInfo
     ObjectGuid guid;
     uint32 flags;
     uint32 flags2;
-    uint32 flags3;
     Position pos;
     uint32 time;
 
@@ -58,17 +54,6 @@ struct MovementInfo
     // swimming/flying
     float pitch;
 
-    struct Inertia
-    {
-        Inertia() : id(0), lifetime(0) { }
-
-        int32 id;
-        Position force;
-        uint32 lifetime;
-    };
-
-    Optional<Inertia> inertia;
-
     // jumping
     struct JumpInfo
     {
@@ -84,19 +69,11 @@ struct MovementInfo
 
     } jump;
 
-    float stepUpStartElevation;
-
-    // advflying
-    struct AdvFlying
-    {
-        float forwardVelocity;
-        float upVelocity;
-    };
-
-    Optional<AdvFlying> advFlying;
+    // spline
+    float splineElevation;
 
     MovementInfo() :
-        flags(0), flags2(0), flags3(0), time(0), pitch(0.0f), stepUpStartElevation(0.0f)
+        flags(0), flags2(0), time(0), pitch(0.0f), splineElevation(0.0f)
     {
         pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
         transport.Reset();
@@ -114,12 +91,6 @@ struct MovementInfo
     void AddExtraMovementFlag(uint32 flag) { flags2 |= flag; }
     void RemoveExtraMovementFlag(uint32 flag) { flags2 &= ~flag; }
     bool HasExtraMovementFlag(uint32 flag) const { return (flags2 & flag) != 0; }
-
-    uint32 GetExtraMovementFlags2() const { return flags3; }
-    void SetExtraMovementFlags2(uint32 flag) { flags3 = flag; }
-    void AddExtraMovementFlag2(uint32 flag) { flags3 |= flag; }
-    void RemoveExtraMovementFlag2(uint32 flag) { flags3 &= ~flag; }
-    bool HasExtraMovementFlag2(uint32 flag) const { return (flags3 & flag) != 0; }
 
     uint32 GetFallTime() const { return jump.fallTime; }
     void SetFallTime(uint32 fallTime) { jump.fallTime = fallTime; }

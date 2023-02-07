@@ -830,7 +830,7 @@ TC_COMMON_API Optional<std::size_t> RemoveCRLF(std::string & str)
     return nextLineIndex;
 }
 
-std::string Trinity::Impl::ByteArrayToHexStr(uint8 const* bytes, uint32 arrayLen, bool reverse /* = false */)
+std::string Trinity::Impl::ByteArrayToHexStr(uint8 const* bytes, size_t arrayLen, bool reverse /* = false */)
 {
     uint32 init = 0;
     uint32 end = arrayLen;
