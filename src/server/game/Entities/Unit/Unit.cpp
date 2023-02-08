@@ -79,6 +79,7 @@
 #include "TemporarySummon.h"
 #include "Totem.h"
 #include "Transport.h"
+#include "UpdateFieldFlags.h"
 #include "Util.h"
 #include "Vehicle.h"
 #include "VehiclePackets.h"
@@ -313,7 +314,7 @@ Unit::Unit(bool isWorldObject) :
     m_objectType |= TYPEMASK_UNIT;
     m_objectTypeId = TYPEID_UNIT;
 
-    m_updateFlag.MovementUpdate = true;
+    m_updateFlag = UPDATEFLAG_LIVING;
 
     for (uint32 i = 0; i < MAX_ATTACK; ++i)
     {
@@ -5824,7 +5825,7 @@ void Unit::SetOwnerGUID(ObjectGuid owner)
     if (GetOwnerGUID() == owner)
         return;
 
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::SummonedBy), owner);
+    SetGuidValue(UNIT_FIELD_SUMMONEDBY, owner);
     if (!owner)
         return;
 
@@ -5835,7 +5836,7 @@ void Unit::SetOwnerGUID(ObjectGuid owner)
 
     UpdateData udata(GetMapId());
     WorldPacket packet;
-    BuildValuesUpdateBlockForPlayerWithFlag(&udata, UF::UpdateFieldFlag::Owner, player);
+    BuildValuesUpdateBlockForPlayer(&udata, player);
     udata.BuildPacket(&packet);
     player->SendDirectMessage(&packet);
 }

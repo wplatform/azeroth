@@ -39,17 +39,11 @@ enum Difficulty : uint8;
 enum ProcFlags : uint32;
 enum ProcFlags2 : int32;
 
-namespace UF
-{
-    struct SpellCastVisual;
-}
-
 namespace WorldPackets
 {
     namespace Spells
     {
         struct SpellCastRequest;
-        struct SpellCastVisual;
         struct SpellTargetData;
     }
 }
@@ -484,14 +478,6 @@ struct TC_GAME_API CastSpellExtraArgs
     CastSpellExtraArgs& operator=(CastSpellExtraArgs&&) = delete;
 };
 
-struct SpellCastVisual
-{
-    uint32 SpellXSpellVisualID = 0;
-    uint32 ScriptVisualID = 0;
-
-    operator UF::SpellCastVisual() const;
-    operator WorldPackets::Spells::SpellCastVisual() const;
-};
 
 class ProcFlagsInit : public FlagsArray<int32, 2>
 {

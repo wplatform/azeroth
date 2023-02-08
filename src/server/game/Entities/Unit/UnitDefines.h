@@ -48,6 +48,52 @@ enum UnitStandStateType : uint8
     MAX_UNIT_STAND_STATE
 };
 
+
+// byte flag value (UNIT_FIELD_BYTES_1, 2)
+enum UnitStandFlags : uint8
+{
+    UNIT_STAND_FLAGS_UNK1         = 0x01,
+    UNIT_STAND_FLAGS_CREEP        = 0x02,
+    UNIT_STAND_FLAGS_UNTRACKABLE  = 0x04,
+    UNIT_STAND_FLAGS_UNK4         = 0x08,
+    UNIT_STAND_FLAGS_UNK5         = 0x10,
+    UNIT_STAND_FLAGS_ALL          = 0xFF
+};
+
+enum UnitBytes0Offsets : uint8
+{
+    UNIT_BYTES_0_OFFSET_RACE            = 0,
+    UNIT_BYTES_0_OFFSET_CLASS           = 1,
+    UNIT_BYTES_0_OFFSET_PLAYER_CLASS    = 2,
+    UNIT_BYTES_0_OFFSET_GENDER          = 3
+};
+
+enum UnitBytes1Offsets : uint8
+{
+    UNIT_BYTES_1_OFFSET_STAND_STATE = 0,
+    UNIT_BYTES_1_OFFSET_PET_TALENTS = 1,    // unused
+    UNIT_BYTES_1_OFFSET_VIS_FLAG    = 2,
+    UNIT_BYTES_1_OFFSET_ANIM_TIER   = 3
+};
+
+enum UnitBytes2Offsets : uint8
+{
+    UNIT_BYTES_2_OFFSET_SHEATH_STATE    = 0,
+    UNIT_BYTES_2_OFFSET_PVP_FLAG        = 1,
+    UNIT_BYTES_2_OFFSET_PET_FLAGS       = 2,
+    UNIT_BYTES_2_OFFSET_SHAPESHIFT_FORM = 3
+};
+
+// byte flags value (UNIT_FIELD_BYTES_1, 3)
+enum UnitBytes1_Flags : uint8
+{
+    UNIT_BYTE1_FLAG_ALWAYS_STAND    = 0x01,
+    UNIT_BYTE1_FLAG_HOVER           = 0x02,
+    UNIT_BYTE1_FLAG_UNK_3           = 0x04,
+    UNIT_BYTE1_FLAG_ALL             = 0xFF
+};
+
+
 // byte flag value (UNIT_FIELD_BYTES_1, 2)
 enum UnitVisFlags : uint8
 {

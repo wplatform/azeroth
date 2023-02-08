@@ -104,6 +104,8 @@ enum AchievementFlags
     ACHIEVEMENT_FLAG_TRACKING_FLAG         = 0x00100000,    // hidden tracking flag, sent to client in all cases except completion announcements
 };
 
+uint32 constexpr ACHIVEMENT_CATEGORY_PET_BATTLES = 15117;
+
 enum AreaFlags
 {
     AREA_FLAG_SNOW                  = 0x00000001,                // snow (only Dun Morogh, Naxxramas, Razorfen Downs and Winterspring)
@@ -130,12 +132,18 @@ enum AreaFlags
     AREA_FLAG_TOWN                  = 0x00200000,                // small towns with Inn
     AREA_FLAG_REST_ZONE_HORDE       = 0x00400000,                // Warsong Hold, Acherus: The Ebon Hold, New Agamand Inn, Vengeance Landing Inn, Sunreaver Pavilion (Something to do with team?)
     AREA_FLAG_REST_ZONE_ALLIANCE    = 0x00800000,                // Valgarde, Acherus: The Ebon Hold, Westguard Inn, Silver Covenant Pavilion (Something to do with team?)
-    AREA_FLAG_WINTERGRASP           = 0x01000000,                // Wintergrasp and it's subzones
+    AREA_FLAG_COMBAT                = 0x01000000,                // "combat" area (Script_GetZonePVPInfo), used
     AREA_FLAG_INSIDE                = 0x02000000,                // used for determinating spell related inside/outside questions in Map::IsOutdoors
     AREA_FLAG_OUTSIDE               = 0x04000000,                // used for determinating spell related inside/outside questions in Map::IsOutdoors
     AREA_FLAG_CAN_HEARTH_AND_RESURRECT = 0x08000000,             // Can Hearth And Resurrect From Area
     AREA_FLAG_NO_FLY_ZONE           = 0x20000000,                // Marks zones where you cannot fly
     AREA_FLAG_UNK9                  = 0x40000000
+};
+
+enum AreaFlags2
+{
+    AREA_FLAG_2_DONT_SHOW_SANCTUARY = 0x00000200,                // Hides sanctuary status from zone text color (Script_GetZonePVPInfo)
+    AREA_FLAG_2_CAN_ENABLE_WAR_MODE = 0x00001000,                // Allows enabling war mode
 };
 
 enum AreaMountFlags
@@ -179,354 +187,338 @@ enum ChrSpecializationFlag
     CHR_SPECIALIZATION_FLAG_RECOMMENDED             = 0x40,
 };
 
-enum CriteriaCondition
+enum class CriteriaFailEvent : uint8
 {
-    CRITERIA_CONDITION_NONE            = 0,
-    CRITERIA_CONDITION_NO_DEATH        = 1,     // reset progress on death
-    CRITERIA_CONDITION_UNK2            = 2,     // only used in "Complete a daily quest every day for five consecutive days"
-    CRITERIA_CONDITION_BG_MAP          = 3,     // requires you to be on specific map, reset at change
-    CRITERIA_CONDITION_NO_LOSE         = 4,     // only used in "Win 10 arenas without losing"
-    CRITERIA_CONDITION_UNK5            = 5,     // Have spell?
-    CRITERIA_CONDITION_UNK8            = 8,
-    CRITERIA_CONDITION_NO_SPELL_HIT    = 9,     // requires the player not to be hit by specific spell
-    CRITERIA_CONDITION_NOT_IN_GROUP    = 10,    // requires the player not to be in group
-    CRITERIA_CONDITION_UNK13           = 13     // unk
+    None                                = 0,
+    Death                               = 1,    // Death
+    Hours24WithoutCompletingDailyQuest  = 2,    // 24 hours without completing a daily quest
+    LeaveBattleground                   = 3,    // Leave a battleground
+    LoseRankedArenaMatchWithTeamSize    = 4,    // Lose a ranked arena match with team size {#Team Size}
+    LoseAura                            = 5,    // Lose aura "{Spell}"
+    GainAura                            = 6,    // Gain aura "{Spell}"
+    GainAuraEffect                      = 7,    // Gain aura effect "{SpellAuraNames.EnumID}"
+    CastSpell                           = 8,    // Cast spell "{Spell}"
+    BeSpellTarget                       = 9,    // Have spell "{Spell}" cast on you
+    ModifyPartyStatus                   = 10,   // Modify your party status
+    LosePetBattle                       = 11,   // Lose a pet battle
+    BattlePetDies                       = 12,   // Battle pet dies
+    DailyQuestsCleared                  = 13,   // Daily quests cleared
+    SendEvent                           = 14,   // Send event "{GameEvents}" (player-sent/instance only)
+
+    Count
 };
 
-enum CriteriaAdditionalCondition
+enum class CriteriaStartEvent : uint8
 {
-    CRITERIA_ADDITIONAL_CONDITION_SOURCE_DRUNK_VALUE            = 1, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_UNK2                          = 2,
-    CRITERIA_ADDITIONAL_CONDITION_ITEM_LEVEL                    = 3, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_CREATURE_ENTRY         = 4,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_MUST_BE_PLAYER         = 5,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_MUST_BE_DEAD           = 6,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_MUST_BE_ENEMY          = 7,
-    CRITERIA_ADDITIONAL_CONDITION_SOURCE_HAS_AURA               = 8,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_HAS_AURA               = 10,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_HAS_AURA_TYPE          = 11,
-    CRITERIA_ADDITIONAL_CONDITION_ITEM_QUALITY_MIN              = 14,
-    CRITERIA_ADDITIONAL_CONDITION_ITEM_QUALITY_EQUALS           = 15,
-    CRITERIA_ADDITIONAL_CONDITION_UNK16                         = 16,
-    CRITERIA_ADDITIONAL_CONDITION_SOURCE_AREA_OR_ZONE           = 17,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_AREA_OR_ZONE           = 18,
-    CRITERIA_ADDITIONAL_CONDITION_MAP_DIFFICULTY_OLD            = 20,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_CREATURE_YIELDS_XP     = 21, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_ARENA_TYPE                    = 24,
-    CRITERIA_ADDITIONAL_CONDITION_SOURCE_RACE                   = 25,
-    CRITERIA_ADDITIONAL_CONDITION_SOURCE_CLASS                  = 26,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_RACE                   = 27,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_CLASS                  = 28,
-    CRITERIA_ADDITIONAL_CONDITION_MAX_GROUP_MEMBERS             = 29,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_CREATURE_TYPE          = 30,
-    CRITERIA_ADDITIONAL_CONDITION_SOURCE_MAP                    = 32,
-    CRITERIA_ADDITIONAL_CONDITION_ITEM_CLASS                    = 33, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_ITEM_SUBCLASS                 = 34, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_COMPLETE_QUEST_NOT_IN_GROUP   = 35, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_MIN_PERSONAL_RATING           = 37, // NYI (when implementing don't forget about CRITERIA_CONDITION_NO_LOSE)
-    CRITERIA_ADDITIONAL_CONDITION_TITLE_BIT_INDEX               = 38,
-    CRITERIA_ADDITIONAL_CONDITION_SOURCE_LEVEL                  = 39,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_LEVEL                  = 40,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_ZONE                   = 41,
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_HEALTH_PERCENT_BELOW   = 46,
-    CRITERIA_ADDITIONAL_CONDITION_UNK55                         = 55,
-    CRITERIA_ADDITIONAL_CONDITION_MIN_ACHIEVEMENT_POINTS        = 56, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_REQUIRES_LFG_GROUP            = 58, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_UNK60                         = 60,
-    CRITERIA_ADDITIONAL_CONDITION_REQUIRES_GUILD_GROUP          = 61, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_GUILD_REPUTATION              = 62, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_RATED_BATTLEGROUND            = 63, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_RATED_BATTLEGROUND_RATING     = 64,
-    CRITERIA_ADDITIONAL_CONDITION_PROJECT_RARITY                = 65,
-    CRITERIA_ADDITIONAL_CONDITION_PROJECT_RACE                  = 66,
-    CRITERIA_ADDITIONAL_CONDITION_WORLD_STATE                   = 67, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_MAP_DIFFICULTY                = 68, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_PLAYER_LEVEL                  = 69, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_TARGET_PLAYER_LEVEL           = 70, // NYI
-    //CRITERIA_ADDITIONAL_CONDITION_PLAYER_LEVEL_ON_ACCOUNT       = 71, // Not verified
-    //CRITERIA_ADDITIONAL_CONDITION_UNK73       = 73, // References another modifier tree id
-    CRITERIA_ADDITIONAL_CONDITION_SCENARIO_ID                   = 74, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_BATTLE_PET_FAMILY             = 78, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_BATTLE_PET_HEALTH_PCT         = 79, // NYI
-    //CRITERIA_ADDITIONAL_CONDITION_UNK80                         = 80 // Something to do with world bosses
-    CRITERIA_ADDITIONAL_CONDITION_BATTLE_PET_ENTRY              = 81, // NYI
-    //CRITERIA_ADDITIONAL_CONDITION_BATTLE_PET_ENTRY_ID           = 82, // Some sort of data id?
-    CRITERIA_ADDITIONAL_CONDITION_CHALLENGE_MODE_MEDAL          = 83, // NYI
-    //CRITERIA_ADDITIONAL_CONDITION_UNK84                         = 84, // Quest id
-    //CRITERIA_ADDITIONAL_CONDITION_UNK86                         = 86, // Some external event id
-    //CRITERIA_ADDITIONAL_CONDITION_UNK87                         = 87, // Achievement id
-    CRITERIA_ADDITIONAL_CONDITION_BATTLE_PET_SPECIES            = 91,
-    CRITERIA_ADDITIONAL_CONDITION_EXPANSION                     = 92,
-    CRITERIA_ADDITIONAL_CONDITION_GARRISON_FOLLOWER_ENTRY       = 144,
-    CRITERIA_ADDITIONAL_CONDITION_GARRISON_FOLLOWER_QUALITY     = 145,
-    CRITERIA_ADDITIONAL_CONDITION_GARRISON_FOLLOWER_LEVEL       = 146,
-    CRITERIA_ADDITIONAL_CONDITION_GARRISON_RARE_MISSION         = 147, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_GARRISON_BUILDING_LEVEL       = 149, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_GARRISON_MISSION_TYPE         = 167, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_PLAYER_ITEM_LEVEL             = 169, // NYI
-    CRITERIA_ADDITIONAL_CONDITION_GARRISON_FOLLOWER_ILVL        = 184,
-    CRITERIA_ADDITIONAL_CONDITION_HONOR_LEVEL                   = 193,
-    CRITERIA_ADDITIONAL_CONDITION_PRESTIGE_LEVEL                = 194
+    None                            = 0, // - NONE -
+    ReachLevel                      = 1, // Reach level {#Level}
+    CompleteDailyQuest              = 2, // Complete daily quest "{QuestV2}"
+    StartBattleground               = 3, // Start battleground "{Map}"
+    WinRankedArenaMatchWithTeamSize = 4, // Win a ranked arena match with team size {#Team Size}
+    GainAura                        = 5, // Gain aura "{Spell}"
+    GainAuraEffect                  = 6, // Gain aura effect "{SpellAuraNames.EnumID}"
+    CastSpell                       = 7, // Cast spell "{Spell}"
+    BeSpellTarget                   = 8, // Have spell "{Spell}" cast on you
+    AcceptQuest                     = 9, // Accept quest "{QuestV2}"
+    KillNPC                         = 10, // Kill NPC "{Creature}"
+    KillPlayer                      = 11, // Kill player
+    UseItem                         = 12, // Use item "{Item}"
+    SendEvent                       = 13, // Send event "{GameEvents}" (player-sent/instance only)
+    BeginScenarioStep               = 14, // Begin scenario step "{#Step}" (for use with "Player on Scenario" modifier only)
+
+    Count
 };
 
-enum CriteriaFlags
+enum class CriteriaFlags : uint8
 {
-    CRITERIA_FLAG_SHOW_PROGRESS_BAR = 0x00000001,   // Show progress as bar
-    CRITERIA_FLAG_HIDDEN            = 0x00000002,   // Not show criteria in client
-    CRITERIA_FLAG_FAIL_ACHIEVEMENT  = 0x00000004,   // BG related??
-    CRITERIA_FLAG_RESET_ON_START    = 0x00000008,   //
-    CRITERIA_FLAG_IS_DATE           = 0x00000010,   // not used
-    CRITERIA_FLAG_MONEY_COUNTER     = 0x00000020    // Displays counter as money
+    FailAchievement         = 0x01, // Fail Achievement
+    ResetOnStart            = 0x02, // Reset on Start
+    ServerOnly              = 0x04, // Server Only
+    AlwaysSaveToDB          = 0x08, // Always Save to DB (Use with Caution)
+    AllowCriteriaDecrement  = 0x10, // Allow criteria to be decremented
+    IsForQuest              = 0x20  // Is For Quest
 };
 
-enum CriteriaTimedTypes : uint8
-{
-    CRITERIA_TIMED_TYPE_EVENT           = 1,    // Timer is started by internal event with id in timerStartEvent
-    CRITERIA_TIMED_TYPE_QUEST           = 2,    // Timer is started by accepting quest with entry in timerStartEvent
-    CRITERIA_TIMED_TYPE_SPELL_CASTER    = 5,    // Timer is started by casting a spell with entry in timerStartEvent
-    CRITERIA_TIMED_TYPE_SPELL_TARGET    = 6,    // Timer is started by being target of spell with entry in timerStartEvent
-    CRITERIA_TIMED_TYPE_CREATURE        = 7,    // Timer is started by killing creature with entry in timerStartEvent
-    CRITERIA_TIMED_TYPE_ITEM            = 9,    // Timer is started by using item with entry in timerStartEvent
-    CRITERIA_TIMED_TYPE_UNK             = 10,   // Unknown
-    CRITERIA_TIMED_TYPE_UNK_2           = 13,   // Unknown
-    CRITERIA_TIMED_TYPE_SCENARIO_STAGE  = 14,   // Timer is started by changing stages in a scenario
+DEFINE_ENUM_FLAG(CriteriaFlags);
 
-    CRITERIA_TIMED_TYPE_MAX
+enum class CriteriaType : uint8
+{
+    KillCreature                                   = 0,   // Kill NPC "{Creature}"
+    WinBattleground                                = 1,   // Win battleground "{Map}"
+    CompleteResearchProject                        = 2,   /*NYI*/ // Complete research project "{ResearchProject}"
+    CompleteAnyResearchProject                     = 3,   /*NYI*/ // Complete any research project
+    FindResearchObject                             = 4,   /*NYI*/ // Find research object "{GameObjects}"
+    ReachLevel                                     = 5,   // Reach level
+    ExhaustAnyResearchSite                         = 6,   /*NYI*/ // Exhaust any research site
+    SkillRaised                                    = 7,   // Skill "{SkillLine}" raised
+    EarnAchievement                                = 8,   // Earn achievement "{Achievement}"
+    CompleteQuestsCount                            = 9,   // Count of complete quests (quest count)
+    CompleteAnyDailyQuestPerDay                    = 10,  // Complete any daily quest (per day)
+    CompleteQuestsInZone                           = 11,  // Complete quests in "{AreaTable}"
+    CurrencyGained                                 = 12,  // Currency "{CurrencyTypes}" gained
+    DamageDealt                                    = 13,  // Damage dealt
+    CompleteDailyQuest                             = 14,  // Complete daily quest
+    ParticipateInBattleground                      = 15,  // Participate in battleground "{Map}"
+    DieOnMap                                       = 16,  // Die on map "{Map}"
+    DieAnywhere                                    = 17,  // Die anywhere
+    DieInInstance                                  = 18,  // Die in an instance which handles at most {#Max Players} players
+    RunInstance                                    = 19,  /*NYI*/ // Run an instance which handles at most {#Max Players} players
+    KilledByCreature                               = 20,  // Get killed by "{Creature}"
+    CompleteInternalCriteria                       = 21,  /*NYI*/ // Designer Value{`Uses Record ID}
+    CompleteAnyChallengeMode                       = 22,  /*NYI*/ // Complete any challenge mode
+    KilledByPlayer                                 = 23,  // Die to a player
+    MaxDistFallenWithoutDying                      = 24,  // Maximum distance fallen without dying
+    EarnChallengeModeMedal                         = 25,  /*NYI*/ // Earn a challenge mode medal of "{#Challenge Mode Medal (OBSOLETE)}" (OBSOLETE)
+    DieFromEnviromentalDamage                      = 26,  // Die to "{$Env Damage}" environmental damage
+    CompleteQuest                                  = 27,  // Complete quest "{QuestV2}"
+    BeSpellTarget                                  = 28,  // Have the spell "{Spell}" cast on you
+    CastSpell                                      = 29,  // Cast the spell "{Spell}"
+    TrackedWorldStateUIModified                    = 30,  // Tracked WorldStateUI value "{WorldStateUI}" is modified
+    PVPKillInArea                                  = 31,  // Kill someone in PVP in "{AreaTable}"
+    WinArena                                       = 32,  // Win arena "{Map}"
+    ParticipateInArena                             = 33,  /*NYI*/ // Participate in arena "{Map}"
+    LearnOrKnowSpell                               = 34,  // Learn or Know spell "{Spell}"
+    EarnHonorableKill                              = 35,  // Earn an honorable kill
+    AcquireItem                                    = 36,  // Acquire item "{Item}"
+    WinAnyRankedArena                              = 37,  // Win a ranked arena match (any arena)
+    EarnTeamArenaRating                            = 38,  /*NYI*/ // Earn a team arena rating of {#Arena Rating}
+    EarnPersonalArenaRating                        = 39,  // Earn a personal arena rating of {#Arena Rating}
+    AchieveSkillStep                               = 40,  // Achieve a skill step in "{SkillLine}"
+    UseItem                                        = 41,  // Use item "{Item}"
+    LootItem                                       = 42,  // Loot "{Item}" via corpse, pickpocket, fishing, disenchanting, etc.
+    RevealWorldMapOverlay                          = 43,  // Reveal world map overlay "{WorldMapOverlay}"
+    EarnTitle                                      = 44,  /*NYI*/ // Deprecated PVP Titles
+    BankSlotsPurchased                             = 45,  // Bank slots purchased
+    ReputationGained                               = 46,  // Reputation gained with faction "{Faction}"
+    TotalExaltedFactions                           = 47,  // Total exalted factions
+    GotHaircut                                     = 48,  // Got a haircut
+    EquipItemInSlot                                = 49,  // Equip item in slot "{$Equip Slot}"
+    RollNeed                                       = 50,  // Roll need and get {#Need Roll}
+    RollGreed                                      = 51,  // Roll greed and get {#Greed Roll}
+    DeliverKillingBlowToClass                      = 52,  // Deliver a killing blow to a {ChrClasses}
+    DeliverKillingBlowToRace                       = 53,  // Deliver a killing blow to a {ChrRaces}
+    DoEmote                                        = 54,  // Do a "{EmotesText}" emote
+    HealingDone                                    = 55,  // Healing done
+    DeliveredKillingBlow                           = 56,  // Delivered a killing blow
+    EquipItem                                      = 57,  // Equip item "{Item}"
+    CompleteQuestsInSort                           = 58,  /*NYI*/ // Complete quests in "{QuestSort}"
+    MoneyEarnedFromSales                           = 59,  // Sell items to vendors
+    MoneySpentOnRespecs                            = 60,  // Money spent on respecs
+    TotalRespecs                                   = 61,  // Total respecs
+    MoneyEarnedFromQuesting                        = 62,  // Money earned from questing
+    MoneySpentOnTaxis                              = 63,  // Money spent on taxis
+    KilledAllUnitsInSpawnRegion                    = 64,  /*NYI*/ // Killed all units in spawn region "{SpawnRegion}"
+    MoneySpentAtBarberShop                         = 65,  // Money spent at the barber shop
+    MoneySpentOnPostage                            = 66,  // Money spent on postage
+    MoneyLootedFromCreatures                       = 67,  // Money looted from creatures
+    UseGameobject                                  = 68,  // Use Game Object "{GameObjects}"
+    GainAura                                       = 69,  // Gain aura "{Spell}"
+    KillPlayer                                     = 70,  // Kill a player (no honor check)
+    CompleteChallengeMode                          = 71,  /*NYI*/ // Complete a challenge mode on map "{Map}"
+    CatchFishInFishingHole                         = 72,  // Catch fish in the "{GameObjects}" fishing hole
+    PlayerTriggerGameEvent                         = 73,  /*NYI*/ // Player will Trigger game event "{GameEvents}"
+    Login                                          = 74,  // Login (USE SPARINGLY!)
+    LearnSpellFromSkillLine                        = 75,  // Learn spell from the "{SkillLine}" skill line
+    WinDuel                                        = 76,  // Win a duel
+    LoseDuel                                       = 77,  // Lose a duel
+    KillAnyCreature                                = 78,  // Kill any NPC
+    CreatedItemsByCastingSpellWithLimit            = 79,  /*NYI*/ // Created items by casting a spell (limit 1 per create...)
+    MoneyEarnedFromAuctions                        = 80,  // Money earned from auctions
+    BattlePetAchievementPointsEarned               = 81,  /*NYI*/ // Battle pet achievement points earned
+    ItemsPostedAtAuction                           = 82,  // Number of items posted at auction
+    HighestAuctionBid                              = 83,  // Highest auction bid
+    AuctionsWon                                    = 84,  // Auctions won
+    HighestAuctionSale                             = 85,  // Highest coin value of item sold
+    MostMoneyOwned                                 = 86,  // Most money owned
+    TotalReveredFactions                           = 87,  // Total revered factions
+    TotalHonoredFactions                           = 88,  // Total honored factions
+    TotalFactionsEncountered                       = 89,  // Total factions encountered
+    LootAnyItem                                    = 90,  // Loot any item
+    ObtainAnyItem                                  = 91,  // Obtain any item
+    AnyoneTriggerGameEventScenario                 = 92,  /*NYI*/ // Anyone will Trigger game event "{GameEvents}" (Scenario Only)
+    RollAnyNeed                                    = 93,  // Roll any number on need
+    RollAnyGreed                                   = 94,  // Roll any number on greed
+    ReleasedSpirit                                 = 95,  /*NYI*/ // Released Spirit
+    AccountKnownPet                                = 96,  /*NYI*/ // Account knows pet "{Creature}" (Backtracked)
+    DefeatDungeonEncounterWhileElegibleForLoot     = 97,  /*NYI*/ // Defeat Encounter "{DungeonEncounter}" While Eligible For Loot
+    // UNUSED 18{}                                 = 98,  // Unused
+    // UNUSED 19{}                                 = 99,  // Unused
+    // UNUSED 20{}                                 = 100, // Unused
+    HighestDamageDone                              = 101, // Highest damage done in 1 single ability
+    HighestDamageTaken                             = 102, // Most damage taken in 1 single hit
+    TotalDamageTaken                               = 103, // Total damage taken
+    HighestHealCast                                = 104, // Largest heal cast
+    TotalHealReceived                              = 105, // Total healing received
+    HighestHealReceived                            = 106, // Largest heal received
+    AbandonAnyQuest                                = 107, // Abandon any quest
+    BuyTaxi                                        = 108, // Buy a taxi
+    GetLootByType                                  = 109, // Get loot via "{$Loot Acquisition}"
+    LandTargetedSpellOnTarget                      = 110, // Land targeted spell "{Spell}" on a target
+    // UNUSED 21{}                                 = 111, // Unused
+    LearnTradeskillSkillLine                       = 112, // Learn tradeskill skill line "{SkillLine}"
+    HonorableKills                                 = 113, // Honorable kills (number in interface, won't update except for login)
+    AcceptSummon                                   = 114, // Accept a summon
+    EarnAchievementPoints                          = 115, // Earn achievement points
+    RollDisenchant                                 = 116, /*NYI*/ // Roll disenchant and get {#Disenchant Roll}
+    RollAnyDisenchant                              = 117, /*NYI*/ // Roll any number on disenchant
+    CompletedLFGDungeon                            = 118, /*NYI*/ // Completed an LFG dungeon
+    CompletedLFGDungeonWithStrangers               = 119, // Completed an LFG dungeon with strangers
+    KickInitiatorInLFGDungeon                      = 120, /*NYI*/ // Kicked in an LFG dungeon (initiator)
+    KickVoterInLFGDungeon                          = 121, /*NYI*/ // Kicked in an LFG dungeon (voter)
+    KickTargetInLFGDungeon                         = 122, /*NYI*/ // Kicked in an LFG dungeon (target)
+    AbandonedLFGDungeon                            = 123, /*NYI*/ // Abandoned an LFG dungeon
+    MoneySpentOnGuildRepair                        = 124, /*NYI*/ // Guild repair amount spent
+    GuildAttainedLevel                             = 125, /*NYI*/ // Guild attained level
+    CreatedItemsByCastingSpell                     = 126, /*NYI*/ // Created items by casting a spell
+    FishInAnyPool                                  = 127, /*NYI*/ // Fish in any pool
+    GuildBankTabsPurchased                         = 128, /*NYI*/ // Guild bank tabs purchased
+    EarnGuildAchievementPoints                     = 129, /*NYI*/ // Earn guild achievement points
+    WinAnyBattleground                             = 130, /*NYI*/ // Win any battleground
+    ParticipateInAnyBattleground                   = 131, /*NYI*/ // Participate in any battleground
+    EarnBattlegroundRating                         = 132, /*NYI*/ // Earn a battleground rating
+    GuildTabardCreated                             = 133, /*NYI*/ // Guild tabard created
+    CompleteQuestsCountForGuild                    = 134, /*NYI*/ // Count of complete quests for guild (Quest count)
+    HonorableKillsForGuild                         = 135, /*NYI*/ // Honorable kills for Guild
+    KillAnyCreatureForGuild                        = 136, /*NYI*/ // Kill any NPC for Guild
+    GroupedTankLeftEarlyInLFGDungeon               = 137, /*NYI*/ // Grouped tank left early in an LFG dungeon
+    CompleteGuildChallenge                         = 138, /*NYI*/ // Complete a "{$Guild Challenge}" guild challenge
+    CompleteAnyGuildChallenge                      = 139, /*NYI*/ // Complete any guild challenge
+    MarkedAFKInBattleground                        = 140, /*NYI*/ // Marked AFK in a battleground
+    RemovedAFKInBattleground                       = 141, /*NYI*/ // Removed for being AFK in a battleground
+    StartAnyBattleground                           = 142, /*NYI*/ // Start any battleground (AFK tracking)
+    CompleteAnyBattleground                        = 143, /*NYI*/ // Complete any battleground (AFK tracking)
+    MarkedSomeoneAFKInBattleground                 = 144, /*NYI*/ // Marked someone for being AFK in a battleground
+    CompletedLFRDungeon                            = 145, /*NYI*/ // Completed an LFR dungeon
+    AbandonedLFRDungeon                            = 146, /*NYI*/ // Abandoned an LFR dungeon
+    KickInitiatorInLFRDungeon                      = 147, /*NYI*/ // Kicked in an LFR dungeon (initiator)
+    KickVoterInLFRDungeon                          = 148, /*NYI*/ // Kicked in an LFR dungeon (voter)
+    KickTargetInLFRDungeon                         = 149, /*NYI*/ // Kicked in an LFR dungeon (target)
+    GroupedTankLeftEarlyInLFRDungeon               = 150, /*NYI*/ // Grouped tank left early in an LFR dungeon
+    CompleteAnyScenario                            = 151, /*NYI*/ // Complete a Scenario
+    CompleteScenario                               = 152, /*NYI*/ // Complete scenario "{Scenario}"
+    EnterAreaTriggerWithActionSet                  = 153, /*NYI*/ // Enter area trigger "{AreaTriggerActionSet}"
+    LeaveAreaTriggerWithActionSet                  = 154, /*NYI*/ // Leave area trigger "{AreaTriggerActionSet}"
+    LearnedNewPet                                  = 155, // (Account Only) Learned a new pet
+    UniquePetsOwned                                = 156, // (Account Only) Unique pets owned
+    AccountObtainPetThroughBattle                  = 157, /*NYI*/ // (Account Only) Obtain a pet through battle
+    WinPetBattle                                   = 158, /*NYI*/ // Win a pet battle
+    LosePetBattle                                  = 159, /*NYI*/ // Lose a pet battle
+    BattlePetReachLevel                            = 160, // (Account Only) Battle pet has reached level {#Level}
+    PlayerObtainPetThroughBattle                   = 161, /*NYI*/ // (Player) Obtain a pet through battle
+    ActivelyEarnPetLevel                           = 162, // (Player) Actively earn level {#Level} with a pet by a player
+    EnterArea                                      = 163, /*NYI*/ // Enter Map Area "{AreaTable}"
+    LeaveArea                                      = 164, /*NYI*/ // Leave Map Area "{AreaTable}"
+    DefeatDungeonEncounter                         = 165, /*NYI*/ // Defeat Encounter "{DungeonEncounter}"
+    PlaceAnyGarrisonBuilding                       = 166, /*NYI*/ // Garrison Building: Place any
+    PlaceGarrisonBuilding                          = 167, // Garrison Building: Place "{GarrBuilding}"
+    ActivateAnyGarrisonBuilding                    = 168, // Garrison Building: Activate any
+    ActivateGarrisonBuilding                       = 169, /*NYI*/ // Garrison Building: Activate "{GarrBuilding}"
+    UpgradeGarrison                                = 170, /*NYI*/ // Garrison: Upgrade Garrison to Tier "{#Tier:2,3}"
+    StartAnyGarrisonMissionWithFollowerType        = 171, /*NYI*/ // Garrison Mission: Start any with FollowerType "{GarrFollowerType}"
+    StartGarrisonMission                           = 172, /*NYI*/ // Garrison Mission: Start "{GarrMission}"
+    SucceedAnyGarrisonMissionWithFollowerType      = 173, /*NYI*/ // Garrison Mission: Succeed any with FollowerType "{GarrFollowerType}"
+    SucceedGarrisonMission                         = 174, /*NYI*/ // Garrison Mission: Succeed "{GarrMission}"
+    RecruitAnyGarrisonFollower                     = 175, /*NYI*/ // Garrison Follower: Recruit any
+    RecruitGarrisonFollower                        = 176, // Garrison Follower: Recruit "{GarrFollower}"
+    AcquireGarrison                                = 177, /*NYI*/ // Garrison: Acquire a Garrison
+    LearnAnyGarrisonBlueprint                      = 178, /*NYI*/ // Garrison Blueprint: Learn any
+    LearnGarrisonBlueprint                         = 179, /*NYI*/ // Garrison Blueprint: Learn "{GarrBuilding}"
+    LearnAnyGarrisonSpecialization                 = 180, /*NYI*/ // Garrison Specialization: Learn any
+    LearnGarrisonSpecialization                    = 181, /*NYI*/ // Garrison Specialization: Learn "{GarrSpecialization}"
+    CollectGarrisonShipment                        = 182, /*NYI*/ // Garrison Shipment of type "{CharShipmentContainer}" collected
+    ItemLevelChangedForGarrisonFollower            = 183, /*NYI*/ // Garrison Follower: Item Level Changed
+    LevelChangedForGarrisonFollower                = 184, /*NYI*/ // Garrison Follower: Level Changed
+    LearnToy                                       = 185, /*NYI*/ // Learn Toy "{Item}"
+    LearnAnyToy                                    = 186, /*NYI*/ // Learn Any Toy
+    QualityUpgradedForGarrisonFollower             = 187, /*NYI*/ // Garrison Follower: Quality Upgraded
+    LearnHeirloom                                  = 188, /*NYI*/ // Learn Heirloom "{Item}"
+    LearnAnyHeirloom                               = 189, /*NYI*/ // Learn Any Heirloom
+    EarnArtifactXP                                 = 190, /*NYI*/ // Earn Artifact XP
+    AnyArtifactPowerRankPurchased                  = 191, /*NYI*/ // Artifact Power Ranks Purchased
+    LearnTransmog                                  = 192, /*NYI*/ // Learn Transmog "{ItemModifiedAppearance}"
+    LearnAnyTransmog                               = 193, /*NYI*/ // Learn Any Transmog
+    HonorLevelIncrease                             = 194, // (Player) honor level increase
+    PrestigeLevelIncrease                          = 195, /*NYI*/ // (Player) prestige level increase
+    ActivelyReachLevel                             = 196, // Actively level to level {#Level}
+    CompleteResearchAnyGarrisonTalent              = 197, /*NYI*/ // Garrison Talent: Complete Research Any
+    CompleteResearchGarrisonTalent                 = 198, /*NYI*/ // Garrison Talent: Complete Research "{GarrTalent}"
+    LearnAnyTransmogInSlot                         = 199, // Learn Any Transmog in Slot "{$Equip Slot}"
+    RecruitAnyGarrisonTroop                        = 200, /*NYI*/ // Recruit any Garrison Troop
+    StartResearchAnyGarrisonTalent                 = 201, /*NYI*/ // Garrison Talent: Start Research Any
+    StartResearchGarrisonTalent                    = 202, /*NYI*/ // Garrison Talent: Start Research "{GarrTalent}"
+    CompleteAnyWorldQuest                          = 203, /*NYI*/ // Complete Any Quest
+    EarnLicense                                    = 204, /*NYI*/ // Earn License "{BattlePayDeliverable}" (does NOT work for box level)
+    CollectTransmogSetFromGroup                    = 205, // (Account Only) Collect a Transmog Set from Group "{TransmogSetGroup}"
+    ParagonLevelIncreaseWithFaction                = 206, /*NYI*/ // (Player) paragon level increase with faction "{Faction}"
+    PlayerHasEarnedHonor                           = 207, /*NYI*/ // Player has earned honor
+    KillCreatureScenario                           = 208, /*NYI*/ // Kill NPC "{Creature}" (scenario criteria only, do not use for player)
+    ArtifactPowerRankPurchased                     = 209, /*NYI*/ // Artifact Power Rank of "{ArtifactPower}" Purchased
+    ChooseAnyRelicTalent                           = 210, /*NYI*/ // Choose any Relic Talent
+    ChooseRelicTalent                              = 211, /*NYI*/ // Choose Relic Talent "{ArtifactPower}"
+    EarnExpansionLevel                             = 212, /*NYI*/ // Earn Expansion Level "{$Expansion Level}"
+    AccountHonorLevelReached                       = 213, /*NYI*/ // (Account Only) honor level {#Level} reached
+    EarnArtifactXPForAzeriteItem                   = 214, // Earn Artifact experience for Azerite Item
+    AzeriteLevelReached                            = 215, // Azerite Level {#Azerite Level} reached
+    MythicPlusCompleted                            = 216, /*NYI*/ // Mythic Plus Completed
+    ScenarioGroupCompleted                         = 217, /*NYI*/ // Scenario Group Completed
+    CompleteAnyReplayQuest                         = 218, // Complete Any Replay Quest
+    BuyItemsFromVendors                            = 219, // Buy items from vendors
+    SellItemsToVendors                             = 220, // Sell items to vendors
+    ReachMaxLevel                                  = 221, /*NYI*/ // Reach Max Level
+    MemorizeSpell                                  = 222, /*NYI*/ // Memorize Spell "{Spell}"
+    LearnTransmogIllusion                          = 223, /*NYI*/ // Learn Transmog Illusion
+    LearnAnyTransmogIllusion                       = 224, /*NYI*/ // Learn Any Transmog Illusion
+    EnterTopLevelArea                              = 225, // Enter Top Level Map Area "{AreaTable}"
+    LeaveTopLevelArea                              = 226, /*NYI*/ // Leave Top Level Map Area "{AreaTable}"
+    SocketGarrisonTalent                           = 227, /*NYI*/ // Socket Garrison Talent {GarrTalent}
+    SocketAnySoulbindConduit                       = 228, /*NYI*/ // Socket Any Soulbind Conduit
+    ObtainAnyItemWithCurrencyValue                 = 229, /*NYI*/ // Obtain Any Item With Currency Value "{CurrencyTypes}"
+    MythicPlusRatingAttained                       = 230, /*NYI*/ // (Player) Mythic+ Rating "{#DungeonScore}" attained
+    SpentTalentPoint                               = 231, /*NYI*/ // (Player) spent talent point
+
+    MythicPlusDisplaySeasonEnded                   = 234, /*NYI*/ // {DisplaySeason}
+
+    WinRatedSoloShuffleRound                       = 239, /*NYI*/
+    ParticipateInRatedSoloShuffleRound             = 240, /*NYI*/
+
+    ReputationAmountGained                         = 243, /*NYI*/ // Gain reputation amount with {FactionID}; accumulate, not highest
+
+    FulfillAnyCraftingOrder                        = 245, /*NYI*/
+    FulfillCraftingOrderType                       = 246, /*NYI*/ // {CraftingOrderType}
+
+    PerksProgramMonthComplete                      = 249, /*NYI*/
+    Count
 };
 
-enum CriteriaTypes : uint8
+enum class CriteriaTreeFlags : uint16
 {
-    CRITERIA_TYPE_KILL_CREATURE                         = 0,
-    CRITERIA_TYPE_WIN_BG                                = 1,
-    // 2 - unused (Legion - 23420)
-    CRITERIA_TYPE_COMPLETE_ARCHAEOLOGY_PROJECTS         = 3, // struct { uint32 itemCount; }
-    CRITERIA_TYPE_SURVEY_GAMEOBJECT                     = 4,
-    CRITERIA_TYPE_REACH_LEVEL                           = 5,
-    CRITERIA_TYPE_CLEAR_DIGSITE                         = 6,
-    CRITERIA_TYPE_REACH_SKILL_LEVEL                     = 7,
-    CRITERIA_TYPE_COMPLETE_ACHIEVEMENT                  = 8,
-    CRITERIA_TYPE_COMPLETE_QUEST_COUNT                  = 9,
-    CRITERIA_TYPE_COMPLETE_DAILY_QUEST_DAILY            = 10, // you have to complete a daily quest x times in a row
-    CRITERIA_TYPE_COMPLETE_QUESTS_IN_ZONE               = 11,
-    CRITERIA_TYPE_CURRENCY                              = 12,
-    CRITERIA_TYPE_DAMAGE_DONE                           = 13,
-    CRITERIA_TYPE_COMPLETE_DAILY_QUEST                  = 14,
-    CRITERIA_TYPE_COMPLETE_BATTLEGROUND                 = 15,
-    CRITERIA_TYPE_DEATH_AT_MAP                          = 16,
-    CRITERIA_TYPE_DEATH                                 = 17,
-    CRITERIA_TYPE_DEATH_IN_DUNGEON                      = 18,
-    CRITERIA_TYPE_COMPLETE_RAID                         = 19,
-    CRITERIA_TYPE_KILLED_BY_CREATURE                    = 20,
-    CRITERIA_TYPE_MANUAL_COMPLETE_CRITERIA              = 21,
-    CRITERIA_TYPE_COMPLETE_CHALLENGE_MODE_GUILD         = 22,
-    CRITERIA_TYPE_KILLED_BY_PLAYER                      = 23,
-    CRITERIA_TYPE_FALL_WITHOUT_DYING                    = 24,
-    // 25 - unused (Legion - 23420)
-    CRITERIA_TYPE_DEATHS_FROM                           = 26,
-    CRITERIA_TYPE_COMPLETE_QUEST                        = 27,
-    CRITERIA_TYPE_BE_SPELL_TARGET                       = 28,
-    CRITERIA_TYPE_CAST_SPELL                            = 29,
-    CRITERIA_TYPE_BG_OBJECTIVE_CAPTURE                  = 30,
-    CRITERIA_TYPE_HONORABLE_KILL_AT_AREA                = 31,
-    CRITERIA_TYPE_WIN_ARENA                             = 32,
-    CRITERIA_TYPE_PLAY_ARENA                            = 33,
-    CRITERIA_TYPE_LEARN_SPELL                           = 34,
-    CRITERIA_TYPE_HONORABLE_KILL                        = 35,
-    CRITERIA_TYPE_OWN_ITEM                              = 36,
-    CRITERIA_TYPE_WIN_RATED_ARENA                       = 37,
-    CRITERIA_TYPE_HIGHEST_TEAM_RATING                   = 38,
-    CRITERIA_TYPE_HIGHEST_PERSONAL_RATING               = 39,
-    CRITERIA_TYPE_LEARN_SKILL_LEVEL                     = 40,
-    CRITERIA_TYPE_USE_ITEM                              = 41,
-    CRITERIA_TYPE_LOOT_ITEM                             = 42,
-    CRITERIA_TYPE_EXPLORE_AREA                          = 43,
-    CRITERIA_TYPE_OWN_RANK                              = 44,
-    CRITERIA_TYPE_BUY_BANK_SLOT                         = 45,
-    CRITERIA_TYPE_GAIN_REPUTATION                       = 46,
-    CRITERIA_TYPE_GAIN_EXALTED_REPUTATION               = 47,
-    CRITERIA_TYPE_VISIT_BARBER_SHOP                     = 48,
-    CRITERIA_TYPE_EQUIP_EPIC_ITEM                       = 49,
-    CRITERIA_TYPE_ROLL_NEED_ON_LOOT                     = 50, /// @todo itemlevel is mentioned in text but not present in dbc
-    CRITERIA_TYPE_ROLL_GREED_ON_LOOT                    = 51,
-    CRITERIA_TYPE_HK_CLASS                              = 52,
-    CRITERIA_TYPE_HK_RACE                               = 53,
-    CRITERIA_TYPE_DO_EMOTE                              = 54,
-    CRITERIA_TYPE_HEALING_DONE                          = 55,
-    CRITERIA_TYPE_GET_KILLING_BLOWS                     = 56, /// @todo in some cases map not present, and in some cases need do without die
-    CRITERIA_TYPE_EQUIP_ITEM                            = 57,
-    // 58 - unused (Legion - 23420)
-    CRITERIA_TYPE_MONEY_FROM_VENDORS                    = 59,
-    CRITERIA_TYPE_GOLD_SPENT_FOR_TALENTS                = 60,
-    CRITERIA_TYPE_NUMBER_OF_TALENT_RESETS               = 61,
-    CRITERIA_TYPE_MONEY_FROM_QUEST_REWARD               = 62,
-    CRITERIA_TYPE_GOLD_SPENT_FOR_TRAVELLING             = 63,
-    CRITERIA_TYPE_DEFEAT_CREATURE_GROUP                 = 64,
-    CRITERIA_TYPE_GOLD_SPENT_AT_BARBER                  = 65,
-    CRITERIA_TYPE_GOLD_SPENT_FOR_MAIL                   = 66,
-    CRITERIA_TYPE_LOOT_MONEY                            = 67,
-    CRITERIA_TYPE_USE_GAMEOBJECT                        = 68,
-    CRITERIA_TYPE_BE_SPELL_TARGET2                      = 69,
-    CRITERIA_TYPE_SPECIAL_PVP_KILL                      = 70,
-    CRITERIA_TYPE_COMPLETE_CHALLENGE_MODE               = 71,
-    CRITERIA_TYPE_FISH_IN_GAMEOBJECT                    = 72,
-    CRITERIA_TYPE_SEND_EVENT                            = 73,
-    CRITERIA_TYPE_ON_LOGIN                              = 74,
-    CRITERIA_TYPE_LEARN_SKILLLINE_SPELLS                = 75,
-    CRITERIA_TYPE_WIN_DUEL                              = 76,
-    CRITERIA_TYPE_LOSE_DUEL                             = 77,
-    CRITERIA_TYPE_KILL_CREATURE_TYPE                    = 78,
-    CRITERIA_TYPE_COOK_RECIPES_GUILD                    = 79,
-    CRITERIA_TYPE_GOLD_EARNED_BY_AUCTIONS               = 80,
-    CRITERIA_TYPE_EARN_PET_BATTLE_ACHIEVEMENT_POINTS    = 81,
-    CRITERIA_TYPE_CREATE_AUCTION                        = 82,
-    CRITERIA_TYPE_HIGHEST_AUCTION_BID                   = 83,
-    CRITERIA_TYPE_WON_AUCTIONS                          = 84,
-    CRITERIA_TYPE_HIGHEST_AUCTION_SOLD                  = 85,
-    CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED              = 86,
-    CRITERIA_TYPE_GAIN_REVERED_REPUTATION               = 87,
-    CRITERIA_TYPE_GAIN_HONORED_REPUTATION               = 88,
-    CRITERIA_TYPE_KNOWN_FACTIONS                        = 89,
-    CRITERIA_TYPE_LOOT_EPIC_ITEM                        = 90,
-    CRITERIA_TYPE_RECEIVE_EPIC_ITEM                     = 91,
-    CRITERIA_TYPE_SEND_EVENT_SCENARIO                   = 92,
-    CRITERIA_TYPE_ROLL_NEED                             = 93,
-    CRITERIA_TYPE_ROLL_GREED                            = 94,
-    CRITERIA_TYPE_RELEASE_SPIRIT                        = 95,
-    CRITERIA_TYPE_OWN_PET                               = 96,
-    CRITERIA_TYPE_GARRISON_COMPLETE_DUNGEON_ENCOUNTER   = 97,
-    // 98 - unused (Legion - 23420)
-    // 99 - unused (Legion - 23420)
-    // 100 - unused (Legion - 23420)
-    CRITERIA_TYPE_HIGHEST_HIT_DEALT                     = 101,
-    CRITERIA_TYPE_HIGHEST_HIT_RECEIVED                  = 102,
-    CRITERIA_TYPE_TOTAL_DAMAGE_RECEIVED                 = 103,
-    CRITERIA_TYPE_HIGHEST_HEAL_CAST                     = 104,
-    CRITERIA_TYPE_TOTAL_HEALING_RECEIVED                = 105,
-    CRITERIA_TYPE_HIGHEST_HEALING_RECEIVED              = 106,
-    CRITERIA_TYPE_QUEST_ABANDONED                       = 107,
-    CRITERIA_TYPE_FLIGHT_PATHS_TAKEN                    = 108,
-    CRITERIA_TYPE_LOOT_TYPE                             = 109,
-    CRITERIA_TYPE_CAST_SPELL2                           = 110, /// @todo target entry is missing
-    // 111 - unused (Legion - 23420)
-    CRITERIA_TYPE_LEARN_SKILL_LINE                      = 112,
-    CRITERIA_TYPE_EARN_HONORABLE_KILL                   = 113,
-    CRITERIA_TYPE_ACCEPTED_SUMMONINGS                   = 114,
-    CRITERIA_TYPE_EARN_ACHIEVEMENT_POINTS               = 115,
-    // 116 - unused (Legion - 23420)
-    // 117 - unused (Legion - 23420)
-    CRITERIA_TYPE_COMPLETE_LFG_DUNGEON                  = 118,
-    CRITERIA_TYPE_USE_LFD_TO_GROUP_WITH_PLAYERS         = 119,
-    CRITERIA_TYPE_LFG_VOTE_KICKS_INITIATED_BY_PLAYER    = 120,
-    CRITERIA_TYPE_LFG_VOTE_KICKS_NOT_INIT_BY_PLAYER     = 121,
-    CRITERIA_TYPE_BE_KICKED_FROM_LFG                    = 122,
-    CRITERIA_TYPE_LFG_LEAVES                            = 123,
-    CRITERIA_TYPE_SPENT_GOLD_GUILD_REPAIRS              = 124,
-    CRITERIA_TYPE_REACH_GUILD_LEVEL                     = 125,
-    CRITERIA_TYPE_CRAFT_ITEMS_GUILD                     = 126,
-    CRITERIA_TYPE_CATCH_FROM_POOL                       = 127,
-    CRITERIA_TYPE_BUY_GUILD_BANK_SLOTS                  = 128,
-    CRITERIA_TYPE_EARN_GUILD_ACHIEVEMENT_POINTS         = 129,
-    CRITERIA_TYPE_WIN_RATED_BATTLEGROUND                = 130,
-    // 131 - unused (Legion - 23420)
-    CRITERIA_TYPE_REACH_BG_RATING                       = 132,
-    CRITERIA_TYPE_BUY_GUILD_TABARD                      = 133,
-    CRITERIA_TYPE_COMPLETE_QUESTS_GUILD                 = 134,
-    CRITERIA_TYPE_HONORABLE_KILLS_GUILD                 = 135,
-    CRITERIA_TYPE_KILL_CREATURE_TYPE_GUILD              = 136,
-    CRITERIA_TYPE_COUNT_OF_LFG_QUEUE_BOOSTS_BY_TANK     = 137,
-    CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE_TYPE         = 138, //struct { Flag flag; uint32 count; } 1: Guild Dungeon, 2:Guild Challenge, 3:Guild battlefield
-    CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE              = 139, //struct { uint32 count; } Guild Challenge
-    // 140 - 1 criteria (16883), unused (Legion - 23420)
-    // 141 - 1 criteria (16884), unused (Legion - 23420)
-    // 142 - 1 criteria (16881), unused (Legion - 23420)
-    // 143 - 1 criteria (16882), unused (Legion - 23420)
-    // 144 - 1 criteria (17386), unused (Legion - 23420)
-    CRITERIA_TYPE_LFR_DUNGEONS_COMPLETED                = 145,
-    CRITERIA_TYPE_LFR_LEAVES                            = 146,
-    CRITERIA_TYPE_LFR_VOTE_KICKS_INITIATED_BY_PLAYER    = 147,
-    CRITERIA_TYPE_LFR_VOTE_KICKS_NOT_INIT_BY_PLAYER     = 148,
-    CRITERIA_TYPE_BE_KICKED_FROM_LFR                    = 149,
-    CRITERIA_TYPE_COUNT_OF_LFR_QUEUE_BOOSTS_BY_TANK     = 150,
-    CRITERIA_TYPE_COMPLETE_SCENARIO_COUNT               = 151,
-    CRITERIA_TYPE_COMPLETE_SCENARIO                     = 152,
-    CRITERIA_TYPE_REACH_AREATRIGGER_WITH_ACTIONSET      = 153,
-    // 154 - unused (Legion - 23420)
-    CRITERIA_TYPE_OWN_BATTLE_PET                        = 155,
-    CRITERIA_TYPE_OWN_BATTLE_PET_COUNT                  = 156,
-    CRITERIA_TYPE_CAPTURE_BATTLE_PET                    = 157,
-    CRITERIA_TYPE_WIN_PET_BATTLE                        = 158,
-    // 159 - 2 criterias (22312,22314), unused (Legion - 23420)
-    CRITERIA_TYPE_LEVEL_BATTLE_PET                      = 160,
-    CRITERIA_TYPE_CAPTURE_BATTLE_PET_CREDIT             = 161, // triggers a quest credit
-    CRITERIA_TYPE_LEVEL_BATTLE_PET_CREDIT               = 162, // triggers a quest credit
-    CRITERIA_TYPE_ENTER_AREA                            = 163, // triggers a quest credit
-    CRITERIA_TYPE_LEAVE_AREA                            = 164, // triggers a quest credit
-    CRITERIA_TYPE_COMPLETE_DUNGEON_ENCOUNTER            = 165,
-    // 166 - unused (Legion - 23420)
-    CRITERIA_TYPE_PLACE_GARRISON_BUILDING               = 167,
-    CRITERIA_TYPE_UPGRADE_GARRISON_BUILDING             = 168,
-    CRITERIA_TYPE_CONSTRUCT_GARRISON_BUILDING           = 169,
-    CRITERIA_TYPE_UPGRADE_GARRISON                      = 170,
-    CRITERIA_TYPE_START_GARRISON_MISSION                = 171,
-    CRITERIA_TYPE_START_ORDER_HALL_MISSION              = 172,
-    CRITERIA_TYPE_COMPLETE_GARRISON_MISSION_COUNT       = 173,
-    CRITERIA_TYPE_COMPLETE_GARRISON_MISSION             = 174,
-    CRITERIA_TYPE_RECRUIT_GARRISON_FOLLOWER_COUNT       = 175,
-    CRITERIA_TYPE_RECRUIT_GARRISON_FOLLOWER             = 176,
-    // 177 - 0 criterias (Legion - 23420)
-    CRITERIA_TYPE_LEARN_GARRISON_BLUEPRINT_COUNT        = 178,
-    // 179 - 0 criterias (Legion - 23420)
-    // 180 - 0 criterias (Legion - 23420)
-    // 181 - 0 criterias (Legion - 23420)
-    CRITERIA_TYPE_COMPLETE_GARRISON_SHIPMENT            = 182,
-    CRITERIA_TYPE_RAISE_GARRISON_FOLLOWER_ITEM_LEVEL    = 183,
-    CRITERIA_TYPE_RAISE_GARRISON_FOLLOWER_LEVEL         = 184,
-    CRITERIA_TYPE_OWN_TOY                               = 185,
-    CRITERIA_TYPE_OWN_TOY_COUNT                         = 186,
-    CRITERIA_TYPE_RECRUIT_GARRISON_FOLLOWER_WITH_QUALITY= 187,
-    // 188 - 0 criterias (Legion - 23420)
-    CRITERIA_TYPE_OWN_HEIRLOOMS                         = 189,
-    CRITERIA_TYPE_ARTIFACT_POWER_EARNED                 = 190,
-    CRITERIA_TYPE_ARTIFACT_TRAITS_UNLOCKED              = 191,
-    CRITERIA_TYPE_HONOR_LEVEL_REACHED                   = 194,
-    CRITERIA_TYPE_PRESTIGE_REACHED                      = 195,
-    // 196 - CRITERIA_TYPE_REACH_LEVEL_2 or something
-    // 197 - Order Hall Advancement related
-    CRITERIA_TYPE_ORDER_HALL_TALENT_LEARNED             = 198,
-    CRITERIA_TYPE_APPEARANCE_UNLOCKED_BY_SLOT           = 199,
-    CRITERIA_TYPE_ORDER_HALL_RECRUIT_TROOP              = 200,
-    // 201 - 0 criterias (Legion - 23420)
-    // 202 - 0 criterias (Legion - 23420)
-    CRITERIA_TYPE_COMPLETE_WORLD_QUEST                  = 203,
-    // 204 - Special criteria type to award players for some external events? Comes with what looks like an identifier, so guessing it's not unique.
-    CRITERIA_TYPE_TRANSMOG_SET_UNLOCKED                 = 205,
-    CRITERIA_TYPE_GAIN_PARAGON_REPUTATION               = 206,
-    CRITERIA_TYPE_EARN_HONOR_XP                         = 207,
-    CRITERIA_TYPE_RELIC_TALENT_UNLOCKED                 = 211
+    ProgressBar                 = 0x0001, // Progress Bar
+    DoNotDisplay                = 0x0002, // Do Not Display
+    IsDate                      = 0x0004, // Is a Date
+    IsMoney                     = 0x0008, // Is Money
+    ToastOnComplete             = 0x0010, // Toast on Complete
+    UseObjectsDescription       = 0x0020, // Use Object's Description
+    ShowFactionSpecificChild    = 0x0040, // Show faction specific child
+    DisplayAllChildren          = 0x0080, // Display all children
+    AwardBonusRep               = 0x0100, // Award Bonus Rep (Hack!!)
+    AllianceOnly                = 0x0200, // Treat this criteria or block as Alliance
+    HordeOnly                   = 0x0400, // Treat this criteria or block as Horde
+    DisplayAsFraction           = 0x0800, // Display as Fraction
+    IsForQuest                  = 0x1000  // Is For Quest
 };
 
-#define CRITERIA_TYPE_TOTAL 213
+DEFINE_ENUM_FLAG(CriteriaTreeFlags);
 
-enum CriteriaTreeFlags : uint16
+enum class CriteriaTreeOperator : uint8
 {
-    CRITERIA_TREE_FLAG_PROGRESS_BAR         = 0x0001,
-    CRITERIA_TREE_FLAG_PROGRESS_IS_DATE     = 0x0004,
-    CRITERIA_TREE_FLAG_SHOW_CURRENCY_ICON   = 0x0008,
-    CRITERIA_TREE_FLAG_ALLIANCE_ONLY        = 0x0200,
-    CRITERIA_TREE_FLAG_HORDE_ONLY           = 0x0400,
-    CRITERIA_TREE_FLAG_SHOW_REQUIRED_COUNT  = 0x0800
-};
-
-enum CriteriaTreeOperator : uint8
-{
-    CRITERIA_TREE_OPERATOR_SINGLE                   = 0,
-    CRITERIA_TREE_OPERATOR_SINGLE_NOT_COMPLETED     = 1,
-    CRITERIA_TREE_OPERATOR_ALL                      = 4,
-    CRITERIA_TREE_OPERAROR_SUM_CHILDREN             = 5,
-    CRITERIA_TREE_OPERATOR_MAX_CHILD                = 6,
-    CRITERIA_TREE_OPERATOR_COUNT_DIRECT_CHILDREN    = 7,
-    CRITERIA_TREE_OPERATOR_ANY                      = 8,
-    CRITERIA_TREE_OPERATOR_SUM_CHILDREN_WEIGHT      = 9
+    Complete        = 0, // Complete
+    NotComplete     = 1, // Not Complete
+    CompleteAll     = 4, // Complete All
+    Sum             = 5, // Sum Of Criteria Is
+    Highest         = 6, // Highest Criteria Is
+    StartedAtLeast  = 7, // Started At Least
+    CompleteAtLeast = 8, // Complete At Least
+    ProgressBar     = 9  // Progress Bar
 };
 
 enum class CharBaseSectionVariation : uint8
@@ -643,6 +635,20 @@ enum SpawnMask
     SPAWNMASK_RAID_ALL          = (SPAWNMASK_RAID_NORMAL_ALL | SPAWNMASK_RAID_HEROIC_ALL)
 };
 
+enum class ExpectedStatType : uint8
+{
+    CreatureHealth          = 0,
+    PlayerHealth            = 1,
+    CreatureAutoAttackDps   = 2,
+    CreatureArmor           = 3,
+    PlayerMana              = 4,
+    PlayerPrimaryStat       = 5,
+    PlayerSecondaryStat     = 6,
+    ArmorConstant           = 7,
+    None                    = 8,
+    CreatureSpellDamage     = 9
+};
+
 enum FactionTemplateFlags
 {
     FACTION_TEMPLATE_ENEMY_SPAR             = 0x00000020,   // guessed, sparring with enemies?
@@ -660,7 +666,39 @@ enum FactionMasks
     // if none flags set then non-aggressive creature
 };
 
+enum class FriendshipReputationFlags : int32
+{
+    NoFXOnReactionChange                            = 0x01,
+    NoLogTextOnRepGain                              = 0x02,
+    NoLogTextOnReactionChange                       = 0x04,
+    ShowRepGainandReactionChangeForHiddenFaction    = 0x08,
+    NoRepGainModifiers                              = 0x10
+};
+
+DEFINE_ENUM_FLAG(FriendshipReputationFlags);
+
+enum class GlobalCurve : int32
+{
+    CritDiminishing = 0,
+    MasteryDiminishing = 1,
+    HasteDiminishing = 2,
+    SpeedDiminishing = 3,
+    AvoidanceDiminishing = 4,
+    VersatilityDoneDiminishing = 5,
+    LifestealDiminishing = 6,
+    DodgeDiminishing = 7,
+    BlockDiminishing = 8,
+    ParryDiminishing = 9,
+
+    VersatilityTakenDiminishing = 11,
+
+    ContentTuningPvpItemLevelHealthScaling = 13,
+    ContentTuningPvpLevelDamageScaling = 14,
+    ContentTuningPvpItemLevelDamageScaling = 15,
+};
+
 #define MAX_ITEM_PROTO_FLAGS 4
+#define MAX_ITEM_PROTO_ZONES 2
 #define MAX_ITEM_PROTO_SOCKETS 3
 #define MAX_ITEM_PROTO_STATS  10
 
@@ -682,11 +720,6 @@ enum MapFlags
     MAP_FLAG_GARRISON               = 0x4000000
 };
 
-enum AbilytyLearnType
-{
-    SKILL_LINE_ABILITY_LEARNED_ON_SKILL_VALUE  = 1, // Spell state will update depending on skill value
-    SKILL_LINE_ABILITY_LEARNED_ON_SKILL_LEARN  = 2  // Spell will be learned/removed together with entire skill
-};
 
 enum GlyphSlotType
 {
@@ -728,7 +761,7 @@ enum ItemBonusType
     ITEM_BONUS_ITEM_LEVEL                       = 1,
     ITEM_BONUS_STAT                             = 2,
     ITEM_BONUS_QUALITY                          = 3,
-    ITEM_BONUS_DESCRIPTION                      = 4,
+    ITEM_BONUS_NAME_SUBTITLE                    = 4,              // Text under name
     ITEM_BONUS_SUFFIX                           = 5,
     ITEM_BONUS_SOCKET                           = 6,
     ITEM_BONUS_APPEARANCE                       = 7,
@@ -825,12 +858,21 @@ enum MountFlags
     MOUNT_FLAG_HIDE_IF_UNKNOWN          = 0x40
 };
 
-enum PhaseEntryFlags : uint16
+enum class PhaseEntryFlags : uint16
 {
-    PHASE_FLAG_NORMAL   = 0x08,
-    PHASE_FLAG_COSMETIC = 0x10,
-    PHASE_FLAG_PERSONAL = 0x20
+    ReadOnly                = 0x001,
+    InternalPhase           = 0x002,
+    Normal                  = 0x008,
+    Cosmetic                = 0x010,
+    Personal                = 0x020,
+    Expensive               = 0x040,
+    EventsAreObservable     = 0x080,
+    UsesPreloadConditions   = 0x100,
+    UnshareablePersonal     = 0x200,
+    ObjectsAreVisible       = 0x400,
 };
+
+DEFINE_ENUM_FLAG(PhaseEntryFlags);
 
 // PhaseUseFlags fields in different db2s
 enum PhaseUseFlagsValues : uint8
@@ -840,6 +882,18 @@ enum PhaseUseFlagsValues : uint8
     PHASE_USE_FLAGS_INVERSE         = 0x2,
 
     PHASE_USE_FLAGS_ALL             = PHASE_USE_FLAGS_ALWAYS_VISIBLE | PHASE_USE_FLAGS_INVERSE
+};
+
+enum class PlayerConditionLfgStatus : uint8
+{
+    InLFGDungeon            = 1,
+    InLFGRandomDungeon      = 2,
+    InLFGFirstRandomDungeon = 3,
+    PartialClear            = 4,
+    StrangerCount           = 5,
+    VoteKickCount           = 6,
+    BootCount               = 7,
+    GearDiff                = 8
 };
 
 enum PrestigeLevelInfoFlags : uint8
@@ -860,6 +914,42 @@ enum ScenarioStepFlags
     SCENARIO_STEP_FLAG_BONUS_OBJECTIVE      = 0x1,
     SCENARIO_STEP_FLAG_HEROIC_ONLY          = 0x2
 };
+
+enum class SkillLineFlags : uint16
+{
+    AlwaysShownInUI                                 = 0x0001,
+    NeverShownInUI                                  = 0x0002,
+    FirstTierIsSelfTaught                           = 0x0004,
+    GrantedIncrementallyByCharacterUpgrade          = 0x0008,
+    AutomaticRank                                   = 0x0010,
+    InheritParentRankWhenLearned                    = 0x0020,
+    ShowsInSpellTooltip                             = 0x0040,
+    AppearsInMiscTabOfSpellbook                     = 0x0080,
+    // unused                                       = 0x0100,
+    IgnoreCategoryMods                              = 0x0200,
+    DisplaysAsProficiency                           = 0x0400,
+    PetsOnly                                        = 0x0800,
+    UniqueBitfield                                  = 0x1000,
+    RacialForThePurposeOfPaidRaceOrFactionChange    = 0x2000,
+    ProgressiveSkillUp                              = 0x4000,
+    RacialForThePurposeOfTemporaryRaceChange        = 0x8000,
+};
+
+DEFINE_ENUM_FLAG(SkillLineFlags);
+
+enum AbilytyLearnType
+{
+    SKILL_LINE_ABILITY_LEARNED_ON_SKILL_VALUE  = 1, // Spell state will update depending on skill value
+    SKILL_LINE_ABILITY_LEARNED_ON_SKILL_LEARN  = 2, // Spell will be learned/removed together with entire skill
+    SKILL_LINE_ABILITY_REWARDED_FROM_QUEST     = 4  // Learned as quest reward, also re-learned if missing
+};
+
+enum class SkillLineAbilityFlags
+{
+    CanFallbackToLearnedOnSkillLearn            = 0x80, // The skill is rewarded from a quest if player started on exile's reach
+};
+
+DEFINE_ENUM_FLAG(SkillLineAbilityFlags);
 
 enum SkillRaceClassInfoFlags
 {
@@ -883,15 +973,21 @@ enum SpellCategoryFlags
 
 #define MAX_SPELL_AURA_INTERRUPT_FLAGS 2
 
-enum SpellItemEnchantmentFlags
+enum class SpellItemEnchantmentFlags : uint16
 {
-    ENCHANTMENT_CAN_SOULBOUND           = 0x01,
-    ENCHANTMENT_UNK1                    = 0x02,
-    ENCHANTMENT_UNK2                    = 0x04,
-    ENCHANTMENT_UNK3                    = 0x08,
-    ENCHANTMENT_COLLECTABLE             = 0x100,
-    ENCHANTMENT_HIDE_IF_NOT_COLLECTED   = 0x200,
+    Soulbound               = 0x001,
+    DoNotLog                = 0x002,
+    MainhandOnly            = 0x004,
+    AllowEnteringArena      = 0x008,
+    DoNotSaveToDB           = 0x010,
+    ScaleAsAGem             = 0x020,
+    DisableInChallengeModes = 0x040,
+    DisableInProvingGrounds = 0x080,
+    AllowTransmog           = 0x100,
+    HideUntilCollected      = 0x200,
 };
+
+DEFINE_ENUM_FLAG(SpellItemEnchantmentFlags);
 
 enum SpellProcsPerMinuteModType
 {
@@ -904,21 +1000,65 @@ enum SpellProcsPerMinuteModType
     SPELL_PPM_MOD_BATTLEGROUND  = 7
 };
 
-enum SpellShapeshiftFormFlags
+constexpr std::size_t MAX_POWERS_PER_SPELL = 4;
+
+enum class SpellShapeshiftFormFlags : int32
 {
-    SHAPESHIFT_FORM_IS_NOT_A_SHAPESHIFT         = 0x0001,
-    SHAPESHIFT_FORM_CANNOT_CANCEL               = 0x0002,   // player cannot cancel the aura giving this shapeshift
-    SHAPESHIFT_FORM_CAN_INTERACT                = 0x0008,   // if the form does not have SHAPESHIFT_FORM_IS_NOT_A_SHAPESHIFT then this flag must be present to allow NPC interaction
-    SHAPESHIFT_FORM_CAN_EQUIP_ITEMS             = 0x0040,   // if the form does not have SHAPESHIFT_FORM_IS_NOT_A_SHAPESHIFT then this flag allows equipping items without ITEM_FLAG_USABLE_WHEN_SHAPESHIFTED
-    SHAPESHIFT_FORM_CAN_USE_ITEMS               = 0x0080,   // if the form does not have SHAPESHIFT_FORM_IS_NOT_A_SHAPESHIFT then this flag allows using items without ITEM_FLAG_USABLE_WHEN_SHAPESHIFTED
-    SHAPESHIFT_FORM_CAN_AUTO_UNSHIFT            = 0x0100,   // clientside
-    SHAPESHIFT_FORM_PREVENT_LFG_TELEPORT        = 0x0200,
-    SHAPESHIFT_FORM_PREVENT_USING_OWN_SKILLS    = 0x0400,   // prevents using spells that don't have any shapeshift requirement
-    SHAPESHIFT_FORM_PREVENT_EMOTE_SOUNDS        = 0x1000
+    Stance                      = 0x00000001,
+    NotToggleable               = 0x00000002,   // player cannot cancel the aura giving this shapeshift
+    PersistOnDeath              = 0x00000004,
+    CanInteractNPC              = 0x00000008,   // if the form does not have SHAPESHIFT_FORM_IS_NOT_A_SHAPESHIFT then this flag must be present to allow NPC interaction
+    DontUseWeapon               = 0x00000010,
+
+    CanUseEquippedItems         = 0x00000040,   // if the form does not have SHAPESHIFT_FORM_IS_NOT_A_SHAPESHIFT then this flag allows equipping items without ITEM_FLAG_USABLE_WHEN_SHAPESHIFTED
+    CanUseItems                 = 0x00000080,   // if the form does not have SHAPESHIFT_FORM_IS_NOT_A_SHAPESHIFT then this flag allows using items without ITEM_FLAG_USABLE_WHEN_SHAPESHIFTED
+    DontAutoUnshift             = 0x00000100,   // clientside
+    ConsideredDead              = 0x00000200,
+    CanOnlyCastShapeshiftSpells = 0x00000400,   // prevents using spells that don't have any shapeshift requirement
+    StanceCancelsAtFlightmaster = 0x00000800,
+    NoEmoteSounds               = 0x00001000,
+    NoTriggerTeleport           = 0x00002000,
+    CannotChangeEquippedItems   = 0x00004000,
+
+    CannotUseGameObjects        = 0x00010000
 };
 
-#define TaxiMaskSize 258
-typedef std::array<uint8, TaxiMaskSize> TaxiMask;
+DEFINE_ENUM_FLAG(SpellShapeshiftFormFlags);
+
+enum class SpellVisualEffectNameType : uint32
+{
+    Model                           = 0,
+    Item                            = 1,
+    Creature                        = 2,
+    UnitItemMainHand                = 3,
+    UnitItemOffHand                 = 4,
+    UnitItemRanged                  = 5,
+    UnitAmmoBasic                   = 6,
+    UnitAmmoPreferred               = 7,
+    UnitItemMainHandIgnoreDisarmed  = 8,
+    UnitItemOffHandIgnoreDisarmed   = 9,
+    UnitItemRangedIgnoreDisarmed    = 10
+};
+
+class TaxiMask
+{
+public:
+    using value_type = uint8;
+
+    TaxiMask();
+
+    value_type& operator[](size_t i) { return _data[i]; }
+    value_type const& operator[](size_t i) const { return _data[i]; }
+
+    size_t size() const { return _data.size(); }
+    value_type const* data() const { return _data.data(); }
+
+    decltype(auto) begin() { return _data.begin(); }
+    decltype(auto) end() { return _data.end(); }
+
+private:
+    std::vector<value_type> _data;
+};
 
 enum TotemCategoryType
 {
@@ -930,6 +1070,14 @@ enum TotemCategoryType
     TOTEM_CATEGORY_TYPE_HAMMER          = 23,
     TOTEM_CATEGORY_TYPE_SPANNER         = 24
 };
+
+enum class TransmogIllusionFlags : int32
+{
+    HideUntilCollected              = 0x1,
+    PlayerConditionGrantsOnLogin    = 0x2,
+};
+
+DEFINE_ENUM_FLAG(TransmogIllusionFlags);
 
 // SummonProperties.dbc, col 1
 enum SummonPropGroup
@@ -960,31 +1108,41 @@ enum SummonPropType
     SUMMON_PROP_TYPE_LASHTAIL        = 13                   // Lashtail Hatchling, 1 spell in 4.2.2
 };
 
-// SummonProperties.dbc, col 5
-enum SummonPropFlags
+enum class SummonPropertiesFlags : uint32
 {
-    SUMMON_PROP_FLAG_NONE            = 0x00000000,          // 1342 spells in 3.0.3
-    SUMMON_PROP_FLAG_UNK1            = 0x00000001,          // 75 spells in 3.0.3, something unfriendly
-    SUMMON_PROP_FLAG_UNK2            = 0x00000002,          // 616 spells in 3.0.3, something friendly
-    SUMMON_PROP_FLAG_UNK3            = 0x00000004,          // 22 spells in 3.0.3, no idea...
-    SUMMON_PROP_FLAG_UNK4            = 0x00000008,          // 49 spells in 3.0.3, some mounts
-    SUMMON_PROP_FLAG_PERSONAL_SPAWN  = 0x00000010,          // Personal Spawn (creature visible only by summoner)
-    SUMMON_PROP_FLAG_UNK6            = 0x00000020,          // 0 spells in 3.3.5, unused
-    SUMMON_PROP_FLAG_UNK7            = 0x00000040,          // 12 spells in 3.0.3, no idea
-    SUMMON_PROP_FLAG_UNK8            = 0x00000080,          // 4 spells in 3.0.3, no idea
-    SUMMON_PROP_FLAG_UNK9            = 0x00000100,          // 51 spells in 3.0.3, no idea, many quest related
-    SUMMON_PROP_FLAG_UNK10           = 0x00000200,          // 51 spells in 3.0.3, something defensive
-    SUMMON_PROP_FLAG_UNK11           = 0x00000400,          // 3 spells, requires something near?
-    SUMMON_PROP_FLAG_UNK12           = 0x00000800,          // 30 spells in 3.0.3, no idea
-    SUMMON_PROP_FLAG_UNK13           = 0x00001000,          // Lightwell, Jeeves, Gnomish Alarm-o-bot, Build vehicles(wintergrasp)
-    SUMMON_PROP_FLAG_UNK14           = 0x00002000,          // Guides, player follows
-    SUMMON_PROP_FLAG_UNK15           = 0x00004000,          // Force of Nature, Shadowfiend, Feral Spirit, Summon Water Elemental
-    SUMMON_PROP_FLAG_UNK16           = 0x00008000,          // Light/Dark Bullet, Soul/Fiery Consumption, Twisted Visage, Twilight Whelp. Phase related?
-    SUMMON_PROP_FLAG_UNK17           = 0x00010000,
-    SUMMON_PROP_FLAG_UNK18           = 0x00020000,
-    SUMMON_PROP_FLAG_UNK19           = 0x00040000,
-    SUMMON_PROP_FLAG_UNK20           = 0x00080000,
-    SUMMON_PROP_FLAG_UNK21           = 0x00100000           // Totems
+    None                              = 0x00000000,
+    AttackSummoner                    = 0x00000001, // NYI
+    HelpWhenSummonedInCombat          = 0x00000002, // NYI
+    UseLevelOffset                    = 0x00000004, // NYI
+    DespawnOnSummonerDeath            = 0x00000008, // NYI
+    OnlyVisibleToSummoner             = 0x00000010,
+    CannotDismissPet                  = 0x00000020, // NYI
+    UseDemonTimeout                   = 0x00000040, // NYI
+    UnlimitedSummons                  = 0x00000080, // NYI
+    UseCreatureLevel                  = 0x00000100,
+    JoinSummonerSpawnGroup            = 0x00000200, // NYI
+    DoNotToggle                       = 0x00000400, // NYI
+    DespawnWhenExpired                = 0x00000800, // NYI
+    UseSummonerFaction                = 0x00001000,
+    DoNotFollowMountedSummoner        = 0x00002000, // NYI
+    SavePetAutocast                   = 0x00004000, // NYI
+    IgnoreSummonerPhase               = 0x00008000, // Wild Only
+    OnlyVisibleToSummonerGroup        = 0x00010000,
+    DespawnOnSummonerLogout           = 0x00020000, // NYI
+    CastRideVehicleSpellOnSummoner    = 0x00040000, // NYI
+    GuardianActsLikePet               = 0x00080000, // NYI
+    DontSnapSessileToGround           = 0x00100000, // NYI
+    SummonFromBattlePetJournal        = 0x00200000,
+    UnitClutter                       = 0x00400000, // NYI
+    DefaultNameColor                  = 0x00800000, // NYI
+    UseOwnInvisibilityDetection       = 0x01000000, // NYI. Ignore Owner's Invisibility Detection
+    DespawnWhenReplaced               = 0x02000000, // NYI. Totem Slots Only
+    DespawnWhenTeleportingOutOfRange  = 0x04000000, // NYI
+    SummonedAtGroupFormationPosition  = 0x08000000, // NYI
+    DontDespawnOnSummonerDeath        = 0x10000000, // NYI
+    UseTitleAsCreatureName            = 0x20000000, // NYI
+    AttackableBySummoner              = 0x40000000, // NYI
+    DontDismissWhenEncounterIsAborted = 0x80000000  // NYI
 };
 
 #define MAX_TALENT_TIERS 7
@@ -1049,6 +1207,7 @@ enum VehicleSeatFlagsB
     VEHICLE_SEAT_FLAG_B_EJECTABLE                = 0x00000020,           // ejectable
     VEHICLE_SEAT_FLAG_B_USABLE_FORCED_2          = 0x00000040,
     VEHICLE_SEAT_FLAG_B_USABLE_FORCED_3          = 0x00000100,
+    VEHICLE_SEAT_FLAG_B_PASSENGER_MIRRORS_ANIMS  = 0x00010000,           // Passenger forced to repeat all vehicle animations
     VEHICLE_SEAT_FLAG_B_KEEP_PET                 = 0x00020000,
     VEHICLE_SEAT_FLAG_B_USABLE_FORCED_4          = 0x02000000,
     VEHICLE_SEAT_FLAG_B_CAN_SWITCH               = 0x04000000,
@@ -1066,6 +1225,87 @@ enum CurrencyTypes
 enum WorldMapTransformsFlags
 {
     WORLD_MAP_TRANSFORMS_FLAG_DUNGEON   = 0x04
+};
+
+enum class WorldStateExpressionValueType : uint8
+{
+    Constant    = 1,
+    WorldState  = 2,
+    Function    = 3
+};
+
+enum class WorldStateExpressionLogic : uint8
+{
+    None    = 0,
+    And     = 1,
+    Or      = 2,
+    Xor     = 3,
+};
+
+enum class WorldStateExpressionComparisonType : uint8
+{
+    None            = 0,
+    Equal           = 1,
+    NotEqual        = 2,
+    Less            = 3,
+    LessOrEqual     = 4,
+    Greater         = 5,
+    GreaterOrEqual  = 6,
+};
+
+enum class WorldStateExpressionOperatorType : uint8
+{
+    None            = 0,
+    Sum             = 1,
+    Substraction    = 2,
+    Multiplication  = 3,
+    Division        = 4,
+    Remainder       = 5,
+};
+
+enum WorldStateExpressionFunctions
+{
+    WSE_FUNCTION_NONE = 0,
+    WSE_FUNCTION_RANDOM,
+    WSE_FUNCTION_MONTH,
+    WSE_FUNCTION_DAY,
+    WSE_FUNCTION_TIME_OF_DAY,
+    WSE_FUNCTION_REGION,
+    WSE_FUNCTION_CLOCK_HOUR,
+    WSE_FUNCTION_OLD_DIFFICULTY_ID,
+    WSE_FUNCTION_HOLIDAY_START,
+    WSE_FUNCTION_HOLIDAY_LEFT,
+    WSE_FUNCTION_HOLIDAY_ACTIVE,
+    WSE_FUNCTION_TIMER_CURRENT_TIME,
+    WSE_FUNCTION_WEEK_NUMBER,
+    WSE_FUNCTION_UNK13,
+    WSE_FUNCTION_UNK14,
+    WSE_FUNCTION_DIFFICULTY_ID,
+    WSE_FUNCTION_WAR_MODE_ACTIVE,
+    WSE_FUNCTION_UNK17,
+    WSE_FUNCTION_UNK18,
+    WSE_FUNCTION_UNK19,
+    WSE_FUNCTION_UNK20,
+    WSE_FUNCTION_UNK21,
+    WSE_FUNCTION_WORLD_STATE_EXPRESSION,
+    WSE_FUNCTION_KEYSTONE_AFFIX,
+    WSE_FUNCTION_UNK24,
+    WSE_FUNCTION_UNK25,
+    WSE_FUNCTION_UNK26,
+    WSE_FUNCTION_UNK27,
+    WSE_FUNCTION_KEYSTONE_LEVEL,
+    WSE_FUNCTION_UNK29,
+    WSE_FUNCTION_UNK30,
+    WSE_FUNCTION_UNK31,
+    WSE_FUNCTION_UNK32,
+    WSE_FUNCTION_MERSENNE_RANDOM,
+    WSE_FUNCTION_UNK34,
+    WSE_FUNCTION_UNK35,
+    WSE_FUNCTION_UNK36,
+    WSE_FUNCTION_UI_WIDGET_DATA,
+    WSE_FUNCTION_TIME_EVENT_PASSED,
+
+    WSE_FUNCTION_MAX,
 };
 
 #endif
