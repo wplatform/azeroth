@@ -17,8 +17,6 @@
 
 #include "GameObject.h"
 #include "ArtifactPackets.h"
-#include "AzeriteItem.h"
-#include "AzeritePackets.h"
 #include "Battleground.h"
 #include "BattlegroundPackets.h"
 #include "CellImpl.h"
@@ -95,7 +93,6 @@ WorldPacket GameObjectTemplate::BuildQueryData(LocaleConstant loc) const
             stats.QuestItems.push_back(item);
 
     memcpy(stats.Data, raw.data, MAX_GAMEOBJECT_DATA * sizeof(int32));
-    stats.ContentTuningId = ContentTuningId;
 
     queryTemp.Write();
     queryTemp.ShrinkToFit();

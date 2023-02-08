@@ -81,6 +81,15 @@ private:
 
 union GameObjectValue
 {
+    //11 GAMEOBJECT_TYPE_TRANSPORT
+    struct
+    {
+        uint32 PathProgress;
+        TransportAnimation const* AnimationInfo;
+        uint32 CurrentSeg;
+        std::vector<uint32>* StopFrames;
+        uint32 StateUpdateTimer;
+    } Transport;
     //25 GAMEOBJECT_TYPE_FISHINGHOLE
     struct
     {
@@ -97,13 +106,6 @@ union GameObjectValue
         uint32 Health;
         uint32 MaxHealth;
     } Building;
-    //42 GAMEOBJECT_TYPE_CAPTURE_POINT
-    struct
-    {
-        TeamId LastTeamCapture;
-        WorldPackets::Battleground::BattlegroundCapturePointState State;
-        uint32 AssaultTimer;
-    } CapturePoint;
 };
 
 // For containers:  [GO_NOT_READY]->GO_READY (close)->GO_ACTIVATED (open) ->GO_JUST_DEACTIVATED->GO_READY        -> ...
@@ -127,25 +129,7 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         explicit GameObject();
         ~GameObject();
 
-    protected:
-        void BuildValuesCreate(ByteBuffer* data, Player const* target) const override;
-        void BuildValuesUpdate(ByteBuffer* data, Player const* target) const override;
-        void ClearUpdateMask(bool remove) override;
-
-    public:
-        void BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::Mask const& requestedObjectMask,
-            UF::GameObjectData::Mask const& requestedGameObjectMask, Player const* target) const;
-
-        struct ValuesUpdateForPlayerWithMaskSender // sender compatible with MessageDistDeliverer
-        {
-            explicit ValuesUpdateForPlayerWithMaskSender(GameObject const* owner) : Owner(owner) { }
-
-            GameObject const* Owner;
-            UF::ObjectData::Base ObjectMask;
-            UF::GameObjectData::Base GameObjectMask;
-
-            void operator()(Player const* player) const;
-        };
+        void BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, Player* target) const override;
 
         void AddToWorld() override;
         void RemoveFromWorld() override;
@@ -175,7 +159,7 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void SetLocalRotation(float qx, float qy, float qz, float qw);
         void SetParentRotation(QuaternionData const& rotation);      // transforms(rotates) transport's path
         QuaternionData const& GetLocalRotation() const { return m_localRotation; }
-        int64 GetPackedLocalRotation() const { return m_packedRotation; }
+        int64 GetPackedWorldRotation() const { return m_packedRotation; }
 
         QuaternionData GetWorldRotation() const;
 
@@ -195,9 +179,9 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
                 ABORT();
             }
             m_spawnedByDefault = false;                     // all object with owner is despawned after delay
-            SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::CreatedBy), owner);
+            SetGuidValue(GAMEOBJECT_FIELD_CREATED_BY, owner);
         }
-        ObjectGuid GetOwnerGUID() const override { return m_gameObjectData->CreatedBy; }
+        ObjectGuid GetOwnerGUID() const override { return GetGuidValue(GAMEOBJECT_FIELD_CREATED_BY); }
 
         void SetSpellId(uint32 id)
         {
@@ -228,22 +212,22 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         Loot* GetFishLoot(Player* lootOwner);
         Loot* GetFishLootJunk(Player* lootOwner);
 
-        bool HasFlag(GameObjectFlags flags) const { return (*m_gameObjectData->Flags & flags) != 0; }
-        void SetFlag(GameObjectFlags flags) { SetUpdateFieldFlagValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::Flags), flags); }
-        void RemoveFlag(GameObjectFlags flags) { RemoveUpdateFieldFlagValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::Flags), flags); }
-        void ReplaceAllFlags(GameObjectFlags flags) { SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::Flags), flags); }
+        bool HasFlag(GameObjectFlags flags) const { return Object::HasFlag(GAMEOBJECT_FLAGS, flags); }
+        void SetFlag(GameObjectFlags flags) { Object::SetFlag(GAMEOBJECT_FLAGS, flags); }
+        void RemoveFlag(GameObjectFlags flags) { Object::RemoveFlag(GAMEOBJECT_FLAGS, flags); }
+        void ReplaceAllFlags(GameObjectFlags flags) { Object::RemoveFlag(GAMEOBJECT_FLAGS, flags); }
 
-        void SetLevel(uint32 level) { SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::Level), level); }
-        GameobjectTypes GetGoType() const { return GameobjectTypes(*m_gameObjectData->TypeID); }
-        void SetGoType(GameobjectTypes type) { SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::TypeID), type); }
-        GOState GetGoState() const { return GOState(*m_gameObjectData->State); }
+        void SetLevel(uint32 level) { SetUInt32Value(GAMEOBJECT_LEVEL, level); }
+        GameobjectTypes GetGoType() const { return GameobjectTypes(GetByteValue(GAMEOBJECT_BYTES_1, 1)); }
+        void SetGoType(GameobjectTypes type) { SetByteValue(GAMEOBJECT_BYTES_1, 1, type); }
+        GOState GetGoState() const { return GOState(GetByteValue(GAMEOBJECT_BYTES_1, 0)); }
         void SetGoState(GOState state);
         GOState GetGoStateFor(ObjectGuid const& viewer) const;
         void SetGoStateFor(GOState state, Player const* viewer);
-        uint32 GetGoArtKit() const { return m_gameObjectData->ArtKit; }
+        uint8 GetGoArtKit() const { return GetByteValue(GAMEOBJECT_BYTES_1, 2); }
         void SetGoArtKit(uint32 artkit);
-        uint8 GetGoAnimProgress() const { return m_gameObjectData->PercentHealth; }
-        void SetGoAnimProgress(uint8 animprogress) { SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::PercentHealth), animprogress); }
+        uint8 GetGoAnimProgress() const { return GetByteValue(GAMEOBJECT_BYTES_1, 3); }
+        void SetGoAnimProgress(uint8 animprogress) { SetByteValue(GAMEOBJECT_BYTES_1, 3, animprogress); }
         static void SetGoArtKit(uint32 artkit, GameObject* go, ObjectGuid::LowType lowguid = UI64LIT(0));
 
         std::vector<uint32> const* GetPauseTimes() const;
@@ -320,9 +304,9 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void SetDestructibleState(GameObjectDestructibleState state, WorldObject* attackerOrHealer = nullptr, bool setHealth = false);
         GameObjectDestructibleState GetDestructibleState() const
         {
-            if ((*m_gameObjectData->Flags & GO_FLAG_DESTROYED))
+            if (Object::HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_DESTROYED))
                 return GO_DESTRUCTIBLE_DESTROYED;
-            if ((*m_gameObjectData->Flags & GO_FLAG_DAMAGED))
+            if (Object::HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_DAMAGED))
                 return GO_DESTRUCTIBLE_DAMAGED;
             return GO_DESTRUCTIBLE_INTACT;
         }
@@ -336,11 +320,11 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
 
         std::string const& GetAIName() const;
         void SetDisplayId(uint32 displayid);
-        uint32 GetDisplayId() const { return m_gameObjectData->DisplayID; }
+        uint32 GetDisplayId() const { return GetUInt32Value(GAMEOBJECT_DISPLAYID); }
         uint8 GetNameSetId() const;
 
-        uint32 GetFaction() const override { return m_gameObjectData->FactionTemplate; }
-        void SetFaction(uint32 faction) override { SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::FactionTemplate), faction); }
+        uint32 GetFaction() const { return GetUInt32Value(GAMEOBJECT_FACTION); }
+        void SetFaction(uint32 faction) { SetUInt32Value(GAMEOBJECT_FACTION, faction); }
 
         GameObjectModel* m_model;
         void GetRespawnPosition(float &x, float &y, float &z, float* ori = nullptr) const;
@@ -393,8 +377,6 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void UpdateDynamicFlagsForNearbyPlayers();
 
         void HandleCustomTypeCommand(GameObjectTypeBase::CustomCommand const& command) const;
-
-        UF::UpdateField<UF::GameObjectData, 0, TYPEID_GAMEOBJECT> m_gameObjectData;
 
     protected:
         void CreateModel();

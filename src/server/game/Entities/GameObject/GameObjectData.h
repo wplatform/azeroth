@@ -750,78 +750,6 @@ struct GameObjectTemplate
             uint32 MultiProperties;                         // 0 Multi Properties, References: MultiProperties, NoValue = 0
             uint32 InitialDamage;                           // 1 Initial Damage, enum { None, Raw, Ratio, }; Default: None
         } siegeableMulti;
-        // 54 GAMEOBJECT_TYPE_SIEGEABLE_MO
-        struct
-        {
-            uint32 SiegeableProperties;                     // 0 Siegeable Properties, References: SiegeableProperties, NoValue = 0
-            uint32 DoodadSetA;                              // 1 Doodad Set A, int, Min value: 0, Max value: 2147483647, Default value: 0
-            uint32 DoodadSetB;                              // 2 Doodad Set B, int, Min value: 0, Max value: 2147483647, Default value: 0
-            uint32 DoodadSetC;                              // 3 Doodad Set C, int, Min value: 0, Max value: 2147483647, Default value: 0
-            int32 SpawnMap;                                 // 4 Spawn Map, References: Map, NoValue = -1
-            int32 AreaNameSet;                              // 5 Area Name Set (Index), int, Min value: -2147483648, Max value: 2147483647, Default value: 0
-            uint32 InteractRadiusOverride;                  // 6 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
-        } siegeableMO;
-        // 55 GAMEOBJECT_TYPE_PVP_REWARD
-        struct
-        {
-            int32 Unused;                                   // 0 Unused, int, Min value: -2147483648, Max value: 2147483647, Default value: 0
-            uint32 WhenAvailable;                           // 1 When Available, References: GameObjectDisplayInfo, NoValue = 0
-            uint32 open;                                    // 2 open, References: Lock_, NoValue = 0
-            uint32 openTextID;                              // 3 openTextID, References: BroadcastText, NoValue = 0
-            uint32 InteractRadiusOverride;                  // 4 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
-        } pvpReward;
-        // 56 GAMEOBJECT_TYPE_PLAYER_CHOICE_CHEST
-        struct
-        {
-            uint32 spell;                                   // 0 spell, References: Spell, NoValue = 0
-            uint32 WhenAvailable;                           // 1 When Available, References: GameObjectDisplayInfo, NoValue = 0
-            uint32 GiganticAOI;                             // 2 Gigantic AOI, enum { false, true, }; Default: false
-            uint32 PlayerChoice;                            // 3 Player Choice, References: PlayerChoice, NoValue = 0
-            uint32 MawPowerFilter;                          // 4 Maw Power Filter, References: MawPowerFilter, NoValue = 0
-            uint32 Script;                                  // 5 Script, References: SpellScript, NoValue = 0
-            uint32 SpellVisual1;                            // 6 Spell Visual 1, References: SpellVisual, NoValue = 0
-            uint32 InteractRadiusOverride;                  // 7 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
-            uint32 Dontupdateplayerinteractability;         // 8 Don't update player interactability, enum { false, true, }; Default: false
-        } playerChoiceChest;
-        // 57 GAMEOBJECT_TYPE_LEGENDARY_FORGE
-        struct
-        {
-            uint32 PlayerChoice;                            // 0 Player Choice, References: PlayerChoice, NoValue = 0
-            uint32 CustomItemBonusFilter;                   // 1 Custom Item Bonus Filter, References: CustomItemBonusFilter, NoValue = 0
-            uint32 InteractRadiusOverride;                  // 2 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
-        } legendaryForge;
-        // 58 GAMEOBJECT_TYPE_GARR_TALENT_TREE
-        struct
-        {
-            uint32 UiMapID;                                 // 0 Ui Map ID, References: UiMap, NoValue = 0
-            uint32 GarrTalentTreeID;                        // 1 GarrTalentTree ID, References: GarrTalentTree, NoValue = 0
-            uint32 InteractRadiusOverride;                  // 2 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
-        } garrTalentTree;
-        // 59 GAMEOBJECT_TYPE_WEEKLY_REWARD_CHEST
-        struct
-        {
-            uint32 WhenAvailable;                           // 0 When Available, References: GameObjectDisplayInfo, NoValue = 0
-            uint32 open;                                    // 1 open, References: Lock_, NoValue = 0
-            uint32 InteractRadiusOverride;                  // 2 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
-            uint32 ExpansionLevel;                          // 3 Expansion Level, int, Min value: 0, Max value: 2147483647, Default value: 0
-        } weeklyRewardChest;
-        // 60 GAMEOBJECT_TYPE_CLIENT_MODEL
-        struct
-        {
-            uint32 LargeAOI;                                // 0 Large AOI, enum { false, true, }; Default: false
-            uint32 GiganticAOI;                             // 1 Gigantic AOI, enum { false, true, }; Default: false
-            uint32 InfiniteAOI;                             // 2 Infinite AOI, enum { false, true, }; Default: false
-            uint32 TrueInfiniteAOI;                         // 3 True Infinite AOI (programmer only!), enum { false, true, }; Default: false
-        } clientModel;
-        // 61 GAMEOBJECT_TYPE_CRAFTING_TABLE
-        struct
-        {
-            uint32 Profession;                              // 0 Profession, enum { First Aid, Blacksmithing, Leatherworking, Alchemy, Herbalism, Cooking, Mining, Tailoring, Engineering, Enchanting, Fishing, Skinning, Jewelcrafting, Inscription, Archaeology, }; Default: Blacksmithing
-        } craftingTable;
-        struct
-        {
-            uint32 data[MAX_GAMEOBJECT_DATA];
-        } raw;
     };
 
     std::string AIName;
@@ -932,12 +860,6 @@ struct GameObjectTemplate
             case GAMEOBJECT_TYPE_KEYSTONE_RECEPTACLE:      return KeystoneReceptacle.InteractRadiusOverride;
             case GAMEOBJECT_TYPE_GATHERING_NODE:           return gatheringNode.InteractRadiusOverride;
             case GAMEOBJECT_TYPE_CHALLENGE_MODE_REWARD:    return challengeModeReward.InteractRadiusOverride;
-            case GAMEOBJECT_TYPE_SIEGEABLE_MO:             return siegeableMO.InteractRadiusOverride;
-            case GAMEOBJECT_TYPE_PVP_REWARD:               return pvpReward.InteractRadiusOverride;
-            case GAMEOBJECT_TYPE_PLAYER_CHOICE_CHEST:      return playerChoiceChest.InteractRadiusOverride;
-            case GAMEOBJECT_TYPE_LEGENDARY_FORGE:          return legendaryForge.InteractRadiusOverride;
-            case GAMEOBJECT_TYPE_GARR_TALENT_TREE:         return garrTalentTree.InteractRadiusOverride;
-            case GAMEOBJECT_TYPE_WEEKLY_REWARD_CHEST:      return weeklyRewardChest.InteractRadiusOverride;
             default: return 0;
         }
     }
@@ -978,8 +900,6 @@ struct GameObjectTemplate
             case GAMEOBJECT_TYPE_CAPTURE_POINT:         return capturePoint.open;
             case GAMEOBJECT_TYPE_GATHERING_NODE:        return gatheringNode.open;
             case GAMEOBJECT_TYPE_CHALLENGE_MODE_REWARD: return challengeModeReward.open;
-            case GAMEOBJECT_TYPE_PVP_REWARD:            return pvpReward.open;
-            case GAMEOBJECT_TYPE_WEEKLY_REWARD_CHEST:   return weeklyRewardChest.open;
             default: return 0;
         }
     }
@@ -1139,8 +1059,6 @@ struct GameObjectTemplate
             case GAMEOBJECT_TYPE_NEW_FLAG:              return newflag.InfiniteAOI != 0;
             case GAMEOBJECT_TYPE_GARRISON_BUILDING:     return true;
             case GAMEOBJECT_TYPE_PHASEABLE_MO:          return true;
-            case GAMEOBJECT_TYPE_SIEGEABLE_MO:          return true;
-            case GAMEOBJECT_TYPE_CLIENT_MODEL:          return newflag.InfiniteAOI != 0;
             default: return false;
         }
     }
@@ -1170,8 +1088,6 @@ struct GameObjectTemplate
             case GAMEOBJECT_TYPE_GARRISON_SHIPMENT:     return garrisonShipment.GiganticAOI != 0;
             case GAMEOBJECT_TYPE_UI_LINK:               return UILink.GiganticAOI != 0;
             case GAMEOBJECT_TYPE_GATHERING_NODE:        return gatheringNode.GiganticAOI != 0;
-            case GAMEOBJECT_TYPE_PLAYER_CHOICE_CHEST:   return gatheringNode.GiganticAOI != 0;
-            case GAMEOBJECT_TYPE_CLIENT_MODEL:          return gatheringNode.GiganticAOI != 0;
             default: return false;
         }
     }
@@ -1187,7 +1103,6 @@ struct GameObjectTemplate
             case GAMEOBJECT_TYPE_GARRISON_SHIPMENT:     return garrisonShipment.LargeAOI != 0;
             case GAMEOBJECT_TYPE_ITEM_FORGE:            return itemForge.LargeAOI != 0;
             case GAMEOBJECT_TYPE_GATHERING_NODE:        return gatheringNode.LargeAOI != 0;
-            case GAMEOBJECT_TYPE_CLIENT_MODEL:          return clientModel.LargeAOI != 0;
             default: return false;
         }
     }
