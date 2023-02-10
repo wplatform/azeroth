@@ -577,7 +577,7 @@ m_spellValue(new SpellValue(m_spellInfo, caster)), _spellEvent(nullptr)
     m_castId = ObjectGuid::Create<HighGuid::Cast>(SPELL_CAST_SOURCE_NORMAL, m_caster->GetMapId(), m_spellInfo->Id, m_caster->GetMap()->GenerateLowGuid<HighGuid::Cast>());
     m_originalCastId = originalCastId;
     memset(m_misc.Raw.Data, 0, sizeof(m_misc.Raw.Data));
-    m_SpellVisual.SpellXSpellVisualID = caster->GetCastSpellXSpellVisualId(m_spellInfo);
+    m_SpellVisual.spellXSpellVisualID = caster->GetCastSpellXSpellVisualId(m_spellInfo);
     m_triggeredByAuraSpell  = nullptr;
     _spellAura = nullptr;
     _dynObjAura = nullptr;
@@ -8005,8 +8005,8 @@ bool Spell::IsPositive() const
 
 bool Spell::IsNeedSendToClient() const
 {
-    return m_SpellVisual.SpellXSpellVisualID || m_SpellVisual.ScriptVisualID || m_spellInfo->IsChanneled() ||
-        (m_spellInfo->HasAttribute(SPELL_ATTR8_AURA_SEND_AMOUNT)) || m_spellInfo->HasHitDelay() || (!m_triggeredByAuraSpell && !IsTriggered());
+    return m_SpellVisual.spellXSpellVisualID || m_SpellVisual.ScriptVisualID || m_spellInfo->IsChanneled() ||
+           (m_spellInfo->HasAttribute(SPELL_ATTR8_AURA_SEND_AMOUNT)) || m_spellInfo->HasHitDelay() || (!m_triggeredByAuraSpell && !IsTriggered());
 }
 
 Unit* Spell::GetUnitCasterForEffectHandlers() const
@@ -9131,7 +9131,7 @@ CastSpellExtraArgs& CastSpellExtraArgs::SetTriggeringAura(AuraEffect const* trig
 SpellCastVisual::operator UF::SpellCastVisual() const
 {
     UF::SpellCastVisual visual;
-    visual.SpellXSpellVisualID = SpellXSpellVisualID;
+    visual.spellXSpellVisualID = SpellXSpellVisualID;
     visual.ScriptVisualID = ScriptVisualID;
     return visual;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,6 +20,7 @@
 
 #include "Packet.h"
 #include "PacketUtilities.h"
+#include "ItemPacketsCommon.h"
 #include "LFGPacketsCommon.h"
 #include "Optional.h"
 
@@ -121,14 +122,15 @@ namespace WorldPackets
 
         struct LFGBlackListSlot
         {
-            LFGBlackListSlot() { }
-            LFGBlackListSlot(uint32 slot, uint32 reason, int32 subReason1, int32 subReason2)
-                : Slot(slot), Reason(reason), SubReason1(subReason1), SubReason2(subReason2) { }
+            LFGBlackListSlot() = default;
+            LFGBlackListSlot(uint32 slot, uint32 reason, int32 subReason1, int32 subReason2, uint32 softLock)
+                : Slot(slot), Reason(reason), SubReason1(subReason1), SubReason2(subReason2), SoftLock(softLock) { }
 
             uint32 Slot = 0;
             uint32 Reason = 0;
             int32 SubReason1 = 0;
             int32 SubReason2 = 0;
+            uint32 SoftLock = 0;
         };
 
         struct LFGBlackList
@@ -139,7 +141,7 @@ namespace WorldPackets
 
         struct LfgPlayerQuestRewardItem
         {
-            LfgPlayerQuestRewardItem() { }
+            LfgPlayerQuestRewardItem() = default;
             LfgPlayerQuestRewardItem(int32 itemId, int32 quantity) : ItemID(itemId), Quantity(quantity) { }
 
             int32 ItemID = 0;
@@ -148,7 +150,7 @@ namespace WorldPackets
 
         struct LfgPlayerQuestRewardCurrency
         {
-            LfgPlayerQuestRewardCurrency() { }
+            LfgPlayerQuestRewardCurrency() = default;
             LfgPlayerQuestRewardCurrency(int32 currencyID, int32 quantity) : CurrencyID(currencyID), Quantity(quantity) { }
 
             int32 CurrencyID = 0;
@@ -226,6 +228,7 @@ namespace WorldPackets
             std::vector<uint32> Slots;
             uint32 RequestedRoles = 0;
             std::vector<ObjectGuid> SuspendedPlayers;
+            uint32 QueueMapID = 0;
             bool NotifyUI = false;
             bool IsParty = false;
             bool Joined = false;
@@ -248,7 +251,7 @@ namespace WorldPackets
 
         struct LFGRoleCheckUpdateMember
         {
-            LFGRoleCheckUpdateMember() { }
+            LFGRoleCheckUpdateMember() = default;
             LFGRoleCheckUpdateMember(ObjectGuid guid, uint32 rolesDesired, uint8 level, bool roleCheckComplete)
                 : Guid(guid), RolesDesired(rolesDesired), Level(level), RoleCheckComplete(roleCheckComplete) { }
 
@@ -268,29 +271,11 @@ namespace WorldPackets
             uint8 PartyIndex = 0;
             uint8 RoleCheckStatus = 0;
             std::vector<uint32> JoinSlots;
-            uint64 BgQueueID = 0;
+            std::vector<uint64> BgQueueIDs;
             int32 GroupFinderActivityID = 0;
             std::vector<LFGRoleCheckUpdateMember> Members;
             bool IsBeginning = false;
             bool IsRequeue = false;
-        };
-
-        struct LFGJoinBlackListSlot
-        {
-            LFGJoinBlackListSlot() { }
-            LFGJoinBlackListSlot(int32 slot, int32 reason, int32 subReason1, int32 subReason2)
-                : Slot(slot), Reason(reason), SubReason1(subReason1), SubReason2(subReason2) { }
-
-            int32 Slot = 0;
-            int32 Reason = 0;
-            int32 SubReason1 = 0;
-            int32 SubReason2 = 0;
-        };
-
-        struct LFGJoinBlackList
-        {
-            ObjectGuid Guid;
-            std::vector<LFGJoinBlackListSlot> Slots;
         };
 
         class LFGJoinResult final : public ServerPacket
@@ -303,7 +288,8 @@ namespace WorldPackets
             RideTicket Ticket;
             uint8 Result = 0;
             uint8 ResultDetail = 0;
-            std::vector<LFGJoinBlackList> BlackList;
+            std::vector<LFGBlackList> BlackList;
+            std::vector<std::string const*> BlackListNames;
         };
 
         class LFGQueueStatus final : public ServerPacket
@@ -324,14 +310,25 @@ namespace WorldPackets
 
         struct LFGPlayerRewards
         {
-            LFGPlayerRewards() { }
-            LFGPlayerRewards(int32 rewardItem, uint32 rewardItemQuantity, int32 bonusCurrency, bool isCurrency)
-                : RewardItem(rewardItem), RewardItemQuantity(rewardItemQuantity), BonusCurrency(bonusCurrency), IsCurrency(isCurrency) { }
+            LFGPlayerRewards() = default;
+            LFGPlayerRewards(int32 id, uint32 quantity, int32 bonusQuantity, bool isCurrency)
+                : Quantity(quantity), BonusQuantity(bonusQuantity)
+            {
+                if (!isCurrency)
+                {
+                    RewardItem.emplace();
+                    RewardItem->ItemID = id;
+                }
+                else
+                {
+                    RewardCurrency = id;
+                }
+            }
 
-            int32 RewardItem = 0;
-            uint32 RewardItemQuantity = 0;
-            int32 BonusCurrency = 0;
-            bool IsCurrency = false;
+            Optional<Item::ItemInstance> RewardItem;
+            Optional<int32> RewardCurrency;
+            uint32 Quantity = 0;
+            int32 BonusQuantity = 0;
         };
 
         class LFGPlayerReward final : public ServerPacket

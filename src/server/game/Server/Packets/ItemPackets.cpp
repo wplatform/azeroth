@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +16,6 @@
  */
 
 #include "ItemPackets.h"
-#include "Player.h"
 
 void WorldPackets::Item::BuyBackItem::Read()
 {
@@ -32,7 +31,7 @@ void WorldPackets::Item::BuyItem::Read()
     _worldPacket >> Muid;
     _worldPacket >> Slot;
     _worldPacket >> Item;
-    ItemType = static_cast<ItemVendorType>(_worldPacket.ReadBits(2));
+    ItemType = static_cast<ItemVendorType>(_worldPacket.ReadBits(3));
 }
 
 WorldPacket const* WorldPackets::Item::BuySucceeded::Write()
@@ -106,7 +105,7 @@ WorldPacket const* WorldPackets::Item::ItemPurchaseRefundResult::Write()
 {
     _worldPacket << ItemGUID;
     _worldPacket << uint8(Result);
-    _worldPacket.WriteBit(Contents.is_initialized());
+    _worldPacket.WriteBit(Contents.has_value());
     _worldPacket.FlushBits();
     if (Contents)
         _worldPacket << *Contents;
@@ -280,7 +279,7 @@ WorldPacket const* WorldPackets::Item::ReadItemResultFailed::Write()
 {
     _worldPacket << Item;
     _worldPacket << uint32(Delay);
-    _worldPacket.WriteBits(Subcode, 3);
+    _worldPacket.WriteBits(Subcode, 2);
 
     _worldPacket.FlushBits();
 
@@ -313,6 +312,18 @@ WorldPacket const* WorldPackets::Item::ItemCooldown::Write()
     return &_worldPacket;
 }
 
+WorldPacket const* WorldPackets::Item::EnchantmentLog::Write()
+{
+    _worldPacket << Owner;
+    _worldPacket << Caster;
+    _worldPacket << ItemGUID;
+    _worldPacket << int32(ItemID);
+    _worldPacket << int32(Enchantment);
+    _worldPacket << int32(EnchantSlot);
+
+    return &_worldPacket;
+}
+
 WorldPacket const* WorldPackets::Item::ItemEnchantTimeUpdate::Write()
 {
     _worldPacket << ItemGuid;
@@ -328,15 +339,6 @@ void WorldPackets::Item::UseCritterItem::Read()
     _worldPacket >> ItemGuid;
 }
 
-void WorldPackets::Item::UpgradeItem::Read()
-{
-    _worldPacket >> ItemMaster;
-    _worldPacket >> ItemGUID;
-    _worldPacket >> UpgradeID;
-    _worldPacket >> ContainerSlot;
-    _worldPacket >> Slot;
-}
-
 void WorldPackets::Item::SocketGems::Read()
 {
     _worldPacket >> ItemGuid;
@@ -344,17 +346,9 @@ void WorldPackets::Item::SocketGems::Read()
         _worldPacket >> gemGuid;
 }
 
-WorldPacket const* WorldPackets::Item::SocketGemsResult::Write()
+WorldPacket const* WorldPackets::Item::SocketGemsSuccess::Write()
 {
     _worldPacket << Item;
-
-    return &_worldPacket;
-}
-
-WorldPacket const* WorldPackets::Item::ItemUpgradeResult::Write()
-{
-    _worldPacket.WriteBit(Success);
-    _worldPacket.FlushBits();
 
     return &_worldPacket;
 }

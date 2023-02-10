@@ -37,7 +37,10 @@ DynamicObject::DynamicObject(bool isWorldObject) : WorldObject(isWorldObject),
     m_objectType |= TYPEMASK_DYNAMICOBJECT;
     m_objectTypeId = TYPEID_DYNAMICOBJECT;
 
-    m_updateFlag.Stationary = true;
+    m_updateFlag = UPDATEFLAG_STATIONARY_POSITION;
+
+    m_valuesCount = DYNAMICOBJECT_END;
+    _dynamicValuesCount = DYNAMICOBJECT_DYNAMIC_END;
 }
 
 DynamicObject::~DynamicObject()
@@ -99,14 +102,12 @@ bool DynamicObject::CreateDynamicObject(ObjectGuid::LowType guidlow, Unit* caste
 
     SetEntry(spell->Id);
     SetObjectScale(1.0f);
-    auto dynamicObjectData = m_values.ModifyValue(&DynamicObject::m_dynamicObjectData);
-    SetUpdateFieldValue(dynamicObjectData.ModifyValue(&UF::DynamicObjectData::Caster), caster->GetGUID());
-    SetUpdateFieldValue(dynamicObjectData.ModifyValue(&UF::DynamicObjectData::Type), type);
-    SetUpdateFieldValue(dynamicObjectData.ModifyValue(&UF::DynamicObjectData::SpellVisual).ModifyValue(&UF::SpellCastVisual::SpellXSpellVisualID), spellVisual.SpellXSpellVisualID);
-    SetUpdateFieldValue(dynamicObjectData.ModifyValue(&UF::DynamicObjectData::SpellVisual).ModifyValue(&UF::SpellCastVisual::ScriptVisualID), spellVisual.ScriptVisualID);
-    SetUpdateFieldValue(dynamicObjectData.ModifyValue(&UF::DynamicObjectData::SpellID), spell->Id);
-    SetUpdateFieldValue(dynamicObjectData.ModifyValue(&UF::DynamicObjectData::Radius), radius);
-    SetUpdateFieldValue(dynamicObjectData.ModifyValue(&UF::DynamicObjectData::CastTime), GameTime::GetGameTimeMS());
+    SetGuidValue(DYNAMICOBJECT_CASTER, caster->GetGUID());
+    SetUInt32Value(DYNAMICOBJECT_TYPE, type);
+    SetUInt32Value(DYNAMICOBJECT_SPELL_X_SPELL_VISUAL_ID, spellXSpellVisualId);
+    SetUInt32Value(DYNAMICOBJECT_SPELLID, spell->Id);
+    SetFloatValue(DYNAMICOBJECT_RADIUS, radius);
+    SetUInt32Value(DYNAMICOBJECT_CASTTIME, getMSTime());
 
     if (IsWorldObject())
         setActive(true);    //must before add to map to be put in world container

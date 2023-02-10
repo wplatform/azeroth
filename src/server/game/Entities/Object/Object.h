@@ -152,6 +152,12 @@ class TC_GAME_API Object
         float GetObjectScale() const { return GetFloatValue(OBJECT_FIELD_SCALE_X); }
         virtual void SetObjectScale(float scale) { SetFloatValue(OBJECT_FIELD_SCALE_X, scale); }
 
+        uint32 GetDynamicFlags() const { return GetInt32Value(OBJECT_DYNAMIC_FLAGS); }
+        bool HasDynamicFlag(uint32 flag) const { return HasFlag(OBJECT_DYNAMIC_FLAGS, flag); }
+        void SetDynamicFlag(uint32 flag) { SetFlag(OBJECT_DYNAMIC_FLAGS, flag); }
+        void RemoveDynamicFlag(uint32 flag) { RemoveFlag(OBJECT_DYNAMIC_FLAGS, flag); }
+        void ReplaceAllDynamicFlags(uint32 flag) { ToggleFlag(OBJECT_DYNAMIC_FLAGS, flag); }
+
         TypeID GetTypeId() const { return m_objectTypeId; }
         bool isType(uint16 mask) const { return (mask & m_objectType) != 0; }
 

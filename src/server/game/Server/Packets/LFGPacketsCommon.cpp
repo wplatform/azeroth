@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +23,8 @@ ByteBuffer& operator>>(ByteBuffer& data, WorldPackets::LFG::RideTicket& ticket)
     data >> ticket.Id;
     ticket.Type = data.read<WorldPackets::LFG::RideType>();
     data >> ticket.Time;
+    ticket.Unknown925 = data.ReadBit();
+    data.ResetBitPos();
 
     return data;
 }
@@ -32,7 +34,9 @@ ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::LFG::RideTicket const& ti
     data << ticket.RequesterGuid;
     data << uint32(ticket.Id);
     data << uint32(ticket.Type);
-    data << int32(ticket.Time);
+    data << ticket.Time;
+    data.WriteBit(ticket.Unknown925);
+    data.FlushBits();
 
     return data;
 }

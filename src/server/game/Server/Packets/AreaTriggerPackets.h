@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -32,6 +32,12 @@ namespace WorldPackets
             uint32 TimeToTarget = 0;
             uint32 ElapsedTimeForMovement = 0;
             std::vector<TaggedPosition<Position::XYZ>> Points;
+        };
+
+        struct AreaTriggerMovementScriptInfo
+        {
+            uint32 SpellScriptID = 0;
+            TaggedPosition<Position::XYZ> Center;
         };
 
         class AreaTrigger final : public ClientPacket
@@ -68,28 +74,18 @@ namespace WorldPackets
         class AreaTriggerRePath final : public ServerPacket
         {
         public:
-            AreaTriggerRePath() : ServerPacket(SMSG_AREA_TRIGGER_RE_PATH, 50) { }
-
-            WorldPacket const* Write() override;
-
-            AreaTriggerSplineInfo AreaTriggerSpline;
-            ObjectGuid TriggerGUID;
-        };
-
-        class AreaTriggerReShape final : public ServerPacket
-        {
-        public:
-            AreaTriggerReShape() : ServerPacket(SMSG_AREA_TRIGGER_RE_SHAPE, 17) { }
+            AreaTriggerRePath() : ServerPacket(SMSG_AREA_TRIGGER_RE_PATH, 17) { }
 
             WorldPacket const* Write() override;
 
             Optional<AreaTriggerSplineInfo> AreaTriggerSpline;
-            Optional<AreaTriggerCircularMovementInfo> AreaTriggerCircularMovement;
+            Optional<AreaTriggerOrbitInfo> AreaTriggerOrbit;
+            Optional<AreaTriggerMovementScriptInfo> AreaTriggerMovementScript;
             ObjectGuid TriggerGUID;
         };
     }
 }
 
-ByteBuffer& operator<<(ByteBuffer& data, AreaTriggerCircularMovementInfo const& areaTriggerCircularMovement);
+ByteBuffer& operator<<(ByteBuffer& data, AreaTriggerOrbitInfo const& areaTriggerCircularMovement);
 
 #endif // AreaTriggerPackets_h__

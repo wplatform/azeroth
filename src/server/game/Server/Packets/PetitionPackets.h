@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,7 +20,6 @@
 
 #include "Packet.h"
 #include "ObjectGuid.h"
-#include "WorldSession.h"
 
 namespace WorldPackets
 {
@@ -56,7 +55,7 @@ namespace WorldPackets
             int32 NumChoices = 0;
             int32 StaticType = 0;
             uint32 Muid = 0;
-            std::string Choicetext[10];
+            std::array<std::string, 10> Choicetext;
         };
 
         class QueryPetitionResponse final : public ServerPacket
@@ -101,6 +100,7 @@ namespace WorldPackets
 
             ObjectGuid Unit;
             std::string Title;
+            uint32 Unused910 = 0;
         };
 
         class PetitionShowSignatures final : public ClientPacket

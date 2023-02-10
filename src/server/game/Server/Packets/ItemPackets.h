@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,7 +22,6 @@
 #include "DBCEnums.h"
 #include "ItemDefines.h"
 #include "ItemPacketsCommon.h"
-#include "PacketUtilities.h"
 #include "ObjectGuid.h"
 #include "Optional.h"
 #include <array>
@@ -424,6 +423,21 @@ namespace WorldPackets
             uint32 Cooldown = 0;
         };
 
+        class EnchantmentLog final : public ServerPacket
+        {
+        public:
+            EnchantmentLog() : ServerPacket(SMSG_ENCHANTMENT_LOG, 0) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Owner;
+            ObjectGuid Caster;
+            ObjectGuid ItemGUID;
+            int32 ItemID = 0;
+            int32 Enchantment = 0;
+            int32 EnchantSlot = 0;
+        };
+
         class ItemEnchantTimeUpdate final : public ServerPacket
         {
         public:
@@ -447,30 +461,6 @@ namespace WorldPackets
             ObjectGuid ItemGuid;
         };
 
-        class UpgradeItem final : public ClientPacket
-        {
-        public:
-            UpgradeItem(WorldPacket&& packet) : ClientPacket(CMSG_UPGRADE_ITEM, std::move(packet)) { }
-
-            void Read() override;
-
-            ObjectGuid ItemMaster;
-            ObjectGuid ItemGUID;
-            int32 ContainerSlot = 0;
-            int32 UpgradeID = 0;
-            int32 Slot = 0;
-        };
-
-        class ItemUpgradeResult final : public ServerPacket
-        {
-        public:
-            ItemUpgradeResult() : ServerPacket(SMSG_ITEM_UPGRADE_RESULT, 1) { }
-
-            WorldPacket const* Write() override;
-
-            bool Success = false;
-        };
-
         class SocketGems final : public ClientPacket
         {
         public:
@@ -482,10 +472,10 @@ namespace WorldPackets
             std::array<ObjectGuid, MAX_ITEM_PROTO_SOCKETS> GemItem = { };
         };
 
-        class SocketGemsResult final : public ServerPacket
+        class SocketGemsSuccess final : public ServerPacket
         {
         public:
-            SocketGemsResult() : ServerPacket(SMSG_SOCKET_GEMS, 16 + 4 * 3 + 4) { }
+            SocketGemsSuccess() : ServerPacket(SMSG_SOCKET_GEMS_SUCCESS, 16 + 4 * 3 + 4) { }
 
             WorldPacket const* Write() override;
 
@@ -516,10 +506,10 @@ namespace WorldPackets
             void Read() override { }
         };
 
-        class SortBagsResult final : public ServerPacket
+        class BagCleanupFinished final : public ServerPacket
         {
         public:
-            SortBagsResult() : ServerPacket(SMSG_SORT_BAGS_RESULT, 0) { }
+            BagCleanupFinished() : ServerPacket(SMSG_BAG_CLEANUP_FINISHED, 0) { }
 
             WorldPacket const* Write() override { return &_worldPacket; }
         };
@@ -534,10 +524,10 @@ namespace WorldPackets
             ObjectGuid ItemGuid;
         };
 
-        class CharacterInventoryOverflowWarning final : public ServerPacket
+        class InventoryFullOverflow final : public ServerPacket
         {
         public:
-            CharacterInventoryOverflowWarning() : ServerPacket(SMSG_CHARACTER_INVENTORY_OVERFLOW_WARNING, 0) { }
+            InventoryFullOverflow() : ServerPacket(SMSG_INVENTORY_FULL_OVERFLOW, 0) { }
 
             WorldPacket const* Write() override { return &_worldPacket; }
         };

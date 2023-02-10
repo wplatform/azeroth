@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -69,13 +69,14 @@ ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::LFG::LFGBlackListSlot con
     data << uint32(lfgBlackListSlot.Reason);
     data << int32(lfgBlackListSlot.SubReason1);
     data << int32(lfgBlackListSlot.SubReason2);
+    data << uint32(lfgBlackListSlot.SoftLock);
 
     return data;
 }
 
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::LFG::LFGBlackList const& blackList)
 {
-    data.WriteBit(blackList.PlayerGuid.is_initialized());
+    data.WriteBit(blackList.PlayerGuid.has_value());
     data << uint32(blackList.Slot.size());
     if (blackList.PlayerGuid)
         data << *blackList.PlayerGuid;
@@ -120,10 +121,10 @@ ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::LFG::LfgPlayerQuestReward
     for (WorldPackets::LFG::LfgPlayerQuestRewardCurrency const& bonusCurrency : playerQuestReward.BonusCurrency)
         data << bonusCurrency;
 
-    data.WriteBit(playerQuestReward.RewardSpellID.is_initialized());
-    data.WriteBit(playerQuestReward.Unused1.is_initialized());
-    data.WriteBit(playerQuestReward.Unused2.is_initialized());
-    data.WriteBit(playerQuestReward.Honor.is_initialized());
+    data.WriteBit(playerQuestReward.RewardSpellID.has_value());
+    data.WriteBit(playerQuestReward.Unused1.has_value());
+    data.WriteBit(playerQuestReward.Unused2.has_value());
+    data.WriteBit(playerQuestReward.Honor.has_value());
     data.FlushBits();
 
     if (playerQuestReward.RewardSpellID)
@@ -197,6 +198,7 @@ WorldPacket const* WorldPackets::LFG::LFGUpdateStatus::Write()
     _worldPacket << uint32(Slots.size());
     _worldPacket << uint32(RequestedRoles);
     _worldPacket << uint32(SuspendedPlayers.size());
+    _worldPacket << uint32(QueueMapID);
 
     for (uint32 slot : Slots)
         _worldPacket << uint32(slot);
@@ -241,12 +243,15 @@ WorldPacket const* WorldPackets::LFG::LFGRoleCheckUpdate::Write()
     _worldPacket << uint8(PartyIndex);
     _worldPacket << uint8(RoleCheckStatus);
     _worldPacket << uint32(JoinSlots.size());
-    _worldPacket << uint64(BgQueueID);
+    _worldPacket << uint32(BgQueueIDs.size());
     _worldPacket << int32(GroupFinderActivityID);
     _worldPacket << uint32(Members.size());
 
     for (uint32 slot : JoinSlots)
         _worldPacket << uint32(slot);
+
+    for (uint64 bgQueueID : BgQueueIDs)
+        _worldPacket << uint64(bgQueueID);
 
     _worldPacket.WriteBit(IsBeginning);
     _worldPacket.WriteBit(IsRequeue);
@@ -258,36 +263,23 @@ WorldPacket const* WorldPackets::LFG::LFGRoleCheckUpdate::Write()
     return &_worldPacket;
 }
 
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::LFG::LFGJoinBlackListSlot const& lfgBlackListSlot)
-{
-    data << int32(lfgBlackListSlot.Slot);
-    data << int32(lfgBlackListSlot.Reason);
-    data << int32(lfgBlackListSlot.SubReason1);
-    data << int32(lfgBlackListSlot.SubReason2);
-
-    return data;
-}
-
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::LFG::LFGJoinBlackList const& blackList)
-{
-    data << blackList.Guid;
-    data << uint32(blackList.Slots.size());
-
-    for (WorldPackets::LFG::LFGJoinBlackListSlot const& slot : blackList.Slots)
-        data << slot;
-
-    return data;
-}
-
 WorldPacket const* WorldPackets::LFG::LFGJoinResult::Write()
 {
     _worldPacket << Ticket;
     _worldPacket << uint8(Result);
     _worldPacket << uint8(ResultDetail);
     _worldPacket << uint32(BlackList.size());
+    _worldPacket << uint32(BlackListNames.size());
 
-    for (LFGJoinBlackList const& blackList : BlackList)
+    for (LFGBlackList const& blackList : BlackList)
         _worldPacket << blackList;
+
+    for (std::string const* str : BlackListNames)
+        _worldPacket.WriteBits(str->length() + 1, 24);
+
+    for (std::string const* str : BlackListNames)
+        if (!str->empty())
+            _worldPacket << *str;
 
     return &_worldPacket;
 }
@@ -311,10 +303,15 @@ WorldPacket const* WorldPackets::LFG::LFGQueueStatus::Write()
 
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::LFG::LFGPlayerRewards const& lfgPlayerRewards)
 {
-    data << int32(lfgPlayerRewards.RewardItem);
-    data << uint32(lfgPlayerRewards.RewardItemQuantity);
-    data << int32(lfgPlayerRewards.BonusCurrency);
-    data.WriteBit(lfgPlayerRewards.IsCurrency);
+    data.WriteBit(lfgPlayerRewards.RewardItem.has_value());
+    data.WriteBit(lfgPlayerRewards.RewardCurrency.has_value());
+    if (lfgPlayerRewards.RewardItem)
+        data << *lfgPlayerRewards.RewardItem;
+
+    data << uint32(lfgPlayerRewards.Quantity);
+    data << int32(lfgPlayerRewards.BonusQuantity);
+    if (lfgPlayerRewards.RewardCurrency)
+        data << int32(*lfgPlayerRewards.RewardCurrency);
 
     return data;
 }

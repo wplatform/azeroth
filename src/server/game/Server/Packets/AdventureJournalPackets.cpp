@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 TrinityCore-Legion <https://gitlab.com/celestial-wow/trinitycore-legion/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,12 +17,38 @@
 
 #include "AdventureJournalPackets.h"
 
-void WorldPackets::AdventureJournal::AdventureJournalOpenQuest::Read()
+namespace WorldPackets
 {
-    _worldPacket >> AdventureJournalEntry;
+namespace AdventureJournal
+{
+void AdventureJournalOpenQuest::Read()
+{
+    _worldPacket >> AdventureJournalID;
 }
 
-void WorldPackets::AdventureJournal::AdventureJournalStartQuest::Read()
+void AdventureJournalUpdateSuggestions::Read()
 {
-    _worldPacket >> QuestEntry;
+    OnLevelUp = _worldPacket.ReadBit();
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, AdventureJournalEntry const& adventureJournalEntry)
+{
+    data << int32(adventureJournalEntry.AdventureJournalID);
+    data << int32(adventureJournalEntry.Priority);
+
+    return data;
+}
+
+WorldPacket const* AdventureJournalDataResponse::Write()
+{
+    _worldPacket.WriteBit(OnLevelUp);
+    _worldPacket.FlushBits();
+    _worldPacket << uint32(Entries.size());
+
+    for (AdventureJournalEntry const& adventureJournalEntry : Entries)
+        _worldPacket << adventureJournalEntry;
+
+    return &_worldPacket;
+}
+}
 }

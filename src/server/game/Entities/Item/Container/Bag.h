@@ -53,7 +53,7 @@ class TC_GAME_API Bag : public Item
         void DeleteFromDB(CharacterDatabaseTransaction trans) override;
 
     protected:
-        void BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) const override;
+        void BuildCreateUpdateBlockForPlayer(UpdateData* data, Player const* target) const override;
         void BuildValuesCreate(ByteBuffer* data, Player const* target) const override;
         void BuildValuesUpdate(ByteBuffer* data, Player const* target) const override;
         void ClearUpdateMask(bool remove) override;

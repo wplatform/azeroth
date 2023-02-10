@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -41,35 +41,57 @@ namespace WorldPackets
             int64 Health = 0;
             int32 AttackPower = 0;
             int32 SpellPower = 0;
+            int32 Armor = 0;
             std::vector<SpellLogPowerData> PowerData;
 
             void Initialize(Unit const* unit);
             void Initialize(Spell const* spell);
         };
 
-        struct SandboxScalingData
+        struct ContentTuningParams
         {
-            enum SandboxScalingDataType : uint32
+            enum ContentTuningType : uint32
             {
-                TYPE_PLAYER_TO_PLAYER               = 1, // NYI
-                TYPE_CREATURE_TO_PLAYER_DAMAGE      = 2,
-                TYPE_PLAYER_TO_CREATURE_DAMAGE      = 3,
-                TYPE_CREATURE_TO_CREATURE_DAMAGE    = 4
+                TYPE_CREATURE_TO_PLAYER_DAMAGE          = 1,
+                TYPE_PLAYER_TO_CREATURE_DAMAGE          = 2,
+                TYPE_CREATURE_TO_CREATURE_DAMAGE        = 4,
+                TYPE_PLAYER_TO_PLAYER_SANDBOX_SCALING   = 7, // NYI
+                TYPE_PLAYER_TO_PLAYER_EXPECTED_STAT     = 8,
+            };
+
+            enum ContentTuningFlags : uint32
+            {
+                NO_LEVEL_SCALING        = 0x1,
+                NO_ITEM_LEVEL_SCALING   = 0x2
             };
 
             uint32 Type = 0;
             int16 PlayerLevelDelta = 0;
-            uint16 PlayerItemLevel = 0;
+            float PlayerItemLevel = 0;
+            float TargetItemLevel = 0;
+            uint16 ScalingHealthItemLevelCurveID = 0;
             uint8 TargetLevel = 0;
             uint8 Expansion = 0;
-            uint8 Class = 0;
-            uint8 TargetMinScalingLevel = 0;
-            uint8 TargetMaxScalingLevel = 0;
             int8 TargetScalingLevelDelta = 0;
+            uint32 Flags = NO_LEVEL_SCALING | NO_ITEM_LEVEL_SCALING;
+            int32 PlayerContentTuningID = 0;
+            int32 TargetContentTuningID = 0;
+            int32 Unused927 = 0;
 
             template<class T, class U>
             bool GenerateDataForUnits(T* attacker, U* target);
         };
+
+        struct SpellCastVisual
+        {
+            int32 SpellXSpellVisualID = 0;
+            int32 ScriptVisualID = 0;
+        };
+
+        ByteBuffer& operator<<(ByteBuffer& data, SpellCastLogData const& spellCastLogData);
+        ByteBuffer& operator<<(ByteBuffer& data, ContentTuningParams const& contentTuningParams);
+        ByteBuffer& operator>>(ByteBuffer& data, SpellCastVisual& visual);
+        ByteBuffer& operator<<(ByteBuffer& data, SpellCastVisual const& visual);
     }
 
     namespace CombatLog
@@ -124,8 +146,5 @@ namespace WorldPackets
         };
     }
 }
-
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Spells::SpellCastLogData const& spellCastLogData);
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Spells::SandboxScalingData const& sandboxScalingData);
 
 #endif // CombatLogPacketsCommon_h__

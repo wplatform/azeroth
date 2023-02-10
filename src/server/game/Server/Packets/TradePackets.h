@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -150,31 +150,31 @@ namespace WorldPackets
             bool PartnerIsSameBnetAccount = false;
         };
 
+        struct UnwrappedTradeItem
+        {
+            WorldPackets::Item::ItemInstance Item;
+            int32 EnchantID = 0;
+            int32 OnUseEnchantmentID = 0;
+            ObjectGuid Creator;
+            int32 Charges = 0;
+            bool Lock = false;
+            uint32 MaxDurability = 0;
+            uint32 Durability = 0;
+            std::vector<Item::ItemGemData> Gems;
+        };
+
+        struct TradeItem
+        {
+            uint8 Slot = 0;
+            Item::ItemInstance Item;
+            int32 StackCount = 0;
+            ObjectGuid GiftCreator;
+            Optional<UnwrappedTradeItem> Unwrapped;
+        };
+
         class TradeUpdated final : public ServerPacket
         {
         public:
-            struct UnwrappedTradeItem
-            {
-                WorldPackets::Item::ItemInstance Item;
-                int32 EnchantID = 0;
-                int32 OnUseEnchantmentID = 0;
-                ObjectGuid Creator;
-                int32 Charges = 0;
-                bool Lock = false;
-                uint32 MaxDurability = 0;
-                uint32 Durability = 0;
-                std::vector<Item::ItemGemData> Gems;
-            };
-
-            struct TradeItem
-            {
-                uint8 Slot = 0;
-                Item::ItemInstance Item;
-                int32 StackCount = 0;
-                ObjectGuid GiftCreator;
-                Optional<UnwrappedTradeItem> Unwrapped;
-            };
-
             TradeUpdated() : ServerPacket(SMSG_TRADE_UPDATED, 8 + 4 + 1 + 4 + 7 * sizeof(UnwrappedTradeItem) + 4 + 4 + 4 + 4) { }
 
             WorldPacket const* Write() override;

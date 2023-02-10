@@ -22,190 +22,214 @@
  */
 
 #include "ScriptMgr.h"
-#include "Player.h"
-#include "GridNotifiers.h"
+#include "AreaTriggerAI.h"
+#include "CellImpl.h"
+#include "Containers.h"
+#include "CreatureAIImpl.h" // for RAND()
+#include "GridNotifiersImpl.h"
 #include "Item.h"
+#include "ObjectAccessor.h"
+#include "Player.h"
 #include "SpellAuraEffects.h"
 #include "SpellHistory.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
-#include "Unit.h"
+#include "TemporarySummon.h"
 
 enum ShamanSpells
 {
-    SPELL_SHAMAN_ANCESTRAL_AWAKENING            = 52759,
-    SPELL_SHAMAN_ANCESTRAL_AWAKENING_PROC       = 52752,
-    SPELL_SHAMAN_ANCESTRAL_VIGOR                = 105284,
-    SPELL_SHAMAN_BIND_SIGHT                     = 6277,
-    SPELL_SHAMAN_CHAIN_HEAL                     = 1064,
-    SPELL_SHAMAN_CHAIN_LIGHTNING                = 421,
-    SPELL_SHAMAN_CHAIN_LIGHTNING_TRIGGERED      = 45297,
-    SPELL_SHAMAN_CLEANSING_WATERS_DUMMY_R1      = 86959,
-    SPELL_SHAMAN_CLEANSING_WATERS_DUMMY_R2      = 86962,
-    SPELL_SMAMAN_CLEANSING_WATERS_HEAL_R1       = 86961,
-    SPELL_SMAMAN_CLEANSING_WATERS_HEAL_R2       = 86958,
-    SPELL_SHAMAN_EARTH_SHIELD_HEAL              = 379,
-    SPELL_SHAMAN_EARTHQUAKE_DAMAGE              = 77478,
-    SPELL_SHAMAN_EARTHQUAKE_STUN                = 77505,
+    SPELL_SHAMAN_AFTERSHOCK_ENERGIZE            = 210712,
+    SPELL_SHAMAN_ANCESTRAL_GUIDANCE             = 108281,
+    SPELL_SHAMAN_ANCESTRAL_GUIDANCE_HEAL        = 114911,
+    SPELL_SHAMAN_CHAIN_LIGHTNING                = 188443,
+    SPELL_SHAMAN_CHAIN_LIGHTNING_ENERGIZE       = 195897,
+    SPELL_SHAMAN_CHAIN_LIGHTNING_OVERLOAD       = 45297,
+    SPELL_SHAMAN_CHAIN_LIGHTNING_OVERLOAD_ENERGIZE = 218558,
+    SPELL_SHAMAN_CHAINED_HEAL                   = 70809,
+    SPELL_SHAMAN_CRASH_LIGHTNING_CLEAVE         = 187878,
+    SPELL_SHAMAN_EARTHQUAKE                     = 61882,
+    SPELL_SHAMAN_EARTHQUAKE_KNOCKING_DOWN       = 77505,
+    SPELL_SHAMAN_EARTHQUAKE_TICK                = 77478,
+    SPELL_SHAMAN_EARTH_SHIELD_HEAL              = 204290,
+    SPELL_SHAMAN_EARTHEN_RAGE_PASSIVE           = 170374,
+    SPELL_SHAMAN_EARTHEN_RAGE_PERIODIC          = 170377,
+    SPELL_SHAMAN_EARTHEN_RAGE_DAMAGE            = 170379,
+    SPELL_SHAMAN_ELECTRIFIED                    = 64930,
+    SPELL_SHAMAN_ELEMENTAL_BLAST                = 117014,
+    SPELL_SHAMAN_ELEMENTAL_BLAST_CRIT           = 118522,
+    SPELL_SHAMAN_ELEMENTAL_BLAST_ENERGIZE       = 344645,
+    SPELL_SHAMAN_ELEMENTAL_BLAST_HASTE          = 173183,
+    SPELL_SHAMAN_ELEMENTAL_BLAST_MASTERY        = 173184,
+    SPELL_SHAMAN_ELEMENTAL_BLAST_OVERLOAD       = 120588,
     SPELL_SHAMAN_ELEMENTAL_MASTERY              = 16166,
-    SPELL_SHAMAN_ELEMENTAL_OATH                 = 51466,
+    SPELL_SHAMAN_ENERGY_SURGE                   = 40465,
     SPELL_SHAMAN_EXHAUSTION                     = 57723,
-    SPELL_SHAMAN_FIRE_NOVA_DAMAGE               = 8349,
-    SPELL_SHAMAN_FLAME_SHOCK                    = 8050,
+    SPELL_SHAMAN_FLAME_SHOCK                    = 188389,
     SPELL_SHAMAN_FLAMETONGUE_ATTACK             = 10444,
-    SPELL_SHAMAN_FLAMETONGUE_WEAPON             = 8024,
-    SPELL_SHAMAN_FOCUSED_INSIGHT                = 77800,
-    SPELL_SHAMAN_FREEZE                         = 63685,
-    SPELL_SHAMAN_FULMINATION_PROC               = 95774,
-    SPELL_SHAMAN_FULMINATION_DAMAGE             = 88767,
-    SPELL_SHAMAN_GLYPH_OF_HEALING_STREAM_TOTEM  = 55456,
-    SPELL_SHAMAN_GLYPH_OF_HEALING_WAVE          = 55533,
-    SPELL_SHAMAN_GLYPH_OF_MANA_TIDE             = 55441,
-    SPELL_SHAMAN_GLYPH_OF_THUNDERSTORM          = 62132,
-    SPELL_SHAMAN_HEALING_RAIN_TRIGGERED         = 73921,
-    SPELL_SHAMAN_HEALING_SURGE                  = 8004,
-    SPELL_SHAMAN_LAVA_BURST                     = 51505,
-    SPELL_SHAMAN_LAVA_BURST_TRIGGERED           = 77451,
-    SPELL_SHAMAN_LAVA_FLOWS_R1                  = 51480,
-    SPELL_SHAMAN_LAVA_FLOWS_TRIGGERED_R1        = 65264,
-    SPELL_SHAMAN_LAVA_LASH_SPREAD_FLAME_SHOCK   = 105792,
-    SPELL_SHAMAN_LAVA_SURGE                     = 77762,
-    SPELL_SHAMAN_LIGHTNING_BOLT                 = 403,
-    SPELL_SHAMAN_LIGHTNING_BOLT_TRIGGERED       = 45284,
+    SPELL_SHAMAN_FLAMETONGUE_WEAPON_ENCHANT     = 334294,
+    SPELL_SHAMAN_FLAMETONGUE_WEAPON_AURA        = 319778,
+    SPELL_SHAMAN_FROST_SHOCK_ENERGIZE           = 289439,
+    SPELL_SHAMAN_GATHERING_STORMS               = 198299,
+    SPELL_SHAMAN_GATHERING_STORMS_BUFF          = 198300,
+    SPELL_SHAMAN_GHOST_WOLF                     = 2645,
+    SPELL_SHAMAN_HEALING_RAIN_VISUAL            = 147490,
+    SPELL_SHAMAN_HEALING_RAIN_HEAL              = 73921,
+    SPELL_SHAMAN_ICEFURY                        = 210714,
+    SPELL_SHAMAN_ICEFURY_OVERLOAD               = 219271,
+    SPELL_SHAMAN_IGNEOUS_POTENTIAL              = 279830,
     SPELL_SHAMAN_ITEM_LIGHTNING_SHIELD          = 23552,
     SPELL_SHAMAN_ITEM_LIGHTNING_SHIELD_DAMAGE   = 27635,
     SPELL_SHAMAN_ITEM_MANA_SURGE                = 23571,
-    SPELL_SHAMAN_ITEM_SHAMAN_T12_ELEMENTAL_4P   = 99206,
-    SPELL_SHAMAN_LIGHTNING_SHIELD               = 324,
-    SPELL_SHAMAN_LIGHTNING_SHIELD_DAMAGE        = 26364,
-    SPELL_SHAMAN_MAELSTROM_DUMMY                = 60349,
-    SPELL_SHAMAN_NATURE_GUARDIAN                = 31616,
-    SPELL_SHAMAN_RESURGENCE_ENERGIZE            = 101033,
-    SPELL_SHAMAN_RIPTIDE                        = 61295,
+    SPELL_SHAMAN_LAVA_BEAM                      = 114074,
+    SPELL_SHAMAN_LAVA_BEAM_OVERLOAD             = 114738,
+    SPELL_SHAMAN_LAVA_BURST                     = 51505,
+    SPELL_SHAMAN_LAVA_BURST_BONUS_DAMAGE        = 71824,
+    SPELL_SHAMAN_LAVA_BURST_OVERLOAD            = 77451,
+    SPELL_SHAMAN_LAVA_BURST_RANK_2              = 231721,
+    SPELL_SHAMAN_LAVA_SURGE                     = 77762,
+    SPELL_SHAMAN_LIGHTNING_BOLT                 = 188196,
+    SPELL_SHAMAN_LIGHTNING_BOLT_ENERGIZE        = 214815,
+    SPELL_SHAMAN_LIGHTNING_BOLT_OVERLOAD        = 45284,
+    SPELL_SHAMAN_LIGHTNING_BOLT_OVERLOAD_ENERGIZE = 214816,
+    SPELL_SHAMAN_LIQUID_MAGMA_HIT               = 192231,
+    SPELL_SHAMAN_MAELSTROM_CONTROLLER           = 343725,
+    SPELL_SHAMAN_MASTERY_ELEMENTAL_OVERLOAD     = 168534,
+    SPELL_SHAMAN_PATH_OF_FLAMES_SPREAD          = 210621,
+    SPELL_SHAMAN_PATH_OF_FLAMES_TALENT          = 201909,
+    SPELL_SHAMAN_POWER_SURGE                    = 40466,
     SPELL_SHAMAN_SATED                          = 57724,
-    SPELL_SHAMAN_SEARING_FLAMES_DAMAGE          = 77661,
-    SPELL_SHAMAN_STORM_EARTH_AND_FIRE           = 51483,
-    SPELL_SHAMAN_TELLURIC_CURRENTS              = 82987,
-    SPELL_SHAMAN_TOTEM_EARTHBIND_EARTHGRAB      = 64695,
-    SPELL_SHAMAN_TOTEM_EARTHBIND_TOTEM          = 6474,
-    SPELL_SHAMAN_TOTEM_EARTHEN_POWER            = 59566,
-    SPELL_SHAMAN_TOTEM_HEALING_STREAM_HEAL      = 52042,
+    SPELL_SHAMAN_SPIRIT_WOLF_TALENT             = 260878,
+    SPELL_SHAMAN_SPIRIT_WOLF_PERIODIC           = 260882,
+    SPELL_SHAMAN_SPIRIT_WOLF_AURA               = 260881,
+    SPELL_SHAMAN_STORMKEEPER                    = 191634,
     SPELL_SHAMAN_TIDAL_WAVES                    = 53390,
-    SPELL_SHAMAN_TOTEMIC_MASTERY                = 38437,
-    SPELL_SHAMAN_THUNDERSTORM_SLOW              = 100955,
-    SPELL_SHAMAN_UNLEASH_LIFE                   = 73685,
-    SPELL_SHAMAN_UNLEASH_WIND                   = 73681,
-    SPELL_SHAMAN_UNLEASH_FROST                  = 73682,
-    SPELL_SHAMAN_UNLEASH_FLAME                  = 73683,
-    SPELL_SHAMAN_UNLEASH_EARTH                  = 73684,
-    SPELL_SHAMAN_VOLCANO                        = 99207,
-    SPELL_SHAMAN_WATER_SHIELD                   = 52127,
-    SPELL_SHAMAN_WINDFURY_ATTACK_MAINHAND       = 25504,
-    SPELL_SHAMAN_WINDFURY_ATTACK_OFFHAND        = 33750,
-    SPELL_SHAMAN_WINDFURY_WEAPON                = 8232
-};
-
-enum ShamanSpellIcons
-{
-    SHAMAN_ICON_ID_SOOTHING_RAIN                = 2011,
-    SHAMAN_ICON_ID_SHAMAN_LAVA_FLOW             = 3087,
-    SHAMAN_ICON_ID_CLEANSING_WATERS             = 2020,
-    SHAMAN_ICON_ID_BLESSING_OF_THE_ETERNALS     = 3157,
-    SHAMAN_ICON_ID_FULMINATION                  = 2010,
-    SHAMAN_ICON_ID_GLYPH_OF_LIGHTNING_SHIELD    = 19,
-    SHAMAN_ICON_ID_GLYPH_OF_EARTH_SHIELD        = 2015,
-    SHAMAN_ICON_ID_SEARING_FLAMES               = 680,
-    SHAMAN_ICON_ID_IMPROVED_LAVA_LASH           = 4780
+    SPELL_SHAMAN_TOTEMIC_POWER_MP5              = 28824,
+    SPELL_SHAMAN_TOTEMIC_POWER_SPELL_POWER      = 28825,
+    SPELL_SHAMAN_TOTEMIC_POWER_ATTACK_POWER     = 28826,
+    SPELL_SHAMAN_TOTEMIC_POWER_ARMOR            = 28827,
+    SPELL_SHAMAN_UNDULATION_PROC                = 216251,
+    SPELL_SHAMAN_UNLIMITED_POWER_BUFF           = 272737,
+    SPELL_SHAMAN_WINDFURY_ATTACK                = 25504,
+    SPELL_SHAMAN_WINDFURY_ENCHANTMENT           = 334302,
+    SPELL_SHAMAN_WIND_RUSH                      = 192082
 };
 
 enum MiscSpells
 {
     SPELL_HUNTER_INSANITY                       = 95809,
-    SPELL_MAGE_TEMPORAL_DISPLACEMENT            = 80354
+    SPELL_MAGE_TEMPORAL_DISPLACEMENT            = 80354,
+    SPELL_PET_NETHERWINDS_FATIGUED              = 160455
 };
 
-enum ShamanSpellCategories
+enum MiscNpcs
 {
-    SHAMAN_SPELL_CATEGORY_SHOCK_SPELLS = 19
+    NPC_HEALING_RAIN_INVISIBLE_STALKER          = 73400,
 };
 
-enum ShamanEnchantmentIds
+// 273221 - Aftershock
+class spell_sha_aftershock : public AuraScript
 {
-    SHAMAN_ENCHANTMENT_ID_FLAMETONGUE   = 5,
-    SHAMAN_ENCHANTMENT_ID_EARTHLIVING   = 3345,
-    SHAMAN_ENCHANTMENT_ID_FROSTBRAND    = 2,
-    SHAMAN_ENCHANTMENT_ID_ROCKBITER     = 3021,
-    SHAMAN_ENCHANTMENT_ID_WINDFURY      = 283
-};
+    PrepareAuraScript(spell_sha_aftershock);
 
-// -51556 - Ancestral Awakening
-class spell_sha_ancestral_awakening : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
+    bool Validate(SpellInfo const* /*spellEntry*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_TIDAL_WAVES });
+        return ValidateSpellInfo({ SPELL_SHAMAN_AFTERSHOCK_ENERGIZE });
     }
 
-    void HandleEffectProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    bool CheckProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        if (Spell const* procSpell = eventInfo.GetProcSpell())
+            if (Optional<int32> cost = procSpell->GetPowerTypeCostAmount(POWER_MAELSTROM))
+                return cost > 0 && roll_chance_i(aurEff->GetAmount());
+
+        return false;
+    }
+
+    void HandleEffectProc(AuraEffect* /*aurEff*/, ProcEventInfo& eventInfo)
+    {
+        Spell const* procSpell = eventInfo.GetProcSpell();
+        int32 energize = *procSpell->GetPowerTypeCostAmount(POWER_MAELSTROM);
+
+        eventInfo.GetActor()->CastSpell(eventInfo.GetActor(), SPELL_SHAMAN_AFTERSHOCK_ENERGIZE, CastSpellExtraArgs(energize)
+            .AddSpellMod(SPELLVALUE_BASE_POINT0, energize));
+    }
+
+    void Register() override
+    {
+        DoCheckEffectProc += AuraCheckEffectProcFn(spell_sha_aftershock::CheckProc, EFFECT_0, SPELL_AURA_DUMMY);
+        OnEffectProc += AuraEffectProcFn(spell_sha_aftershock::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 108281 - Ancestral Guidance
+class spell_sha_ancestral_guidance : public AuraScript
+{
+    PrepareAuraScript(spell_sha_ancestral_guidance);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_ANCESTRAL_GUIDANCE_HEAL });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        if (eventInfo.GetHealInfo() && eventInfo.GetSpellInfo() && eventInfo.GetSpellInfo()->Id == SPELL_SHAMAN_ANCESTRAL_GUIDANCE_HEAL)
+            return false;
+
+        if (!eventInfo.GetHealInfo() && !eventInfo.GetDamageInfo())
+            return false;
+
+        return true;
+    }
+
+    void HandleEffectProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
-        int32 heal = int32(CalculatePct(eventInfo.GetHealInfo()->GetEffectiveHeal(), aurEff->GetAmount()));
-
-        if (heal)
-            GetTarget()->CastSpell(nullptr, SPELL_SHAMAN_ANCESTRAL_AWAKENING, CastSpellExtraArgs(aurEff).AddSpellBP0(heal));
+        int32 bp0 = CalculatePct(int32(eventInfo.GetDamageInfo() ? eventInfo.GetDamageInfo()->GetDamage() : eventInfo.GetHealInfo()->GetHeal()), aurEff->GetAmount());
+        if (bp0)
+        {
+            CastSpellExtraArgs args(aurEff);
+            args.AddSpellMod(SPELLVALUE_BASE_POINT0, bp0);
+            eventInfo.GetActor()->CastSpell(eventInfo.GetActor(), SPELL_SHAMAN_ANCESTRAL_GUIDANCE_HEAL, args);
+        }
     }
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_sha_ancestral_awakening::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+        DoCheckProc += AuraCheckProcFn(spell_sha_ancestral_guidance::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_sha_ancestral_guidance::HandleEffectProc, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
     }
 };
 
-// 52759 - Ancestral Awakening
-/// Updated 4.3.4
-class spell_sha_ancestral_awakening_proc : public SpellScript
+// 114911 - Ancestral Guidance Heal
+class spell_sha_ancestral_guidance_heal : public SpellScript
 {
+    PrepareSpellScript(spell_sha_ancestral_guidance_heal);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_ANCESTRAL_AWAKENING_PROC });
+        return ValidateSpellInfo({ SPELL_SHAMAN_ANCESTRAL_GUIDANCE });
     }
 
-    void FilterTargets(std::list<WorldObject*>& targets)
+    void ResizeTargets(std::list<WorldObject*>& targets)
     {
-        if (targets.size() < 2)
-            return;
-
-        targets.sort(Trinity::HealthPctOrderPred());
-
-        WorldObject* target = targets.front();
-        targets.clear();
-        targets.push_back(target);
-    }
-
-    void HandleDummy(SpellEffIndex /*effIndex*/)
-    {
-        GetCaster()->CastSpell(GetHitUnit(), SPELL_SHAMAN_ANCESTRAL_AWAKENING_PROC, CastSpellExtraArgs(true).AddSpellBP0(GetEffectValue()));
+        Trinity::SelectRandomInjuredTargets(targets, 3, true);
     }
 
     void Register() override
     {
-        OnObjectAreaTargetSelect.Register(&spell_sha_ancestral_awakening_proc::FilterTargets, EFFECT_0, TARGET_UNIT_CASTER_AREA_RAID);
-        OnEffectHitTarget.Register(&spell_sha_ancestral_awakening_proc::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_ancestral_guidance_heal::ResizeTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ALLY);
     }
 };
 
 // 2825 - Bloodlust
-/// Updated 4.3.4
 class spell_sha_bloodlust : public SpellScript
 {
+    PrepareSpellScript(spell_sha_bloodlust);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_SATED,
-                SPELL_HUNTER_INSANITY,
-                SPELL_MAGE_TEMPORAL_DISPLACEMENT
-            });
+        return ValidateSpellInfo({ SPELL_SHAMAN_SATED, SPELL_HUNTER_INSANITY, SPELL_MAGE_TEMPORAL_DISPLACEMENT, SPELL_PET_NETHERWINDS_FATIGUED });
     }
 
     void RemoveInvalidTargets(std::list<WorldObject*>& targets)
@@ -223,359 +247,518 @@ class spell_sha_bloodlust : public SpellScript
 
     void Register() override
     {
-        OnObjectAreaTargetSelect.Register(&spell_sha_bloodlust::RemoveInvalidTargets, EFFECT_0, TARGET_UNIT_CASTER_AREA_RAID);
-        OnObjectAreaTargetSelect.Register(&spell_sha_bloodlust::RemoveInvalidTargets, EFFECT_1, TARGET_UNIT_CASTER_AREA_RAID);
-        OnObjectAreaTargetSelect.Register(&spell_sha_bloodlust::RemoveInvalidTargets, EFFECT_2, TARGET_UNIT_CASTER_AREA_RAID);
-        AfterHit.Register(&spell_sha_bloodlust::ApplyDebuff);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_bloodlust::RemoveInvalidTargets, EFFECT_0, TARGET_UNIT_CASTER_AREA_RAID);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_bloodlust::RemoveInvalidTargets, EFFECT_1, TARGET_UNIT_CASTER_AREA_RAID);
+        AfterHit += SpellHitFn(spell_sha_bloodlust::ApplyDebuff);
     }
 };
 
-// 1064 - Chain Heal
-/// Updated 4.3.4
-class spell_sha_chain_heal : public SpellScript
+// 188443 - Chain Lightning
+class spell_sha_chain_lightning : public SpellScript
 {
-    void HandleHeal(SpellEffIndex /*effIndex*/)
+    PrepareSpellScript(spell_sha_chain_lightning);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        if (_firstHeal)
+        return ValidateSpellInfo({ SPELL_SHAMAN_CHAIN_LIGHTNING_ENERGIZE, SPELL_SHAMAN_MAELSTROM_CONTROLLER })
+            && sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_MAELSTROM_CONTROLLER, DIFFICULTY_NONE)->GetEffects().size() > EFFECT_4;
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        if (AuraEffect const* energizeAmount = GetCaster()->GetAuraEffect(SPELL_SHAMAN_MAELSTROM_CONTROLLER, EFFECT_4))
+            GetCaster()->CastSpell(GetCaster(), SPELL_SHAMAN_CHAIN_LIGHTNING_ENERGIZE, CastSpellExtraArgs(energizeAmount)
+                .AddSpellMod(SPELLVALUE_BASE_POINT0, energizeAmount->GetAmount() * GetUnitTargetCountForEffect(EFFECT_0)));
+    }
+
+    void Register() override
+    {
+        OnEffectLaunch += SpellEffectFn(spell_sha_chain_lightning::HandleScript, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
+// 45297 - Chain Lightning Overload
+class spell_sha_chain_lightning_overload : public SpellScript
+{
+    PrepareSpellScript(spell_sha_chain_lightning_overload);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_CHAIN_LIGHTNING_OVERLOAD_ENERGIZE, SPELL_SHAMAN_MAELSTROM_CONTROLLER })
+            && sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_MAELSTROM_CONTROLLER, DIFFICULTY_NONE)->GetEffects().size() > EFFECT_5;
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        if (AuraEffect const* energizeAmount = GetCaster()->GetAuraEffect(SPELL_SHAMAN_MAELSTROM_CONTROLLER, EFFECT_5))
+            GetCaster()->CastSpell(GetCaster(), SPELL_SHAMAN_CHAIN_LIGHTNING_OVERLOAD_ENERGIZE, CastSpellExtraArgs(energizeAmount)
+                .AddSpellMod(SPELLVALUE_BASE_POINT0, energizeAmount->GetAmount() * GetUnitTargetCountForEffect(EFFECT_0)));
+    }
+
+    void Register() override
+    {
+        OnEffectLaunch += SpellEffectFn(spell_sha_chain_lightning_overload::HandleScript, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
+// 187874 - Crash Lightning
+class spell_sha_crash_lightning : public SpellScript
+{
+    PrepareSpellScript(spell_sha_crash_lightning);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_CRASH_LIGHTNING_CLEAVE, SPELL_SHAMAN_GATHERING_STORMS, SPELL_SHAMAN_GATHERING_STORMS_BUFF });
+    }
+
+    void CountTargets(std::list<WorldObject*>& targets)
+    {
+        _targetsHit = targets.size();
+    }
+
+    void TriggerCleaveBuff()
+    {
+        if (_targetsHit >= 2)
+            GetCaster()->CastSpell(GetCaster(), SPELL_SHAMAN_CRASH_LIGHTNING_CLEAVE, true);
+
+        if (AuraEffect const* gatheringStorms = GetCaster()->GetAuraEffect(SPELL_SHAMAN_GATHERING_STORMS, EFFECT_0))
         {
-            // Check if the target has Riptide
-            if (AuraEffect* aurEff = GetHitUnit()->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_SHAMAN, 0, 0, 0x10, GetCaster()->GetGUID()))
-            {
-                _riptide = true;
-                _amount = aurEff->GetSpellInfo()->Effects[EFFECT_2].CalcValue();
-                // Consume it
-                GetHitUnit()->RemoveAura(aurEff->GetBase());
-            }
-            _firstHeal = false;
-        }
-        // Riptide increases the Chain Heal effect by 25%
-        if (_riptide)
-        {
-            uint32 bonus = CalculatePct(GetHitHeal(), _amount);
-            SetHitHeal(GetHitHeal() + bonus);
+            CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
+            args.AddSpellMod(SPELLVALUE_BASE_POINT0, int32(gatheringStorms->GetAmount() * _targetsHit));
+            GetCaster()->CastSpell(GetCaster(), SPELL_SHAMAN_GATHERING_STORMS_BUFF, args);
         }
     }
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_sha_chain_heal::HandleHeal, EFFECT_0, SPELL_EFFECT_HEAL);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_crash_lightning::CountTargets, EFFECT_0, TARGET_UNIT_CONE_CASTER_TO_DEST_ENEMY);
+        AfterCast += SpellCastFn(spell_sha_crash_lightning::TriggerCleaveBuff);
     }
-private:
 
-    bool _firstHeal = true;
-    bool _riptide = false;
-    uint32 _amount = 0;
+    size_t _targetsHit = 0;
 };
 
-// 974 - Earth Shield
+// 207778 - Downpour
+class spell_sha_downpour : public SpellScript
+{
+    PrepareSpellScript(spell_sha_downpour);
+
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        return spellInfo->GetEffects().size() > EFFECT_1;
+    }
+
+    void FilterTargets(std::list<WorldObject*>& targets)
+    {
+        Trinity::SelectRandomInjuredTargets(targets, 6, true);
+    }
+
+    void CountEffectivelyHealedTarget()
+    {
+        // Cooldown increased for each target effectively healed
+        if (GetHitHeal())
+            ++_healedTargets;
+    }
+
+    void HandleCooldown()
+    {
+        SpellHistory::Duration cooldown = Milliseconds(GetSpellInfo()->RecoveryTime) + Seconds(GetEffectInfo(EFFECT_1).CalcValue() * _healedTargets);
+        GetCaster()->GetSpellHistory()->StartCooldown(GetSpellInfo(), 0, GetSpell(), false, cooldown);
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_downpour::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ALLY);
+        AfterHit += SpellHitFn(spell_sha_downpour::CountEffectivelyHealedTarget);
+        AfterCast += SpellCastFn(spell_sha_downpour::HandleCooldown);
+    }
+
+    int32 _healedTargets = 0;
+};
+
+// 204288 - Earth Shield
 class spell_sha_earth_shield : public AuraScript
 {
+    PrepareAuraScript(spell_sha_earth_shield);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_SHAMAN_EARTH_SHIELD_HEAL });
     }
 
-    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        if (!eventInfo.GetDamageInfo() || !HasEffect(EFFECT_1) || eventInfo.GetDamageInfo()->GetDamage() < GetTarget()->CountPctFromMaxHealth(GetEffect(EFFECT_1)->GetAmount()))
+            return false;
+        return true;
+    }
+
+    void HandleProc(AuraEffect* aurEff, ProcEventInfo& /*eventInfo*/)
     {
         PreventDefaultAction();
 
-        Unit* caster = GetCaster();
-        if (!caster)
-            return;
-
-        Unit* target = GetTarget();
-        int32 basePoints = caster->SpellHealingBonusDone(target, GetSpellInfo(), aurEff->GetAmount(), HEAL, EFFECT_0);
-        if (AuraEffect const* glyphEff = caster->GetDummyAuraEffect(SPELLFAMILY_SHAMAN, SHAMAN_ICON_ID_GLYPH_OF_EARTH_SHIELD, EFFECT_0))
-            AddPct(basePoints, glyphEff->GetAmount());
-
-        target->CastSpell(target, SPELL_SHAMAN_EARTH_SHIELD_HEAL, CastSpellExtraArgs(aurEff).SetOriginalCaster(GetCasterGUID()).AddSpellBP0(basePoints));
+        GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_EARTH_SHIELD_HEAL, CastSpellExtraArgs(aurEff)
+            .SetOriginalCaster(GetCasterGUID()));
     }
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_sha_earth_shield::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+        DoCheckProc += AuraCheckProcFn(spell_sha_earth_shield::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_sha_earth_shield::HandleProc, EFFECT_1, SPELL_AURA_DUMMY);
     }
 };
 
-// 6474 - Earthbind Totem - Fix Talent:Earthen Power, Earth's Grasp
-/// Updated 4.3.4
-class spell_sha_earthbind_totem : public AuraScript
+// 170374 - Earthen Rage (Passive)
+class spell_sha_earthen_rage_passive : public AuraScript
 {
+    PrepareAuraScript(spell_sha_earthen_rage_passive);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_TOTEM_EARTHBIND_TOTEM, SPELL_SHAMAN_TOTEM_EARTHEN_POWER });
+        return ValidateSpellInfo({ SPELL_SHAMAN_EARTHEN_RAGE_PERIODIC, SPELL_SHAMAN_EARTHEN_RAGE_DAMAGE });
+    }
+
+    bool CheckProc(ProcEventInfo& procInfo)
+    {
+        return procInfo.GetSpellInfo() && procInfo.GetSpellInfo()->Id != SPELL_SHAMAN_EARTHEN_RAGE_DAMAGE;
+    }
+
+    void HandleEffectProc(AuraEffect* /*aurEff*/, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+        _procTargetGuid = eventInfo.GetProcTarget()->GetGUID();
+        eventInfo.GetActor()->CastSpell(eventInfo.GetActor(), SPELL_SHAMAN_EARTHEN_RAGE_PERIODIC, true);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_sha_earthen_rage_passive::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_sha_earthen_rage_passive::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+
+    ObjectGuid _procTargetGuid;
+
+public:
+    ObjectGuid const& GetProcTargetGuid() const
+    {
+        return _procTargetGuid;
+    }
+};
+
+// 170377 - Earthen Rage (Proc Aura)
+class spell_sha_earthen_rage_proc_aura : public AuraScript
+{
+    PrepareAuraScript(spell_sha_earthen_rage_proc_aura);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_EARTHEN_RAGE_PASSIVE, SPELL_SHAMAN_EARTHEN_RAGE_DAMAGE });
     }
 
     void HandleEffectPeriodic(AuraEffect const* /*aurEff*/)
     {
-        if (!GetCaster())
-            return;
-        if (Player* owner = GetCaster()->GetCharmerOrOwnerPlayerOrPlayerItself())
-            if (AuraEffect* aur = owner->GetDummyAuraEffect(SPELLFAMILY_SHAMAN, 2289, 0))
-                if (roll_chance_i(aur->GetBaseAmount()))
-                    GetTarget()->CastSpell((Unit*)nullptr, SPELL_SHAMAN_TOTEM_EARTHEN_POWER, true);
-    }
-
-    void Apply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        if (!GetCaster())
-            return;
-        Player* owner = GetCaster()->GetCharmerOrOwnerPlayerOrPlayerItself();
-        if (!owner)
-            return;
-        // Earth's Grasp
-        if (AuraEffect* aurEff = owner->GetAuraEffectOfRankedSpell(SPELL_SHAMAN_STORM_EARTH_AND_FIRE, EFFECT_1))
-        {
-            if (roll_chance_i(aurEff->GetAmount()))
-                GetCaster()->CastSpell(GetCaster(), SPELL_SHAMAN_TOTEM_EARTHBIND_EARTHGRAB, false);
-        }
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic.Register(&spell_sha_earthbind_totem::HandleEffectPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
-        OnEffectApply.Register(&spell_sha_earthbind_totem::Apply, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
-    }
-};
-
-// 59566 - Earthen Power
-class spell_sha_earthen_power : public SpellScript
-{
-    void FilterTargets(std::list<WorldObject*>& unitList)
-    {
-        unitList.remove_if([](WorldObject const* target)
-        {
-            return !target->IsUnit() || !target->ToUnit()->HasAuraWithMechanic(1 << MECHANIC_SNARE);
-        });
-    }
-
-    void Register() override
-    {
-        OnObjectAreaTargetSelect.Register(&spell_sha_earthen_power::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ALLY);
-    }
-};
-
-// -86183 - Feedback
-class spell_sha_feedback : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_ELEMENTAL_MASTERY });
-    }
-
-    void HandleEffectProc(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
-    {
         PreventDefaultAction();
-        if (Player* target = GetTarget()->ToPlayer())
-            target->GetSpellHistory()->ModifyCooldown(SPELL_SHAMAN_ELEMENTAL_MASTERY, aurEff->GetBaseAmount());
+        if (Aura const* aura = GetCaster()->GetAura(SPELL_SHAMAN_EARTHEN_RAGE_PASSIVE))
+            if (spell_sha_earthen_rage_passive* script = aura->GetScript<spell_sha_earthen_rage_passive>())
+                if (Unit* procTarget = ObjectAccessor::GetUnit(*GetCaster(), script->GetProcTargetGuid()))
+                    GetTarget()->CastSpell(procTarget, SPELL_SHAMAN_EARTHEN_RAGE_DAMAGE, true);
     }
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_sha_feedback::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_sha_earthen_rage_proc_aura::HandleEffectPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
     }
 };
 
-// 1535 Fire Nova
-/// Updated 4.3.4
-class spell_sha_fire_nova : public SpellScript
+// 61882 - Earthquake
+//  8382 - AreaTriggerId
+struct areatrigger_sha_earthquake : AreaTriggerAI
 {
-    bool Validate(SpellInfo const* /*spellInfo*/) override
+    areatrigger_sha_earthquake(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger), _refreshTimer(0s), _period(1s) { }
+
+    void OnCreate() override
     {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_FLAME_SHOCK,
-                SPELL_SHAMAN_FIRE_NOVA_DAMAGE
-            });
+        if (Unit* caster = at->GetCaster())
+            if (AuraEffect const* earthquake = caster->GetAuraEffect(SPELL_SHAMAN_EARTHQUAKE, EFFECT_1))
+                _period = Milliseconds(earthquake->GetPeriod());
     }
 
-    void FilterTargets(std::list<WorldObject*>& targets)
+    void OnUpdate(uint32 diff) override
     {
-        targets.remove_if([&](WorldObject const* target)
+        _refreshTimer -= Milliseconds(diff);
+        while (_refreshTimer <= 0s)
         {
-            return (!target->ToUnit() || !target->ToUnit()->HasAura(SPELL_SHAMAN_FLAME_SHOCK, GetCaster()->GetGUID()));
-        });
+            if (Unit* caster = at->GetCaster())
+                caster->CastSpell(at->GetPosition(), SPELL_SHAMAN_EARTHQUAKE_TICK, CastSpellExtraArgs(TRIGGERED_FULL_MASK)
+                    .SetOriginalCaster(at->GetGUID()));
 
-        if (targets.empty())
-        {
-            // This is some weird way to check for targets post CheckCast but for now there is no other way.
-            GetSpell()->m_customError = SPELL_CUSTOM_ERROR_FLAME_SHOCK_NOT_ACTIVE;
-            FinishCast(SPELL_FAILED_CUSTOM_ERROR);
+            _refreshTimer += _period;
         }
     }
 
-    void HandleDummy(SpellEffIndex /*effIndex*/)
+    // Each target can only be stunned once by each earthquake - keep track of who we already stunned
+    bool AddStunnedTarget(ObjectGuid const& guid)
     {
-        if (Unit* caster = GetCaster())
-             caster->CastSpell(GetHitUnit(), SPELL_SHAMAN_FIRE_NOVA_DAMAGE);
+        return _stunnedUnits.insert(guid).second;
     }
 
-    void Register() override
-    {
-        OnObjectAreaTargetSelect.Register(&spell_sha_fire_nova::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-        OnEffectHitTarget.Register(&spell_sha_fire_nova::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-    }
+private:
+    Milliseconds _refreshTimer;
+    Milliseconds _period;
+    GuidUnorderedSet _stunnedUnits;
 };
 
-// 8349 - Fire Nova
-class spell_sha_fire_nova_damage : public SpellScript
+// 77478 - Earthquake tick
+class spell_sha_earthquake_tick : public SpellScript
 {
-    void FilterTargets(std::list<WorldObject*>& targets)
-    {
-        if (targets.empty())
-            return;
+    PrepareSpellScript(spell_sha_earthquake_tick);
 
-        Unit const* targetUnit = GetExplTargetUnit();
-        targets.remove_if([targetUnit](WorldObject const* target)->bool
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_EARTHQUAKE_KNOCKING_DOWN }) && spellInfo->GetEffects().size() > EFFECT_1;
+    }
+
+    void HandleDamageCalc(SpellEffIndex /*effIndex*/)
+    {
+        SetEffectValue(GetCaster()->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_NATURE) * 0.391f);
+    }
+
+    void HandleOnHit()
+    {
+        if (Unit* target = GetHitUnit())
         {
-            return targetUnit == target;
-        });
-    }
-
-    void Register() override
-    {
-        OnObjectAreaTargetSelect.Register(&spell_sha_fire_nova_damage::FilterTargets, EFFECT_1, TARGET_UNIT_DEST_AREA_ENEMY);
-        OnObjectAreaTargetSelect.Register(&spell_sha_fire_nova_damage::FilterTargets, EFFECT_2, TARGET_UNIT_DEST_AREA_ENEMY);
-    }
-};
-
-// 8050 -Flame Shock
-/// Updated 4.3.4
-class spell_sha_flame_shock : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spell*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_LAVA_FLOWS_R1, SPELL_SHAMAN_LAVA_FLOWS_TRIGGERED_R1 });
-    }
-
-    void HandleDispel(DispelInfo* /*dispelInfo*/)
-    {
-        if (Unit* caster = GetCaster())
-        {
-            // Lava Flows
-            if (AuraEffect const* aurEff = caster->GetDummyAuraEffect(SPELLFAMILY_SHAMAN, SHAMAN_ICON_ID_SHAMAN_LAVA_FLOW, EFFECT_0))
+            if (roll_chance_i(GetEffectInfo(EFFECT_1).CalcValue()))
             {
-                if (SpellInfo const* firstRankSpellInfo = sSpellMgr->GetSpellInfo(SPELL_SHAMAN_LAVA_FLOWS_R1))
-                    if (!aurEff->GetSpellInfo()->IsRankOf(firstRankSpellInfo))
-                        return;
-
-                int32 basepoints = aurEff->GetAmount();
-                caster->CastSpell(caster, SPELL_SHAMAN_LAVA_FLOWS_TRIGGERED_R1, CastSpellExtraArgs(true).AddSpellBP0(basepoints));
+                std::vector<AreaTrigger*> areaTriggers = GetCaster()->GetAreaTriggers(SPELL_SHAMAN_EARTHQUAKE);
+                auto itr = std::find_if(areaTriggers.begin(), areaTriggers.end(), [&](AreaTrigger const* at)
+                {
+                    return at->GetGUID() == GetSpell()->GetOriginalCasterGUID();
+                });
+                if (itr != areaTriggers.end())
+                    if (areatrigger_sha_earthquake* eq = CAST_AI(areatrigger_sha_earthquake, (*itr)->AI()))
+                        if (eq->AddStunnedTarget(target->GetGUID()))
+                            GetCaster()->CastSpell(target, SPELL_SHAMAN_EARTHQUAKE_KNOCKING_DOWN, true);
             }
         }
     }
 
     void Register() override
     {
-        AfterDispel.Register(&spell_sha_flame_shock::HandleDispel);
+        OnEffectLaunchTarget += SpellEffectFn(spell_sha_earthquake_tick::HandleDamageCalc, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+        OnHit += SpellHitFn(spell_sha_earthquake_tick::HandleOnHit);
     }
 };
 
-// Updated 4.3.4
-// 77794 - Focused Insight
-class spell_sha_focused_insight : public AuraScript
+// 117014 - Elemental Blast
+// 120588 - Elemental Blast Overload
+class spell_sha_elemental_blast : public SpellScript
 {
+    PrepareSpellScript(spell_sha_elemental_blast);
+
+    static constexpr uint32 BuffSpells[] = { SPELL_SHAMAN_ELEMENTAL_BLAST_CRIT, SPELL_SHAMAN_ELEMENTAL_BLAST_HASTE, SPELL_SHAMAN_ELEMENTAL_BLAST_MASTERY };
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_FOCUSED_INSIGHT });
+        return ValidateSpellInfo(
+        {
+            SPELL_SHAMAN_ELEMENTAL_BLAST_CRIT,
+            SPELL_SHAMAN_ELEMENTAL_BLAST_HASTE,
+            SPELL_SHAMAN_ELEMENTAL_BLAST_MASTERY,
+            SPELL_SHAMAN_ELEMENTAL_BLAST_ENERGIZE,
+            SPELL_SHAMAN_MAELSTROM_CONTROLLER
+        }) && sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_MAELSTROM_CONTROLLER, DIFFICULTY_NONE)->GetEffects().size() > EFFECT_10;
     }
 
-    bool CheckProc(ProcEventInfo& eventInfo)
+    void HandleEnergize(SpellEffIndex /*effIndex*/)
     {
-        return eventInfo.GetSpellInfo()->GetCategory() == SHAMAN_SPELL_CATEGORY_SHOCK_SPELLS;
+        if (AuraEffect const* energizeAmount = GetCaster()->GetAuraEffect(SPELL_SHAMAN_MAELSTROM_CONTROLLER, GetSpellInfo()->Id == SPELL_SHAMAN_ELEMENTAL_BLAST ? EFFECT_9 : EFFECT_10))
+            GetCaster()->CastSpell(GetCaster(), SPELL_SHAMAN_ELEMENTAL_BLAST_ENERGIZE, CastSpellExtraArgs(energizeAmount)
+                .AddSpellMod(SPELLVALUE_BASE_POINT0, energizeAmount->GetAmount()));
     }
 
-    void HandleEffectProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-
-        int32 bp0 = -CalculatePct(eventInfo.GetSpellInfo()->CalcPowerCost(GetUnitOwner(), SpellSchoolMask(eventInfo.GetSpellInfo()->SchoolMask)), aurEff->GetAmount());
-        int32 bp1 = aurEff->GetSpellInfo()->Effects[EFFECT_1].CalcValue();
-
-        GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_FOCUSED_INSIGHT, CastSpellExtraArgs(aurEff).AddSpellBP0(bp0).AddSpellMod(SPELLVALUE_BASE_POINT1, bp1).AddSpellMod(SPELLVALUE_BASE_POINT2, bp1));
-    }
-
-    void Register() override
-    {
-        DoCheckProc.Register(&spell_sha_focused_insight::CheckProc);
-        OnEffectProc.Register(&spell_sha_focused_insight::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
-    }
-};
-
-// 55440 - Glyph of Healing Wave
-class spell_sha_glyph_of_healing_wave : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_GLYPH_OF_HEALING_WAVE });
-    }
-
-    bool CheckProc(ProcEventInfo& eventInfo)
-    {
-        // Not proc from self heals
-        return GetTarget() != eventInfo.GetProcTarget();
-    }
-
-    void HandleEffectProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-        int32 heal = CalculatePct(int32(eventInfo.GetHealInfo()->GetEffectiveHeal()), aurEff->GetAmount());
-
-        if (heal)
-            GetTarget()->CastSpell(nullptr, SPELL_SHAMAN_GLYPH_OF_HEALING_WAVE, CastSpellExtraArgs(aurEff).AddSpellBP0(heal));
-    }
-
-    void Register() override
-    {
-        DoCheckProc.Register(&spell_sha_glyph_of_healing_wave::CheckProc);
-        OnEffectProc.Register(&spell_sha_glyph_of_healing_wave::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
-    }
-};
-
-// 52041 - Healing Stream Totem
-/// Updated 4.3.4
-class spell_sha_healing_stream_totem : public SpellScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_TOTEM_HEALING_STREAM_HEAL });
-    }
-
-    void HandleDummy(SpellEffIndex /*effIndex*/)
+    void TriggerBuff()
     {
         Unit* caster = GetCaster();
-        SpellInfo const* triggeringSpell = GetTriggeringSpell();
-        if (!caster || !triggeringSpell)
-            return;
+        uint32 spellId = *Trinity::Containers::SelectRandomWeightedContainerElement(BuffSpells, [caster](uint32 buffSpellId)
+        {
+            return !caster->HasAura(buffSpellId) ? 1.0 : 0.0;
+        });
 
-        Unit* target = GetHitUnit();
-
-        int32 bp = triggeringSpell->Effects[EFFECT_0].CalcValue(caster);
-        bp = caster->SpellHealingBonusDone(target, triggeringSpell, bp, HEAL, EFFECT_0);
-        if (AuraEffect* dummy = caster->GetAuraEffect(SPELL_AURA_DUMMY, SPELLFAMILY_SHAMAN, SHAMAN_ICON_ID_SOOTHING_RAIN, EFFECT_0))
-            AddPct(bp, dummy->GetAmount());
-
-        caster->CastSpell(GetHitUnit(), SPELL_SHAMAN_TOTEM_HEALING_STREAM_HEAL, CastSpellExtraArgs(caster->GetCreatorGUID()).AddSpellBP0(bp));
+        GetCaster()->CastSpell(GetCaster(), spellId, TRIGGERED_FULL_MASK);
     }
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_sha_healing_stream_totem::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+        OnEffectLaunch += SpellEffectFn(spell_sha_elemental_blast::HandleEnergize, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+        AfterCast += SpellCastFn(spell_sha_elemental_blast::TriggerBuff);
+    }
+};
+
+// 318038 - Flametongue Weapon
+class spell_sha_flametongue_weapon : public SpellScript
+{
+    PrepareSpellScript(spell_sha_flametongue_weapon);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_FLAMETONGUE_WEAPON_ENCHANT });
+    }
+
+    bool Load() override
+    {
+        return GetCaster()->GetTypeId() == TYPEID_PLAYER;
+    }
+
+    void HandleEffectHitTarget(SpellEffIndex /*effIndex*/)
+    {
+        Player* player = GetCaster()->ToPlayer();
+        uint8 slot = EQUIPMENT_SLOT_MAINHAND;
+        if (player->GetPrimarySpecialization() == TALENT_SPEC_SHAMAN_ENHANCEMENT)
+            slot = EQUIPMENT_SLOT_OFFHAND;
+
+        Item* targetItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+        if (!targetItem || !targetItem->GetTemplate()->IsWeapon())
+            return;
+
+        player->CastSpell(targetItem, SPELL_SHAMAN_FLAMETONGUE_WEAPON_ENCHANT, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_sha_flametongue_weapon::HandleEffectHitTarget, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+};
+
+// 319778  - Flametongue - SPELL_SHAMAN_FLAMETONGUE_WEAPON_AURA
+class spell_sha_flametongue_weapon_aura : public AuraScript
+{
+    PrepareAuraScript(spell_sha_flametongue_weapon_aura);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_FLAMETONGUE_ATTACK });
+    }
+
+    void HandleEffectProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+
+        Unit* attacker = eventInfo.GetActor();
+        CastSpellExtraArgs args(aurEff);
+        args.AddSpellMod(SPELLVALUE_BASE_POINT0, std::max(1, int32(attacker->GetTotalAttackPowerValue(BASE_ATTACK) * 0.0264f)));
+        attacker->CastSpell(eventInfo.GetActionTarget(), SPELL_SHAMAN_FLAMETONGUE_ATTACK, args);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_sha_flametongue_weapon_aura::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 73920 - Healing Rain (Aura)
+class spell_sha_healing_rain_aura : public AuraScript
+{
+public:
+    void SetVisualDummy(TempSummon* summon)
+    {
+        _visualDummy = summon->GetGUID();
+        _dest = summon->GetPosition();
+    }
+
+private:
+    PrepareAuraScript(spell_sha_healing_rain_aura);
+
+    void HandleEffectPeriodic(AuraEffect const* aurEff)
+    {
+        GetTarget()->CastSpell(_dest, SPELL_SHAMAN_HEALING_RAIN_HEAL, aurEff);
+    }
+
+    void HandleEffecRemoved(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (Creature* summon = ObjectAccessor::GetCreature(*GetTarget(), _visualDummy))
+            summon->DespawnOrUnsummon();
+    }
+
+    void Register() override
+    {
+        OnEffectRemove += AuraEffectRemoveFn(spell_sha_healing_rain_aura::HandleEffecRemoved, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_sha_healing_rain_aura::HandleEffectPeriodic, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY);
+    }
+
+    ObjectGuid _visualDummy;
+    Position _dest;
+};
+
+// 73920 - Healing Rain
+class spell_sha_healing_rain : public SpellScript
+{
+    PrepareSpellScript(spell_sha_healing_rain);
+
+    void InitializeVisualStalker()
+    {
+        if (Aura* aura = GetHitAura())
+        {
+            if (WorldLocation const* dest = GetExplTargetDest())
+            {
+                int32 duration = GetSpellInfo()->CalcDuration(GetOriginalCaster());
+                TempSummon* summon = GetCaster()->GetMap()->SummonCreature(NPC_HEALING_RAIN_INVISIBLE_STALKER, *dest, nullptr, duration, GetOriginalCaster());
+                if (!summon)
+                    return;
+
+                summon->CastSpell(summon, SPELL_SHAMAN_HEALING_RAIN_VISUAL, true);
+
+                if (spell_sha_healing_rain_aura* script = aura->GetScript<spell_sha_healing_rain_aura>())
+                    script->SetVisualDummy(summon);
+            }
+        }
+    }
+
+    void Register() override
+    {
+        AfterHit += SpellHitFn(spell_sha_healing_rain::InitializeVisualStalker);
+    }
+};
+
+// 73921 - Healing Rain
+class spell_sha_healing_rain_target_limit : public SpellScript
+{
+    PrepareSpellScript(spell_sha_healing_rain_target_limit);
+
+    void SelectTargets(std::list<WorldObject*>& targets)
+    {
+        Trinity::SelectRandomInjuredTargets(targets, 6, true);
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_healing_rain_target_limit::SelectTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ALLY);
+    }
+};
+
+// 52042 - Healing Stream Totem
+class spell_sha_healing_stream_totem_heal : public SpellScript
+{
+    PrepareSpellScript(spell_sha_healing_stream_totem_heal);
+
+    void SelectTargets(std::list<WorldObject*>& targets)
+    {
+        Trinity::SelectRandomInjuredTargets(targets, 1, true);
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_healing_stream_totem_heal::SelectTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ALLY);
     }
 };
 
 // 32182 - Heroism
-/// Updated 4.3.4
 class spell_sha_heroism : public SpellScript
 {
+    PrepareSpellScript(spell_sha_heroism);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_EXHAUSTION,
-                SPELL_HUNTER_INSANITY,
-                SPELL_MAGE_TEMPORAL_DISPLACEMENT
-            });
+        return ValidateSpellInfo({ SPELL_SHAMAN_EXHAUSTION, SPELL_HUNTER_INSANITY, SPELL_MAGE_TEMPORAL_DISPLACEMENT, SPELL_PET_NETHERWINDS_FATIGUED });
     }
 
     void RemoveInvalidTargets(std::list<WorldObject*>& targets)
@@ -593,22 +776,45 @@ class spell_sha_heroism : public SpellScript
 
     void Register() override
     {
-        OnObjectAreaTargetSelect.Register(&spell_sha_heroism::RemoveInvalidTargets, EFFECT_0, TARGET_UNIT_CASTER_AREA_RAID);
-        OnObjectAreaTargetSelect.Register(&spell_sha_heroism::RemoveInvalidTargets, EFFECT_1, TARGET_UNIT_CASTER_AREA_RAID);
-        OnObjectAreaTargetSelect.Register(&spell_sha_heroism::RemoveInvalidTargets, EFFECT_2, TARGET_UNIT_CASTER_AREA_RAID);
-        AfterHit.Register(&spell_sha_heroism::ApplyDebuff);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_heroism::RemoveInvalidTargets, EFFECT_0, TARGET_UNIT_CASTER_AREA_RAID);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_heroism::RemoveInvalidTargets, EFFECT_1, TARGET_UNIT_CASTER_AREA_RAID);
+        AfterHit += SpellHitFn(spell_sha_heroism::ApplyDebuff);
     }
 };
 
-// 23551 - Lightning Shield
+// 210714 - Icefury
+class spell_sha_icefury : public AuraScript
+{
+    PrepareAuraScript(spell_sha_icefury);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_FROST_SHOCK_ENERGIZE });
+    }
+
+    void HandleEffectProc(AuraEffect* /*aurEff*/, ProcEventInfo& /*eventInfo*/)
+    {
+        if (Unit* caster = GetCaster())
+            caster->CastSpell(caster, SPELL_SHAMAN_FROST_SHOCK_ENERGIZE, TRIGGERED_IGNORE_CAST_IN_PROGRESS);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_sha_icefury::HandleEffectProc, EFFECT_1, SPELL_AURA_ADD_PCT_MODIFIER);
+    }
+};
+
+// 23551 - Lightning Shield T2 Bonus
 class spell_sha_item_lightning_shield : public AuraScript
 {
+    PrepareAuraScript(spell_sha_item_lightning_shield);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_SHAMAN_ITEM_LIGHTNING_SHIELD });
     }
 
-    void OnProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    void HandleProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
         GetTarget()->CastSpell(eventInfo.GetProcTarget(), SPELL_SHAMAN_ITEM_LIGHTNING_SHIELD, aurEff);
@@ -616,19 +822,21 @@ class spell_sha_item_lightning_shield : public AuraScript
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_sha_item_lightning_shield::OnProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        OnEffectProc += AuraEffectProcFn(spell_sha_item_lightning_shield::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
     }
 };
 
-// 23552 - Lightning Shield
+// 23552 - Lightning Shield T2 Bonus
 class spell_sha_item_lightning_shield_trigger : public AuraScript
 {
+    PrepareAuraScript(spell_sha_item_lightning_shield_trigger);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_ITEM_MANA_SURGE });
+        return ValidateSpellInfo({ SPELL_SHAMAN_ITEM_LIGHTNING_SHIELD_DAMAGE });
     }
 
-    void OnProc(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
+    void HandleProc(AuraEffect* aurEff, ProcEventInfo& /*eventInfo*/)
     {
         PreventDefaultAction();
         GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_ITEM_LIGHTNING_SHIELD_DAMAGE, aurEff);
@@ -636,165 +844,236 @@ class spell_sha_item_lightning_shield_trigger : public AuraScript
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_sha_item_lightning_shield_trigger::OnProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        OnEffectProc += AuraEffectProcFn(spell_sha_item_lightning_shield_trigger::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
     }
 };
 
 // 23572 - Mana Surge
 class spell_sha_item_mana_surge : public AuraScript
 {
+    PrepareAuraScript(spell_sha_item_mana_surge);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_ITEM_LIGHTNING_SHIELD_DAMAGE });
+        return ValidateSpellInfo({ SPELL_SHAMAN_ITEM_MANA_SURGE });
     }
 
-    void OnProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        return eventInfo.GetProcSpell() != nullptr;
+    }
+
+    void HandleProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
-        int32 mana = eventInfo.GetDamageInfo()->GetSpellInfo()->CalcPowerCost(GetTarget(), SpellSchoolMask(eventInfo.GetDamageInfo()->GetSchoolMask()));
-        mana = int32(CalculatePct(mana, 35));
 
-        GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_ITEM_MANA_SURGE, CastSpellExtraArgs(aurEff).AddSpellBP0(mana));
+        std::vector<SpellPowerCost> const& costs = eventInfo.GetProcSpell()->GetPowerCost();
+        auto m = std::find_if(costs.begin(), costs.end(), [](SpellPowerCost const& cost) { return cost.Power == POWER_MANA; });
+        if (m != costs.end())
+        {
+            int32 mana = CalculatePct(m->Amount, 35);
+            if (mana > 0)
+            {
+                CastSpellExtraArgs args(aurEff);
+                args.AddSpellMod(SPELLVALUE_BASE_POINT0, mana);
+                GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_ITEM_MANA_SURGE, args);
+            }
+        }
     }
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_sha_item_mana_surge::OnProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        DoCheckProc += AuraCheckProcFn(spell_sha_item_mana_surge::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_sha_item_mana_surge::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
+// 40463 - Shaman Tier 6 Trinket
+class spell_sha_item_t6_trinket : public AuraScript
+{
+    PrepareAuraScript(spell_sha_item_t6_trinket);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo(
+        {
+            SPELL_SHAMAN_ENERGY_SURGE,
+            SPELL_SHAMAN_POWER_SURGE
+        });
+    }
+
+    void HandleProc(AuraEffect* /*aurEff*/, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+        SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
+        if (!spellInfo)
+            return;
+
+        uint32 spellId;
+        int32 chance;
+
+        // Lesser Healing Wave
+        if (spellInfo->SpellFamilyFlags[0] & 0x00000080)
+        {
+            spellId = SPELL_SHAMAN_ENERGY_SURGE;
+            chance = 10;
+        }
+        // Lightning Bolt
+        else if (spellInfo->SpellFamilyFlags[0] & 0x00000001)
+        {
+            spellId = SPELL_SHAMAN_ENERGY_SURGE;
+            chance = 15;
+        }
+        // Stormstrike
+        else if (spellInfo->SpellFamilyFlags[1] & 0x00000010)
+        {
+            spellId = SPELL_SHAMAN_POWER_SURGE;
+            chance = 50;
+        }
+        else
+            return;
+
+        if (roll_chance_i(chance))
+            eventInfo.GetActor()->CastSpell(nullptr, spellId, true);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_sha_item_t6_trinket::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 };
 
 // 70811 - Item - Shaman T10 Elemental 2P Bonus
 class spell_sha_item_t10_elemental_2p_bonus : public AuraScript
 {
+    PrepareAuraScript(spell_sha_item_t10_elemental_2p_bonus);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_SHAMAN_ELEMENTAL_MASTERY });
     }
 
-    void HandleEffectProc(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
+    void HandleEffectProc(AuraEffect* aurEff, ProcEventInfo& /*eventInfo*/)
     {
         PreventDefaultAction();
         if (Player* target = GetTarget()->ToPlayer())
-            target->GetSpellHistory()->ModifyCooldown(SPELL_SHAMAN_ELEMENTAL_MASTERY, -aurEff->GetAmount());
+            target->GetSpellHistory()->ModifyCooldown(SPELL_SHAMAN_ELEMENTAL_MASTERY, Milliseconds(-aurEff->GetAmount()));
     }
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_sha_item_t10_elemental_2p_bonus::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+        OnEffectProc += AuraEffectProcFn(spell_sha_item_t10_elemental_2p_bonus::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 };
 
-// 60103 - Lava Lash
-/// Updated 4.3.4
-class spell_sha_lava_lash : public SpellScript
+// 189063 - Lightning Vortex (proc 185881 Item - Shaman T18 Elemental 4P Bonus)
+class spell_sha_item_t18_elemental_4p_bonus : public AuraScript
 {
-    bool Load() override
+    PrepareAuraScript(spell_sha_item_t18_elemental_4p_bonus);
+
+    void DiminishHaste(AuraEffect const* aurEff)
     {
-        return GetCaster()->GetTypeId() == TYPEID_PLAYER;
-    }
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_SEARING_FLAMES_DAMAGE,
-                SPELL_SHAMAN_LAVA_LASH_SPREAD_FLAME_SHOCK,
-                SPELL_SHAMAN_FLAME_SHOCK
-            });
-    }
-
-    void HandleDamageBonus(SpellEffIndex /*effIndex*/)
-    {
-        Player* caster = GetCaster()->ToPlayer();
-        Unit* target = GetHitUnit();
-        if (!target || !caster)
-            return;
-
-        int32 bonusDamage = 0;
-
-        // Increase damage of lava lash by 40% if the offhand weapon is enchanted with Flametongue
-        if (Item* offhand = caster->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
-            if (offhand->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT) == SHAMAN_ENCHANTMENT_ID_FLAMETONGUE)
-                bonusDamage += GetSpellInfo()->Effects[EFFECT_1].CalcValue(caster);
-
-        // Improved Lava Lash
-        if (AuraEffect const* bonusAura = caster->GetDummyAuraEffect(SPELLFAMILY_SHAMAN, SHAMAN_ICON_ID_IMPROVED_LAVA_LASH, EFFECT_1))
-        {
-            if (Aura* aura = target->GetAura(SPELL_SHAMAN_SEARING_FLAMES_DAMAGE, caster->GetGUID()))
-            {
-                bonusDamage += bonusAura->GetAmount() * aura->GetStackAmount();
-                aura->Remove();
-            }
-
-            if (target->HasAura(SPELL_SHAMAN_FLAME_SHOCK, caster->GetGUID()))
-                caster->CastSpell(target, SPELL_SHAMAN_LAVA_LASH_SPREAD_FLAME_SHOCK, CastSpellExtraArgs(bonusAura).AddSpellMod(SPELLVALUE_MAX_TARGETS, 4));
-        }
-        SetEffectValue(GetEffectValue() + bonusDamage);
+        PreventDefaultAction();
+        if (AuraEffect* hasteBuff = GetEffect(EFFECT_0))
+            hasteBuff->ChangeAmount(hasteBuff->GetAmount() - aurEff->GetAmount());
     }
 
     void Register() override
     {
-        OnEffectLaunchTarget.Register(&spell_sha_lava_lash::HandleDamageBonus, EFFECT_0, SPELL_EFFECT_WEAPON_PERCENT_DAMAGE);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_sha_item_t18_elemental_4p_bonus::DiminishHaste, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY);
     }
 };
 
-class spell_sha_lava_lash_script : public SpellScript
+// 51505 - Lava burst
+class spell_sha_lava_burst : public SpellScript
 {
+    PrepareSpellScript(spell_sha_lava_burst);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_FLAME_SHOCK });
+        return ValidateSpellInfo({ SPELL_SHAMAN_PATH_OF_FLAMES_TALENT, SPELL_SHAMAN_PATH_OF_FLAMES_SPREAD, SPELL_SHAMAN_LAVA_SURGE });
     }
 
-    void FilterTargets(std::list<WorldObject*>& targets)
+    void HandleScript(SpellEffIndex /*effIndex*/)
     {
-        if (targets.empty())
-            return;
-
-        targets.remove_if([this](WorldObject const* obj)->bool
-            {
-                Unit const* target = obj->ToUnit();
-
-                if (!target || obj == GetExplTargetUnit())
-                    return true;
-
-                if (target->HasAura(SPELL_SHAMAN_FLAME_SHOCK, GetCaster()->GetGUID()))
-                    return true;
-
-                return target->HasBreakableByDamageCrowdControlAura();
-            });
-
-        if (targets.size() > 4)
-            targets.resize(4);
+        if (Unit* caster = GetCaster())
+            if (caster->HasAura(SPELL_SHAMAN_PATH_OF_FLAMES_TALENT))
+                caster->CastSpell(GetHitUnit(), SPELL_SHAMAN_PATH_OF_FLAMES_SPREAD, GetSpell());
     }
 
-    void HandleScriptEffect(SpellEffIndex /*effIndex*/)
+    void EnsureLavaSurgeCanBeImmediatelyConsumed()
     {
         Unit* caster = GetCaster();
-        Unit* spellTarget = GetExplTargetUnit();
-        if (!caster || !spellTarget)
-            return;
 
-        if (Aura* flameshock = spellTarget->GetAura(SPELL_SHAMAN_FLAME_SHOCK, caster->GetGUID()))
-            if (Aura* spread = caster->AddAura(SPELL_SHAMAN_FLAME_SHOCK, GetHitUnit()))
-                spread->SetDuration(flameshock->GetDuration());
+        if (Aura* lavaSurge = caster->GetAura(SPELL_SHAMAN_LAVA_SURGE))
+        {
+            if (!GetSpell()->m_appliedMods.count(lavaSurge))
+            {
+                uint32 chargeCategoryId = GetSpellInfo()->ChargeCategoryId;
+
+                // Ensure we have at least 1 usable charge after cast to allow next cast immediately
+                if (!caster->GetSpellHistory()->HasCharge(chargeCategoryId))
+                    caster->GetSpellHistory()->RestoreCharge(chargeCategoryId);
+            }
+        }
     }
 
     void Register() override
     {
-        OnObjectAreaTargetSelect.Register(&spell_sha_lava_lash_script::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ENEMY);
-        OnEffectHitTarget.Register(&spell_sha_lava_lash_script::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+        OnEffectHitTarget += SpellEffectFn(spell_sha_lava_burst::HandleScript, EFFECT_0, SPELL_EFFECT_TRIGGER_MISSILE);
+        AfterCast += SpellCastFn(spell_sha_lava_burst::EnsureLavaSurgeCanBeImmediatelyConsumed);
     }
 };
 
-// -77755 - Lava Surge
-class spell_sha_lava_surge : public AuraScript
+// 285452 - Lava Burst damage
+// 285466 - Lava Burst Overload damage
+class spell_sha_lava_crit_chance : public SpellScript
 {
+    PrepareSpellScript(spell_sha_lava_crit_chance);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_LAVA_SURGE });
+        return ValidateSpellInfo({ SPELL_SHAMAN_LAVA_BURST_RANK_2, SPELL_SHAMAN_FLAME_SHOCK });
     }
 
-    void HandleEffectProc(AuraEffect const* /*aurEff*/, ProcEventInfo& /*eventInfo*/)
+    void CalcCritChance(Unit const* victim, float& chance)
+    {
+        Unit* caster = GetCaster();
+
+        if (!caster || !victim)
+            return;
+
+        if (caster->HasAura(SPELL_SHAMAN_LAVA_BURST_RANK_2) && victim->HasAura(SPELL_SHAMAN_FLAME_SHOCK, caster->GetGUID()))
+            if (victim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_SPELL_AND_WEAPON_CRIT_CHANCE) > -100)
+                chance = 100.f;
+    }
+
+    void Register() override
+    {
+        OnCalcCritChance += SpellOnCalcCritChanceFn(spell_sha_lava_crit_chance::CalcCritChance);
+    }
+};
+
+// 77756 - Lava Surge
+class spell_sha_lava_surge : public AuraScript
+{
+    PrepareAuraScript(spell_sha_lava_surge);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_LAVA_SURGE, SPELL_SHAMAN_IGNEOUS_POTENTIAL });
+    }
+
+    bool CheckProcChance(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
+    {
+        int32 procChance = aurEff->GetAmount();
+        if (AuraEffect const* igneousPotential = GetTarget()->GetAuraEffect(SPELL_SHAMAN_IGNEOUS_POTENTIAL, EFFECT_0))
+            procChance += igneousPotential->GetAmount();
+
+        return roll_chance_i(procChance);
+    }
+
+    void HandleEffectProc(AuraEffect* /*aurEff*/, ProcEventInfo& /*eventInfo*/)
     {
         PreventDefaultAction();
         GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_LAVA_SURGE, true);
@@ -802,1025 +1081,775 @@ class spell_sha_lava_surge : public AuraScript
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_sha_lava_surge::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+        DoCheckEffectProc += AuraCheckEffectProcFn(spell_sha_lava_surge::CheckProcChance, EFFECT_0, SPELL_AURA_DUMMY);
+        OnEffectProc += AuraEffectProcFn(spell_sha_lava_surge::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 };
 
+// 77762 - Lava Surge
 class spell_sha_lava_surge_proc : public SpellScript
 {
+    PrepareSpellScript(spell_sha_lava_surge_proc);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_LAVA_BURST,
-                SPELL_SHAMAN_VOLCANO,
-                SPELL_SHAMAN_ITEM_SHAMAN_T12_ELEMENTAL_4P
-            });
+        return ValidateSpellInfo({ SPELL_SHAMAN_LAVA_BURST });
     }
 
-    void HandleDummy(SpellEffIndex /*effIndex*/)
+    bool Load() override
     {
-        GetHitUnit()->GetSpellHistory()->ResetCooldown(SPELL_SHAMAN_LAVA_BURST, true);
-        // For some reason the aura is some weird mixture of being a proc while also not being one.
-        // Perhaps the aura got scrapped last minute and incorporated into Lava Surge.
-        if (GetHitUnit()->HasAura(SPELL_SHAMAN_ITEM_SHAMAN_T12_ELEMENTAL_4P))
-            GetHitUnit()->CastSpell(nullptr, SPELL_SHAMAN_VOLCANO, true);
+        return GetCaster()->GetTypeId() == TYPEID_PLAYER;
+    }
+
+    void ResetCooldown()
+    {
+        GetCaster()->GetSpellHistory()->RestoreCharge(sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_LAVA_BURST, GetCastDifficulty())->ChargeCategoryId);
     }
 
     void Register() override
     {
-        OnEffectHitTarget.Register(&spell_sha_lava_surge_proc::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+        AfterHit += SpellHitFn(spell_sha_lava_surge_proc::ResetCooldown);
     }
-
 };
 
-// 16191 - Mana Tide
-/// Updated 4.3.4
-class spell_sha_mana_tide_totem : public AuraScript
+// 188196 - Lightning Bolt
+class spell_sha_lightning_bolt : public SpellScript
 {
-    void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
+    PrepareSpellScript(spell_sha_lightning_bolt);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        // @TODO: Exclude the "short term" buffs from the stat value
-        if (Unit* caster = GetUnitOwner())
-            if (Unit* owner = caster->GetCharmerOrOwner())
-                amount = CalculatePct(owner->GetStat(STAT_SPIRIT), amount);
+        return ValidateSpellInfo({ SPELL_SHAMAN_LIGHTNING_BOLT_ENERGIZE, SPELL_SHAMAN_MAELSTROM_CONTROLLER })
+            && sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_MAELSTROM_CONTROLLER, DIFFICULTY_NONE)->GetEffects().size() > EFFECT_0;
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        if (AuraEffect const* energizeAmount = GetCaster()->GetAuraEffect(SPELL_SHAMAN_MAELSTROM_CONTROLLER, EFFECT_0))
+            GetCaster()->CastSpell(GetCaster(), SPELL_SHAMAN_LIGHTNING_BOLT_ENERGIZE, CastSpellExtraArgs(energizeAmount)
+                .AddSpellMod(SPELLVALUE_BASE_POINT0, energizeAmount->GetAmount()));
     }
 
     void Register() override
     {
-        DoEffectCalcAmount.Register(&spell_sha_mana_tide_totem::CalculateAmount, EFFECT_0, SPELL_AURA_MOD_STAT);
+        OnEffectLaunch += SpellEffectFn(spell_sha_lightning_bolt::HandleScript, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
     }
 };
 
-// -30881 - Nature's Guardian
-class spell_sha_nature_guardian : public AuraScript
+// 45284 - Lightning Bolt Overload
+class spell_sha_lightning_bolt_overload : public SpellScript
 {
+    PrepareSpellScript(spell_sha_lightning_bolt_overload);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_NATURE_GUARDIAN });
+        return ValidateSpellInfo({ SPELL_SHAMAN_LIGHTNING_BOLT_OVERLOAD_ENERGIZE, SPELL_SHAMAN_MAELSTROM_CONTROLLER })
+            && sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_MAELSTROM_CONTROLLER, DIFFICULTY_NONE)->GetEffects().size() > EFFECT_1;
     }
 
-    bool CheckProc(ProcEventInfo& eventInfo)
+    void HandleScript(SpellEffIndex /*effIndex*/)
     {
-        return GetTarget()->HealthBelowPctDamaged(30, eventInfo.GetDamageInfo()->GetDamage());
+        if (AuraEffect const* energizeAmount = GetCaster()->GetAuraEffect(SPELL_SHAMAN_MAELSTROM_CONTROLLER, EFFECT_1))
+            GetCaster()->CastSpell(GetCaster(), SPELL_SHAMAN_LIGHTNING_BOLT_OVERLOAD_ENERGIZE, CastSpellExtraArgs(energizeAmount)
+                .AddSpellMod(SPELLVALUE_BASE_POINT0, energizeAmount->GetAmount()));
     }
 
-    void OnProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    void Register() override
+    {
+        OnEffectLaunch += SpellEffectFn(spell_sha_lightning_bolt_overload::HandleScript, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
+// 192223 - Liquid Magma Totem (erupting hit spell)
+class spell_sha_liquid_magma_totem : public SpellScript
+{
+    PrepareSpellScript(spell_sha_liquid_magma_totem);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_LIQUID_MAGMA_HIT });
+    }
+
+    void HandleEffectHitTarget(SpellEffIndex /*effIndex*/)
+    {
+        if (Unit* hitUnit = GetHitUnit())
+            GetCaster()->CastSpell(hitUnit, SPELL_SHAMAN_LIQUID_MAGMA_HIT, true);
+    }
+
+    void HandleTargetSelect(std::list<WorldObject*>& targets)
+    {
+        // choose one random target from targets
+        if (targets.size() > 1)
+        {
+            WorldObject* selected = Trinity::Containers::SelectRandomContainerElement(targets);
+            targets.clear();
+            targets.push_back(selected);
+        }
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_liquid_magma_totem::HandleTargetSelect, EFFECT_0, TARGET_UNIT_DEST_AREA_ENEMY);
+        OnEffectHitTarget += SpellEffectFn(spell_sha_liquid_magma_totem::HandleEffectHitTarget, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+};
+
+// 168534 - Mastery: Elemental Overload (passive)
+class spell_sha_mastery_elemental_overload : public AuraScript
+{
+    PrepareAuraScript(spell_sha_mastery_elemental_overload);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo
+        ({
+            SPELL_SHAMAN_LIGHTNING_BOLT,
+            SPELL_SHAMAN_LIGHTNING_BOLT_OVERLOAD,
+            SPELL_SHAMAN_ELEMENTAL_BLAST,
+            SPELL_SHAMAN_ELEMENTAL_BLAST_OVERLOAD,
+            SPELL_SHAMAN_ICEFURY,
+            SPELL_SHAMAN_ICEFURY_OVERLOAD,
+            SPELL_SHAMAN_LAVA_BURST,
+            SPELL_SHAMAN_LAVA_BURST_OVERLOAD,
+            SPELL_SHAMAN_CHAIN_LIGHTNING,
+            SPELL_SHAMAN_CHAIN_LIGHTNING_OVERLOAD,
+            SPELL_SHAMAN_LAVA_BEAM,
+            SPELL_SHAMAN_LAVA_BEAM_OVERLOAD,
+            SPELL_SHAMAN_STORMKEEPER
+        });
+    }
+
+    bool CheckProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
+        if (!spellInfo || !eventInfo.GetProcSpell())
+            return false;
+
+        if (!GetTriggeredSpellId(spellInfo->Id))
+            return false;
+
+        float chance = aurEff->GetAmount();   // Mastery % amount
+
+        if (spellInfo->Id == SPELL_SHAMAN_CHAIN_LIGHTNING)
+            chance /= 3.0f;
+
+        if (Aura* stormkeeper = eventInfo.GetActor()->GetAura(SPELL_SHAMAN_STORMKEEPER))
+            if (eventInfo.GetProcSpell()->m_appliedMods.find(stormkeeper) != eventInfo.GetProcSpell()->m_appliedMods.end())
+                chance = 100.0f;
+
+        return roll_chance_f(chance);
+    }
+
+    void HandleProc(AuraEffect* /*aurEff*/, ProcEventInfo& procInfo)
     {
         PreventDefaultAction();
-        int32 basePoints0 = GetTarget()->CountPctFromMaxHealth(aurEff->GetAmount());
 
-        GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_NATURE_GUARDIAN, CastSpellExtraArgs(true).AddSpellBP0(basePoints0));
+        Unit* caster = procInfo.GetActor();
 
-        if (eventInfo.GetProcTarget() && eventInfo.GetProcTarget()->IsAlive())
-            eventInfo.GetProcTarget()->GetThreatManager().ModifyThreatByPercent(GetTarget(), -10);
+        caster->m_Events.AddEventAtOffset([caster,
+            targets = CastSpellTargetArg(procInfo.GetProcTarget()),
+            overloadSpellId = GetTriggeredSpellId(procInfo.GetSpellInfo()->Id),
+            originalCastId = procInfo.GetProcSpell()->m_castId]() mutable
+        {
+            if (!targets.Targets)
+                return;
+
+            targets.Targets->Update(caster);
+
+            CastSpellExtraArgs args;
+            args.OriginalCastId = originalCastId;
+            caster->CastSpell(targets, overloadSpellId, args);
+        }, 400ms);
     }
 
     void Register() override
     {
-        DoCheckProc.Register(&spell_sha_nature_guardian::CheckProc);
-        OnEffectProc.Register(&spell_sha_nature_guardian::OnProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        DoCheckEffectProc += AuraCheckEffectProcFn(spell_sha_mastery_elemental_overload::CheckProc, EFFECT_0, SPELL_AURA_DUMMY);
+        OnEffectProc += AuraEffectProcFn(spell_sha_mastery_elemental_overload::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+
+    uint32 GetTriggeredSpellId(uint32 triggeringSpellId)
+    {
+        switch (triggeringSpellId)
+        {
+            case SPELL_SHAMAN_LIGHTNING_BOLT: return SPELL_SHAMAN_LIGHTNING_BOLT_OVERLOAD;
+            case SPELL_SHAMAN_ELEMENTAL_BLAST: return SPELL_SHAMAN_ELEMENTAL_BLAST_OVERLOAD;
+            case SPELL_SHAMAN_ICEFURY: return SPELL_SHAMAN_ICEFURY_OVERLOAD;
+            case SPELL_SHAMAN_LAVA_BURST: return SPELL_SHAMAN_LAVA_BURST_OVERLOAD;
+            case SPELL_SHAMAN_CHAIN_LIGHTNING: return SPELL_SHAMAN_CHAIN_LIGHTNING_OVERLOAD;
+            case SPELL_SHAMAN_LAVA_BEAM: return SPELL_SHAMAN_LAVA_BEAM_OVERLOAD;
+            default:
+                break;
+        }
+        return 0;
     }
 };
 
-// -88756 - Rolling Thunder
-class spell_sha_rolling_thunder : public AuraScript
+// 45284 - Lightning Bolt Overload
+// 45297 - Chain Lightning Overload
+// 114738 - Lava Beam Overload
+// 120588 - Elemental Blast Overload
+// 219271 - Icefury Overload
+// 285466 - Lava Burst Overload
+class spell_sha_mastery_elemental_overload_proc : public SpellScript
 {
+    PrepareSpellScript(spell_sha_mastery_elemental_overload_proc);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_LIGHTNING_SHIELD,
-                SPELL_SHAMAN_FULMINATION_PROC
-            });
+        return ValidateSpellInfo({ SPELL_SHAMAN_MASTERY_ELEMENTAL_OVERLOAD });
     }
 
-    bool CheckProc(ProcEventInfo& /*eventInfo*/)
+    void ApplyDamageModifier(SpellEffIndex /*effIndex*/)
     {
-        return GetTarget()->HasAura(SPELL_SHAMAN_LIGHTNING_SHIELD);
+        if (AuraEffect const* elementalOverload = GetCaster()->GetAuraEffect(SPELL_SHAMAN_MASTERY_ELEMENTAL_OVERLOAD, EFFECT_1))
+            SetHitDamage(CalculatePct(GetHitDamage(), elementalOverload->GetAmount()));
     }
 
-    void HandleEffectProc(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_sha_mastery_elemental_overload_proc::ApplyDamageModifier, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
+// 30884 - Nature's Guardian
+class spell_sha_natures_guardian : public AuraScript
+{
+    PrepareAuraScript(spell_sha_natures_guardian);
+
+    bool CheckProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        return eventInfo.GetActionTarget()->HealthBelowPct(aurEff->GetAmount());
+    }
+
+    void Register() override
+    {
+        DoCheckEffectProc += AuraCheckEffectProcFn(spell_sha_natures_guardian::CheckProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
+// 210621 - Path of Flames Spread
+class spell_sha_path_of_flames_spread : public SpellScript
+{
+    PrepareSpellScript(spell_sha_path_of_flames_spread);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_FLAME_SHOCK });
+    }
+
+    void FilterTargets(std::list<WorldObject*>& targets)
+    {
+        targets.remove(GetExplTargetUnit());
+        Trinity::Containers::RandomResize(targets, [this](WorldObject* target)
+        {
+            return target->GetTypeId() == TYPEID_UNIT && !target->ToUnit()->HasAura(SPELL_SHAMAN_FLAME_SHOCK, GetCaster()->GetGUID());
+        }, 1);
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        if (Unit* mainTarget = GetExplTargetUnit())
+        {
+            if (Aura* flameShock = mainTarget->GetAura(SPELL_SHAMAN_FLAME_SHOCK, GetCaster()->GetGUID()))
+            {
+                if (Aura* newAura = GetCaster()->AddAura(SPELL_SHAMAN_FLAME_SHOCK, GetHitUnit()))
+                {
+                    newAura->SetDuration(flameShock->GetDuration());
+                    newAura->SetMaxDuration(flameShock->GetDuration());
+                }
+            }
+        }
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sha_path_of_flames_spread::FilterTargets, EFFECT_1, TARGET_UNIT_DEST_AREA_ENEMY);
+        OnEffectHitTarget += SpellEffectFn(spell_sha_path_of_flames_spread::HandleScript, EFFECT_1, SPELL_EFFECT_DUMMY);
+    }
+};
+
+// 2645 - Ghost Wolf
+// 260878 - Spirit Wolf
+class spell_sha_spirit_wolf : public AuraScript
+{
+    PrepareAuraScript(spell_sha_spirit_wolf);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_GHOST_WOLF, SPELL_SHAMAN_SPIRIT_WOLF_TALENT, SPELL_SHAMAN_SPIRIT_WOLF_PERIODIC, SPELL_SHAMAN_SPIRIT_WOLF_AURA });
+    }
+
+    void OnApply(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
     {
         Unit* target = GetTarget();
+        if (target->HasAura(SPELL_SHAMAN_SPIRIT_WOLF_TALENT) && target->HasAura(SPELL_SHAMAN_GHOST_WOLF))
+            target->CastSpell(target, SPELL_SHAMAN_SPIRIT_WOLF_PERIODIC, aurEff);
+    }
 
-        if (Aura* aura = target->GetAura(SPELL_SHAMAN_LIGHTNING_SHIELD))
-        {
-            uint8 charges = std::min(aura->GetCharges() + 1, aurEff->GetAmount());
-            aura->SetCharges(charges);
-            aura->RefreshDuration();
-
-            // Fulmination visual
-            if (target->GetDummyAuraEffect(SPELLFAMILY_SHAMAN, SHAMAN_ICON_ID_FULMINATION, EFFECT_0))
-                if (charges == aurEff->GetAmount())
-                    target->CastSpell(GetTarget(), SPELL_SHAMAN_FULMINATION_PROC, aurEff);
-        }
+    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_SHAMAN_SPIRIT_WOLF_PERIODIC);
+        GetTarget()->RemoveAurasDueToSpell(SPELL_SHAMAN_SPIRIT_WOLF_AURA);
     }
 
     void Register() override
     {
-        DoCheckProc.Register(&spell_sha_rolling_thunder::CheckProc);
-        OnEffectProc.Register(&spell_sha_rolling_thunder::HandleEffectProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        AfterEffectApply += AuraEffectApplyFn(spell_sha_spirit_wolf::OnApply, EFFECT_0, SPELL_AURA_ANY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_sha_spirit_wolf::OnRemove, EFFECT_0, SPELL_AURA_ANY, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
-// -82984 - Telluric Currents
-class spell_sha_telluric_currents : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_TELLURIC_CURRENTS });
-    }
-
-    void HandleEffectProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-        int32 basePoints0 = CalculatePct(eventInfo.GetDamageInfo()->GetDamage(), aurEff->GetAmount());
-        GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_TELLURIC_CURRENTS, CastSpellExtraArgs(aurEff).AddSpellBP0(basePoints0));
-    }
-
-    void Register() override
-    {
-        OnEffectProc.Register(&spell_sha_telluric_currents::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
-    }
-};
-
-// 51490 - Thunderstorm
-class spell_sha_thunderstorm : public SpellScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_THUNDERSTORM_SLOW });
-    }
-
-    void HandleKnockBack(SpellEffIndex effIndex)
-    {
-        Unit* caster = GetCaster();
-        if (!caster)
-            return;
-
-        // Glyph of Thunderstorm
-        if (caster->HasAura(SPELL_SHAMAN_GLYPH_OF_THUNDERSTORM))
-        {
-            PreventHitDefaultEffect(effIndex);
-            return;
-        }
-
-        caster->CastSpell(GetHitUnit(), SPELL_SHAMAN_THUNDERSTORM_SLOW);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget.Register(&spell_sha_thunderstorm::HandleKnockBack, EFFECT_2, SPELL_EFFECT_KNOCK_BACK);
-    }
-};
-
-// 51562 - Tidal Waves
+// 51564 - Tidal Waves
 class spell_sha_tidal_waves : public AuraScript
 {
+    PrepareAuraScript(spell_sha_tidal_waves);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_SHAMAN_TIDAL_WAVES });
     }
 
-    void HandleEffectProc(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
+    void HandleEffectProc(AuraEffect* aurEff, ProcEventInfo& /*eventInfo*/)
     {
         PreventDefaultAction();
-        int32 basePoints0 = -aurEff->GetAmount();
-        int32 basePoints1 = aurEff->GetAmount();
+        CastSpellExtraArgs args(aurEff);
+        args.AddSpellMod(SPELLVALUE_BASE_POINT0, -aurEff->GetAmount());
+        args.AddSpellMod(SPELLVALUE_BASE_POINT1, aurEff->GetAmount());
 
-        GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_TIDAL_WAVES, CastSpellExtraArgs(aurEff).AddSpellBP0(basePoints0).AddSpellMod(SPELLVALUE_BASE_POINT1, basePoints1));
+        GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_TIDAL_WAVES, args);
     }
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_sha_tidal_waves::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+        OnEffectProc += AuraEffectProcFn(spell_sha_tidal_waves::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 };
 
-// 38443 - Totemic Mastery (Tier 6 - 2P)
-class spell_sha_totemic_mastery : public AuraScript
+// 28823 - Totemic Power
+class spell_sha_t3_6p_bonus : public AuraScript
 {
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_TOTEMIC_MASTERY });
-    }
+    PrepareAuraScript(spell_sha_t3_6p_bonus);
 
-    void HandleDummy(AuraEffect const* /*aurEff*/)
-    {
-        Unit* target = GetTarget();
-        for (uint8 i = SUMMON_SLOT_TOTEM_FIRE; i < MAX_TOTEM_SLOT; ++i)
-            if (!target->m_SummonSlot[i])
-                return;
-
-        target->CastSpell(target, SPELL_SHAMAN_TOTEMIC_MASTERY, true);
-        PreventDefaultAction();
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic.Register(&spell_sha_totemic_mastery::HandleDummy, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
-    }
-};
-
-// 77222 - Elemental Overload
-class spell_sha_elemental_overload : public AuraScript
-{
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_LIGHTNING_BOLT,
-                SPELL_SHAMAN_LIGHTNING_BOLT_TRIGGERED,
-                SPELL_SHAMAN_CHAIN_LIGHTNING,
-                SPELL_SHAMAN_CHAIN_LIGHTNING_TRIGGERED,
-                SPELL_SHAMAN_LAVA_BURST,
-                SPELL_SHAMAN_LAVA_BURST_TRIGGERED
-            });
+        {
+            SPELL_SHAMAN_TOTEMIC_POWER_ARMOR,
+            SPELL_SHAMAN_TOTEMIC_POWER_ATTACK_POWER,
+            SPELL_SHAMAN_TOTEMIC_POWER_SPELL_POWER,
+            SPELL_SHAMAN_TOTEMIC_POWER_MP5
+        });
     }
 
-    bool CheckProc(ProcEventInfo& eventInfo)
-    {
-        if (!eventInfo.GetSpellInfo())
-            return false;
-
-        if (eventInfo.GetSpellInfo()->Id == SPELL_SHAMAN_CHAIN_LIGHTNING)
-            return roll_chance_i(CalculatePct(GetEffect(EFFECT_0)->GetAmount(), 33));
-
-        return roll_chance_i(GetEffect(EFFECT_0)->GetAmount());
-    }
-
-    void HandleEffectProc(AuraEffect const* /*aurEff*/, ProcEventInfo& eventInfo)
+    void HandleProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
 
-        if (Unit* target = eventInfo.GetProcTarget())
+        uint32 spellId;
+        Unit* caster = eventInfo.GetActor();
+        Unit* target = eventInfo.GetProcTarget();
+
+        switch (target->GetClass())
         {
-            if (Unit* caster = GetCaster())
-            {
-                switch (eventInfo.GetSpellInfo()->Id)
-                {
-                    case SPELL_SHAMAN_LIGHTNING_BOLT:
-                        caster->CastSpell(target, SPELL_SHAMAN_LIGHTNING_BOLT_TRIGGERED, true);
-                        break;
-                    case SPELL_SHAMAN_CHAIN_LIGHTNING:
-                        caster->CastSpell(target, SPELL_SHAMAN_CHAIN_LIGHTNING_TRIGGERED, true);
-                        break;
-                    case SPELL_SHAMAN_LAVA_BURST:
-                        caster->CastSpell(target, SPELL_SHAMAN_LAVA_BURST_TRIGGERED, true);
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-    }
-
-    void Register() override
-    {
-        DoCheckProc.Register(&spell_sha_elemental_overload::CheckProc);
-        OnEffectProc.Register(&spell_sha_elemental_overload::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
-    }
-};
-
-// -77829 - Ancestral Resolve
-class spell_sha_ancestral_resolve : public AuraScript
-{
-    void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
-    {
-        amount = -1;
-    }
-
-    void Absorb(AuraEffect* aurEff, DamageInfo& dmgInfo, uint32& absorbAmount)
-    {
-        if (Unit* target = GetTarget())
-        {
-            if (target->HasUnitState(UNIT_STATE_CASTING))
-                absorbAmount = CalculatePct(dmgInfo.GetDamage(), aurEff->GetBaseAmount());
-            else
-                absorbAmount = 0;
-        }
-    }
-
-    void Register() override
-    {
-        DoEffectCalcAmount.Register(&spell_sha_ancestral_resolve::CalculateAmount, EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
-        OnEffectAbsorb.Register(&spell_sha_ancestral_resolve::Absorb, EFFECT_0);
-    }
-};
-
-// -16180 - Resourgence
-class spell_sha_resurgence : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_RESURGENCE_ENERGIZE,
-                SPELL_SHAMAN_HEALING_SURGE,
-                SPELL_SHAMAN_RIPTIDE,
-                SPELL_SHAMAN_UNLEASH_LIFE,
-                SPELL_SHAMAN_CHAIN_HEAL,
-                SPELL_SHAMAN_WATER_SHIELD
-            });
-    }
-
-    bool CheckProc(ProcEventInfo& /*eventInfo*/)
-    {
-        return GetTarget()->HasAura(SPELL_SHAMAN_WATER_SHIELD, GetTarget()->GetGUID());
-    }
-
-    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-        if (aurEff->GetAmount() == 0)
-            return;
-
-        // Calculate the default amount
-        int32 baseAmount = sSpellMgr->GetSpellInfo(SPELL_SHAMAN_RESURGENCE_ENERGIZE)->Effects[EFFECT_0].CalcValue(GetTarget());
-
-        // Apply extra modifiers for specific spells
-        float modifier = 1.f;
-        switch (eventInfo.GetSpellInfo()->Id)
-        {
-            case SPELL_SHAMAN_HEALING_SURGE:
-            case SPELL_SHAMAN_RIPTIDE:
-            case SPELL_SHAMAN_UNLEASH_LIFE:
-                modifier = 0.6f;
+            case CLASS_PALADIN:
+            case CLASS_PRIEST:
+            case CLASS_SHAMAN:
+            case CLASS_DRUID:
+                spellId = SPELL_SHAMAN_TOTEMIC_POWER_MP5;
                 break;
-            case SPELL_SHAMAN_CHAIN_HEAL:
-                modifier = 0.333f;
+            case CLASS_MAGE:
+            case CLASS_WARLOCK:
+                spellId = SPELL_SHAMAN_TOTEMIC_POWER_SPELL_POWER;
+                break;
+            case CLASS_HUNTER:
+            case CLASS_ROGUE:
+                spellId = SPELL_SHAMAN_TOTEMIC_POWER_ATTACK_POWER;
+                break;
+            case CLASS_WARRIOR:
+                spellId = SPELL_SHAMAN_TOTEMIC_POWER_ARMOR;
                 break;
             default:
-                break;
+                return;
         }
 
-
-        int32 bp = baseAmount * modifier * (aurEff->GetAmount() / 100.f);
-        GetTarget()->EnergizeBySpell(GetTarget(), SPELL_SHAMAN_RESURGENCE_ENERGIZE, bp, POWER_MANA);
+        caster->CastSpell(target, spellId, aurEff);
     }
 
     void Register() override
     {
-        DoCheckProc.Register(&spell_sha_resurgence::CheckProc);
-        OnEffectProc.Register(&spell_sha_resurgence::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+        OnEffectProc += AuraEffectProcFn(spell_sha_t3_6p_bonus::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 };
 
-// -16176 - Ancestral Healing
-class spell_sha_ancestral_healing : public AuraScript
+// 28820 - Lightning Shield
+class spell_sha_t3_8p_bonus : public AuraScript
 {
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_ANCESTRAL_VIGOR });
-    }
+    PrepareAuraScript(spell_sha_t3_8p_bonus);
 
-    void HandleAncestralFortitude(AuraEffect const* /*aurEff*/, ProcEventInfo& eventInfo)
-    {
-        if (!(eventInfo.GetHitMask() & PROC_HIT_CRITICAL))
-            PreventDefaultAction();
-    }
-
-    void HandleAncestralVigor(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    void PeriodicTick(AuraEffect const* /*aurEff*/)
     {
         PreventDefaultAction();
 
-        if (Unit* target = eventInfo.GetHealInfo()->GetTarget())
-        {
-            int32 healBonus = CalculatePct(eventInfo.GetHealInfo()->GetEffectiveHeal(), aurEff->GetAmount());
-            int32 healthCap = CalculatePct(target->GetMaxHealth(), 10);
-
-            if (Aura* oldVigor = target->GetAura(SPELL_SHAMAN_ANCESTRAL_VIGOR, GetTarget()->GetGUID()))
-                healBonus += oldVigor->GetEffect(EFFECT_0)->GetAmount();
-
-            healBonus = std::min(healBonus, healthCap);
-
-            if (healBonus)
-                GetUnitOwner()->CastSpell(target, SPELL_SHAMAN_ANCESTRAL_VIGOR, CastSpellExtraArgs(aurEff).AddSpellBP0(healBonus));
-        }
+        // Need remove self if Lightning Shield not active
+        if (!GetTarget()->GetAuraEffect(SPELL_AURA_PROC_TRIGGER_SPELL, SPELLFAMILY_SHAMAN, flag128(0x400), GetCaster()->GetGUID()))
+            Remove();
     }
 
     void Register() override
     {
-        OnEffectProc.Register(&spell_sha_ancestral_healing::HandleAncestralFortitude, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
-        OnEffectProc.Register(&spell_sha_ancestral_healing::HandleAncestralVigor, EFFECT_1, SPELL_AURA_DUMMY);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_sha_t3_8p_bonus::PeriodicTick, EFFECT_1, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
     }
 };
 
-// 51886 - Cleanse Spirit
-class spell_sha_cleanse_spirit : public SpellScript
+// 64928 - Item - Shaman T8 Elemental 4P Bonus
+class spell_sha_t8_elemental_4p_bonus : public AuraScript
 {
+    PrepareAuraScript(spell_sha_t8_elemental_4p_bonus);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_CLEANSING_WATERS_DUMMY_R1,
-                SPELL_SHAMAN_CLEANSING_WATERS_DUMMY_R2,
-                SPELL_SMAMAN_CLEANSING_WATERS_HEAL_R1,
-                SPELL_SMAMAN_CLEANSING_WATERS_HEAL_R2
-            });
+        return ValidateSpellInfo({ SPELL_SHAMAN_ELECTRIFIED });
     }
 
-    void HandleDispel(SpellEffIndex /*effIndex*/)
+    void HandleProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
     {
-        if (Unit* caster = GetCaster())
-        {
-            if (Player* player = caster->ToPlayer())
-            {
-                if (player->GetSpellHistory()->HasCooldown(SPELL_SMAMAN_CLEANSING_WATERS_HEAL_R1))
-                    return;
+        PreventDefaultAction();
 
-                // Cleansing Waters
-                if (AuraEffect* aura = caster->GetDummyAuraEffect(SPELLFAMILY_SHAMAN, SHAMAN_ICON_ID_CLEANSING_WATERS, EFFECT_0))
-                {
-                    switch (aura->GetId())
-                    {
-                        case SPELL_SHAMAN_CLEANSING_WATERS_DUMMY_R1:
-                            caster->CastSpell(GetHitUnit(), SPELL_SMAMAN_CLEANSING_WATERS_HEAL_R1, true);
-                            break;
-                        case SPELL_SHAMAN_CLEANSING_WATERS_DUMMY_R2:
-                            caster->CastSpell(GetHitUnit(), SPELL_SMAMAN_CLEANSING_WATERS_HEAL_R2, true);
-                            break;
-                    }
-
-                    // The heal effect may not occur again for 6 seconds
-                    player->GetSpellHistory()->AddCooldown(SPELL_SMAMAN_CLEANSING_WATERS_HEAL_R1, 0, std::chrono::seconds(6));
-                }
-            }
-        }
-    }
-
-    void Register() override
-    {
-        OnEffectSuccessfulDispel.Register(&spell_sha_cleanse_spirit::HandleDispel, EFFECT_0, SPELL_EFFECT_DISPEL);
-    }
-};
-
-// 8042 - Earth Shock
-class spell_sha_earth_shock : public SpellScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_LIGHTNING_SHIELD,
-                SPELL_SHAMAN_FULMINATION_DAMAGE,
-                SPELL_SHAMAN_FULMINATION_PROC,
-                SPELL_SHAMAN_LIGHTNING_SHIELD_DAMAGE
-            });
-    }
-
-    void HandleFulmination(SpellEffIndex /*effIndex*/)
-    {
-        Unit* caster = GetCaster();
-        Unit* target = GetHitUnit();
-        if (!target)
+        DamageInfo* damageInfo = eventInfo.GetDamageInfo();
+        if (!damageInfo || !damageInfo->GetDamage())
             return;
 
-        if (AuraEffect const* fulminationEffect = caster->GetDummyAuraEffect(SPELLFAMILY_SHAMAN, SHAMAN_ICON_ID_FULMINATION, EFFECT_0))
+        SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_ELECTRIFIED, GetCastDifficulty());
+        int32 amount = CalculatePct(static_cast<int32>(damageInfo->GetDamage()), aurEff->GetAmount());
+
+        ASSERT(spellInfo->GetMaxTicks() > 0);
+        amount /= spellInfo->GetMaxTicks();
+
+        Unit* caster = eventInfo.GetActor();
+        Unit* target = eventInfo.GetProcTarget();
+
+        CastSpellExtraArgs args(aurEff);
+        args.AddSpellBP0(amount);
+        caster->CastSpell(target, SPELL_SHAMAN_ELECTRIFIED, args);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_sha_t8_elemental_4p_bonus::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 67228 - Item - Shaman T9 Elemental 4P Bonus (Lava Burst)
+class spell_sha_t9_elemental_4p_bonus : public AuraScript
+{
+    PrepareAuraScript(spell_sha_t9_elemental_4p_bonus);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_LAVA_BURST_BONUS_DAMAGE });
+    }
+
+    void HandleProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+
+        DamageInfo* damageInfo = eventInfo.GetDamageInfo();
+        if (!damageInfo || !damageInfo->GetDamage())
+            return;
+
+        SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_LAVA_BURST_BONUS_DAMAGE, GetCastDifficulty());
+        int32 amount = CalculatePct(static_cast<int32>(damageInfo->GetDamage()), aurEff->GetAmount());
+
+        ASSERT(spellInfo->GetMaxTicks() > 0);
+        amount /= spellInfo->GetMaxTicks();
+
+        Unit* caster = eventInfo.GetActor();
+        Unit* target = eventInfo.GetProcTarget();
+
+        CastSpellExtraArgs args(aurEff);
+        args.AddSpellBP0(amount);
+        caster->CastSpell(target, SPELL_SHAMAN_LAVA_BURST_BONUS_DAMAGE, args);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_sha_t9_elemental_4p_bonus::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 70817 - Item - Shaman T10 Elemental 4P Bonus
+class spell_sha_t10_elemental_4p_bonus : public AuraScript
+{
+    PrepareAuraScript(spell_sha_t10_elemental_4p_bonus);
+
+    void HandleProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+
+        Unit* caster = eventInfo.GetActor();
+        Unit* target = eventInfo.GetProcTarget();
+
+        // try to find spell Flame Shock on the target
+        AuraEffect* flameShock = target->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_SHAMAN, flag128(0x10000000), caster->GetGUID());
+        if (!flameShock)
+            return;
+
+        Aura* flameShockAura = flameShock->GetBase();
+
+        int32 maxDuration = flameShockAura->GetMaxDuration();
+        int32 newDuration = flameShockAura->GetDuration() + aurEff->GetAmount() * IN_MILLISECONDS;
+
+        flameShockAura->SetDuration(newDuration);
+        // is it blizzlike to change max duration for FS?
+        if (newDuration > maxDuration)
+            flameShockAura->SetMaxDuration(newDuration);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_sha_t10_elemental_4p_bonus::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 70808 - Item - Shaman T10 Restoration 4P Bonus
+class spell_sha_t10_restoration_4p_bonus : public AuraScript
+{
+    PrepareAuraScript(spell_sha_t10_restoration_4p_bonus);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_CHAINED_HEAL });
+    }
+
+    void HandleProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+
+        HealInfo* healInfo = eventInfo.GetHealInfo();
+        if (!healInfo || !healInfo->GetHeal())
+            return;
+
+        SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_CHAINED_HEAL, GetCastDifficulty());
+        int32 amount = CalculatePct(static_cast<int32>(healInfo->GetHeal()), aurEff->GetAmount());
+
+        ASSERT(spellInfo->GetMaxTicks() > 0);
+        amount /= spellInfo->GetMaxTicks();
+
+        Unit* caster = eventInfo.GetActor();
+        Unit* target = eventInfo.GetProcTarget();
+
+        CastSpellExtraArgs args(aurEff);
+        args.AddSpellBP0(amount);
+        caster->CastSpell(target, SPELL_SHAMAN_CHAINED_HEAL, args);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_sha_t10_restoration_4p_bonus::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 260895 - Unlimited Power
+class spell_sha_unlimited_power : public AuraScript
+{
+    PrepareAuraScript(spell_sha_unlimited_power);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_UNLIMITED_POWER_BUFF });
+    }
+
+    void HandleProc(AuraEffect* /*aurEff*/, ProcEventInfo& procInfo)
+    {
+        Unit* caster = procInfo.GetActor();
+        if (Aura* aura = caster->GetAura(SPELL_SHAMAN_UNLIMITED_POWER_BUFF))
+            aura->SetStackAmount(aura->GetStackAmount() + 1);
+        else
+            caster->CastSpell(caster, SPELL_SHAMAN_UNLIMITED_POWER_BUFF, procInfo.GetProcSpell());
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_sha_unlimited_power::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 200071 - Undulation
+class spell_sha_undulation_passive : public AuraScript
+{
+    PrepareAuraScript(spell_sha_undulation_passive);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_SHAMAN_UNDULATION_PROC });
+    }
+
+    void HandleProc(AuraEffect* /*aurEff*/, ProcEventInfo& /*eventInfo*/)
+    {
+        if (++_castCounter == 3)
         {
-            if (Aura* lightningShieldAura = caster->GetAura(SPELL_SHAMAN_LIGHTNING_SHIELD, caster->GetGUID()))
-            {
-                uint8 surplousCharges = std::max<int8>(0, lightningShieldAura->GetCharges() - fulminationEffect->GetAmount());
-                if (surplousCharges)
-                {
-                    SpellInfo const* lightningShieldSpell = sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_LIGHTNING_SHIELD_DAMAGE);
-                    lightningShieldAura->SetCharges(fulminationEffect->GetAmount());
-
-                    int32 bp = lightningShieldSpell->Effects[EFFECT_0].CalcValue(caster, nullptr, target);
-                    bp = caster->SpellDamageBonusDone(target, lightningShieldSpell, bp, SPELL_DIRECT_DAMAGE, EFFECT_0);
-                    bp *= surplousCharges;
-
-                    caster->CastSpell(target, SPELL_SHAMAN_FULMINATION_DAMAGE, CastSpellExtraArgs(true).AddSpellBP0(bp));
-                    caster->RemoveAurasDueToSpell(SPELL_SHAMAN_FULMINATION_PROC);
-                }
-            }
+            GetTarget()->CastSpell(GetTarget(), SPELL_SHAMAN_UNDULATION_PROC, true);
+            _castCounter = 0;
         }
     }
 
     void Register() override
     {
-        OnEffectLaunchTarget.Register(&spell_sha_earth_shock::HandleFulmination, EFFECT_1, SPELL_EFFECT_SCHOOL_DAMAGE);
+        OnEffectProc += AuraEffectProcFn(spell_sha_undulation_passive::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
+
+    uint8 _castCounter = 1; // first proc happens after two casts, then one every 3 casts
 };
 
-// 73920 - Healing Rain
-class spell_sha_healing_rain : public AuraScript
+// 33757 - Windfury Weapon
+class spell_sha_windfury_weapon : public SpellScript
 {
+    PrepareSpellScript(spell_sha_windfury_weapon);
+
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_HEALING_RAIN_TRIGGERED });
+        return ValidateSpellInfo({ SPELL_SHAMAN_WINDFURY_ENCHANTMENT });
     }
 
-    void HandleEffectPeriodic(AuraEffect const* aurEff)
+    bool Load() override
     {
-        if (DynamicObject* dyn = GetTarget()->GetDynObject(aurEff->GetId()))
-            GetTarget()->CastSpell({ dyn->GetPositionX(), dyn->GetPositionY(), dyn->GetPositionZ() }, SPELL_SHAMAN_HEALING_RAIN_TRIGGERED, true);
+        return GetCaster()->IsPlayer();
+    }
+
+    void HandleEffect(SpellEffIndex effIndex)
+    {
+        PreventHitDefaultEffect(effIndex);
+
+        if (Item* mainHand = GetCaster()->ToPlayer()->GetWeaponForAttack(BASE_ATTACK, false))
+            GetCaster()->CastSpell(mainHand, SPELL_SHAMAN_WINDFURY_ENCHANTMENT, GetSpell());
     }
 
     void Register() override
     {
-        OnEffectPeriodic.Register(&spell_sha_healing_rain::HandleEffectPeriodic, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY);
+        OnEffectHitTarget += SpellEffectFn(spell_sha_windfury_weapon::HandleEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
-// 73921 - Healing Rain Triggered
-class spell_sha_healing_rain_triggered : public SpellScript
+// 319773 - Windfury Weapon (proc)
+class spell_sha_windfury_weapon_proc : public AuraScript
 {
-    void FilterTargets(std::list<WorldObject*>& unitList)
+    PrepareAuraScript(spell_sha_windfury_weapon_proc);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        _targets = unitList.size();
+        return ValidateSpellInfo({ SPELL_SHAMAN_WINDFURY_ATTACK });
     }
 
-    void HandleHeal(SpellEffIndex /*effIndex*/)
+    void HandleEffectProc(AuraEffect* aurEff, ProcEventInfo& eventInfo)
     {
-        if (GetHitHeal() && _targets > 6)
-            SetHitHeal((GetHitHeal() * 6) / _targets);
+        PreventDefaultAction();
+
+        for (uint32 i = 0; i < 2; ++i)
+            eventInfo.GetActor()->CastSpell(eventInfo.GetProcTarget(), SPELL_SHAMAN_WINDFURY_ATTACK, aurEff);
     }
 
     void Register() override
     {
-        OnObjectAreaTargetSelect.Register(&spell_sha_healing_rain_triggered::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ALLY);
-        OnEffectHitTarget.Register(&spell_sha_healing_rain_triggered::HandleHeal, EFFECT_0, SPELL_EFFECT_HEAL);
+        OnEffectProc += AuraEffectProcFn(spell_sha_windfury_weapon_proc::HandleEffectProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 192078 - Wind Rush Totem (Spell)
+//  12676 - AreaTriggerId
+struct areatrigger_sha_wind_rush_totem : AreaTriggerAI
+{
+    static constexpr uint32 REFRESH_TIME = 4500;
+
+    areatrigger_sha_wind_rush_totem(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger), _refreshTimer(REFRESH_TIME) { }
+
+    void OnUpdate(uint32 diff) override
+    {
+        _refreshTimer -= diff;
+        if (_refreshTimer <= 0)
+        {
+            if (Unit* caster = at->GetCaster())
+            {
+                for (ObjectGuid const& guid : at->GetInsideUnits())
+                {
+                    if (Unit* unit = ObjectAccessor::GetUnit(*caster, guid))
+                    {
+                        if (!caster->IsFriendlyTo(unit))
+                            continue;
+
+                        caster->CastSpell(unit, SPELL_SHAMAN_WIND_RUSH, true);
+                    }
+                }
+            }
+            _refreshTimer += REFRESH_TIME;
+        }
+    }
+
+    void OnUnitEnter(Unit* unit) override
+    {
+        if (Unit* caster = at->GetCaster())
+        {
+            if (!caster->IsFriendlyTo(unit))
+                return;
+
+            caster->CastSpell(unit, SPELL_SHAMAN_WIND_RUSH, true);
+        }
     }
 private:
-    uint8 _targets = 0;
-};
-
-class spell_sha_earthliving_weapon : public AuraScript
-{
-    bool CheckProc(ProcEventInfo& eventInfo)
-    {
-        // Blessing of the Eternals
-        // Increases the default 20% proc chance by additional 40%/80% when healing target is below 35% health
-        if (eventInfo.GetHealInfo()->GetTarget() && eventInfo.GetHealInfo()->GetTarget()->HealthBelowPct(35))
-            if (AuraEffect const* aurEff = GetUnitOwner()->GetDummyAuraEffect(SPELLFAMILY_SHAMAN, SHAMAN_ICON_ID_BLESSING_OF_THE_ETERNALS, EFFECT_1))
-                return roll_chance_i(20 + aurEff->GetBaseAmount());
-
-        // Default Proc Chance is 20%
-        return roll_chance_i(20);
-    }
-
-    void Register() override
-    {
-        DoCheckProc.Register(&spell_sha_earthliving_weapon::CheckProc);
-    }
-};
-
-// 10400 - Flametongue Weapon (Passive)
-class spell_sha_flametongue_weapon : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_FLAMETONGUE_ATTACK,
-                SPELL_SHAMAN_FLAMETONGUE_WEAPON
-            });
-    }
-
-    bool CheckProc(ProcEventInfo& eventInfo)
-    {
-        Player* player = eventInfo.GetActor()->ToPlayer();
-        if (!player)
-            return false;
-
-        Item* item = player->GetItemByGuid(GetAura()->GetCastItemGUID());
-        if (!item || !item->IsEquipped())
-            return false;
-
-        uint8 attType = Player::GetAttackBySlot(item->GetSlot());
-        if (attType != BASE_ATTACK && attType != OFF_ATTACK)
-            return false;
-
-        if (((attType == BASE_ATTACK) && !(eventInfo.GetTypeMask() & PROC_FLAG_MAIN_HAND_WEAPON_SWING)) ||
-            ((attType == OFF_ATTACK) && !(eventInfo.GetTypeMask() & PROC_FLAG_OFF_HAND_WEAPON_SWING)))
-            return false;
-
-        return true;
-    }
-
-    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-
-        Player* player = eventInfo.GetActor()->ToPlayer();
-        Unit* target = eventInfo.GetProcTarget();
-        WeaponAttackType attType = BASE_ATTACK;
-        if (eventInfo.GetTypeMask() & PROC_FLAG_OFF_HAND_WEAPON_SWING)
-            attType = OFF_ATTACK;
-
-        Item* item = ASSERT_NOTNULL(player->GetWeaponForAttack(attType));
-
-        SpellInfo const* spell = sSpellMgr->GetSpellInfo(SPELL_SHAMAN_FLAMETONGUE_WEAPON);
-        if (!spell)
-            return;
-
-        float basePoints = spell->Effects[EFFECT_1].CalcValue(player);
-        float attackSpeed = player->GetAttackTime(attType) / 1000.f;
-        float fireDamage = basePoints / 100.0f;
-        fireDamage *= attackSpeed;
-
-        RoundToInterval(fireDamage, basePoints / 77.0f, basePoints / 25.0f);
-
-        // Calculate Spell Power scaling
-        float statBonus = player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE);
-        statBonus += target->GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_DAMAGE_TAKEN, SPELL_SCHOOL_MASK_FIRE);
-
-        float const coeff = 0.03811f;
-        statBonus *= coeff * attackSpeed;
-
-        player->CastSpell(target, SPELL_SHAMAN_FLAMETONGUE_ATTACK, CastSpellExtraArgs(aurEff).SetCastItem(item).AddSpellBP0(fireDamage + statBonus));
-    }
-
-    void Register() override
-    {
-        DoCheckProc.Register(&spell_sha_flametongue_weapon::CheckProc);
-        OnEffectProc.Register(&spell_sha_flametongue_weapon::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
-    }
-};
-
-// 33757 - Windfury Weapon (Passive)
-class spell_sha_windfury_weapon : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_WINDFURY_ATTACK_MAINHAND,
-                SPELL_SHAMAN_WINDFURY_ATTACK_OFFHAND,
-                SPELL_SHAMAN_WINDFURY_WEAPON
-            });
-    }
-
-    bool CheckProc(ProcEventInfo& eventInfo)
-    {
-        Player* player = eventInfo.GetActor()->ToPlayer();
-        if (!player)
-            return false;
-
-        Item* item = player->GetItemByGuid(GetAura()->GetCastItemGUID());
-        if (!item || !item->IsEquipped())
-            return false;
-
-        uint8 attType = Player::GetAttackBySlot(item->GetSlot());
-        if (attType != BASE_ATTACK && attType != OFF_ATTACK)
-            return false;
-
-        if (((attType == BASE_ATTACK) && !(eventInfo.GetTypeMask() & PROC_FLAG_MAIN_HAND_WEAPON_SWING)) ||
-            ((attType == OFF_ATTACK) && !(eventInfo.GetTypeMask() & PROC_FLAG_OFF_HAND_WEAPON_SWING)))
-            return false;
-
-        return true;
-    }
-
-    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-
-        Player* player = eventInfo.GetActor()->ToPlayer();
-        Unit* target = eventInfo.GetProcTarget();
-        WeaponAttackType attType = BASE_ATTACK;
-        if (eventInfo.GetTypeMask() & PROC_FLAG_OFF_HAND_WEAPON_SWING)
-            attType = OFF_ATTACK;
-
-        Item* item = ASSERT_NOTNULL(player->GetWeaponForAttack(attType));
-
-        SpellInfo const* spell = sSpellMgr->GetSpellInfo(SPELL_SHAMAN_WINDFURY_WEAPON);
-        if (!spell)
-            return;
-
-        int32 attackPower = spell->Effects[EFFECT_1].CalcValue(player);
-        int32 amount = static_cast<int32>(attackPower / 14.f * player->GetAttackTime(attType) / 1000.f);
-        uint32 spellId = attType == BASE_ATTACK ? SPELL_SHAMAN_WINDFURY_ATTACK_MAINHAND : SPELL_SHAMAN_WINDFURY_ATTACK_OFFHAND;
-
-        for (uint8 i = 0; i < 3; i++)
-            player->CastSpell(target, spellId, CastSpellExtraArgs(aurEff).SetCastItem(item).AddSpellBP0(amount));
-    }
-
-    void Register() override
-    {
-        DoCheckProc.Register(&spell_sha_windfury_weapon::CheckProc);
-        OnEffectProc.Register(&spell_sha_windfury_weapon::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
-    }
-};
-
-class spell_sha_unleash_elements : public SpellScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo(
-            {
-                SPELL_SHAMAN_UNLEASH_LIFE,
-                SPELL_SHAMAN_UNLEASH_WIND,
-                SPELL_SHAMAN_UNLEASH_FROST,
-                SPELL_SHAMAN_UNLEASH_FLAME,
-                SPELL_SHAMAN_UNLEASH_EARTH,
-            });
-    }
-
-    void HandleDummy(SpellEffIndex /*effIndex*/)
-    {
-        Unit* caster = GetCaster();
-        if (!caster)
-            return;
-
-        Player* player = caster->ToPlayer();
-        if (!player)
-            return;
-
-        uint32 spellId = 0;
-        uint32 lastSpellId = 0;
-
-        for (uint8 i = 0; i < 2; i++)
-        {
-            if (Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND + i))
-            {
-                switch (item->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT))
-                {
-                    case SHAMAN_ENCHANTMENT_ID_FLAMETONGUE:
-                        spellId = SPELL_SHAMAN_UNLEASH_FLAME;
-                        break;
-                    case SHAMAN_ENCHANTMENT_ID_FROSTBRAND:
-                        spellId = SPELL_SHAMAN_UNLEASH_FROST;
-                        break;
-                    case SHAMAN_ENCHANTMENT_ID_WINDFURY:
-                        spellId = SPELL_SHAMAN_UNLEASH_WIND;
-                        break;
-                    case SHAMAN_ENCHANTMENT_ID_ROCKBITER:
-                        spellId = SPELL_SHAMAN_UNLEASH_EARTH;
-                        break;
-                    case SHAMAN_ENCHANTMENT_ID_EARTHLIVING:
-                        spellId = SPELL_SHAMAN_UNLEASH_LIFE;
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            if (spellId && spellId != lastSpellId)
-            {
-                if (Unit* target = GetExplTargetUnit())
-                {
-                    if (spellId == SPELL_SHAMAN_UNLEASH_LIFE && !target->IsFriendlyTo(caster))
-                        target = caster;
-
-                    caster->CastSpell(target, spellId, true);
-                }
-            }
-
-            lastSpellId = spellId;
-        }
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget.Register(&spell_sha_unleash_elements::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-    }
-};
-
-// -51525 - Static Shock
-class spell_sha_static_shock : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_LIGHTNING_SHIELD_DAMAGE });
-    }
-
-    bool CheckProc(ProcEventInfo& eventInfo)
-    {
-        return eventInfo.GetActor()->HasAura(SPELL_SHAMAN_LIGHTNING_SHIELD);
-    }
-
-    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-
-        Unit* caster = eventInfo.GetActor();
-        Unit* target = eventInfo.GetProcTarget();
-
-        caster->CastSpell(target, SPELL_SHAMAN_LIGHTNING_SHIELD_DAMAGE, aurEff);
-    }
-
-    void Register() override
-    {
-        DoCheckProc.Register(&spell_sha_static_shock::CheckProc);
-        OnEffectProc.Register(&spell_sha_static_shock::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
-    }
-};
-
-// -63373 - Frozen Power
-class spell_sha_frozen_power : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_FREEZE });
-    }
-
-    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
-    {
-        PreventDefaultAction();
-
-        if (!roll_chance_i(aurEff->GetAmount()))
-            return;
-
-        Unit* caster = eventInfo.GetActor();
-        SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(SPELL_SHAMAN_FREEZE);
-        float minDistance(spellInfo->Effects[EFFECT_0].CalcValue(caster));
-
-        Unit* target = eventInfo.GetProcTarget();
-        if (caster->GetDistance(target) < minDistance)
-            return;
-
-        caster->CastSpell(target, SPELL_SHAMAN_FREEZE, aurEff);
-    }
-
-    void Register() override
-    {
-        OnEffectProc.Register(&spell_sha_frozen_power::HandleProc, EFFECT_1, SPELL_AURA_DUMMY);
-    }
-};
-
-// 61882 - Earthquake
-class spell_sha_earthquake : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_EARTHQUAKE_DAMAGE });
-    }
-
-    void HandleDummyTick(AuraEffect const* aurEff)
-    {
-        if (DynamicObject* dyn = GetTarget()->GetDynObject(aurEff->GetId()))
-            GetTarget()->CastSpell({ dyn->GetPositionX(), dyn->GetPositionY(), dyn->GetPositionZ() }, SPELL_SHAMAN_EARTHQUAKE_DAMAGE, aurEff);
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic.Register(&spell_sha_earthquake::HandleDummyTick, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY);
-    }
-};
-
-// 77478 - Earthquake
-class spell_sha_earthquake_damage : public SpellScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_EARTHQUAKE_STUN });
-    }
-
-    void HandleKnockdown(SpellEffIndex effIndex)
-    {
-        if (roll_chance_i(GetSpellInfo()->Effects[effIndex].BasePoints))
-            if (Unit* caster = GetCaster())
-                caster->CastSpell(GetHitUnit(), SPELL_SHAMAN_EARTHQUAKE_STUN, true);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget.Register(&spell_sha_earthquake_damage::HandleKnockdown, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
-    }
-};
-
-// 324 - Lightning Shield
-class spell_sha_lightning_shield : public AuraScript
-{
-    void HandleProc(AuraEffect const* /*aurEff*/, ProcEventInfo& /*eventInfo*/)
-    {
-        if (GetTarget()->GetDummyAuraEffect(SPELLFAMILY_SHAMAN, SHAMAN_ICON_ID_GLYPH_OF_LIGHTNING_SHIELD, EFFECT_0))
-            if (GetCharges() < 3)
-                SetCharges(3);
-    }
-
-    void Register() override
-    {
-        AfterEffectProc.Register(&spell_sha_lightning_shield::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
-    }
-};
-
-class spell_sha_searing_bolt : public SpellScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_SEARING_FLAMES_DAMAGE });
-    }
-
-    void HandleSearingFlames(SpellEffIndex /*effIndex*/)
-    {
-        Unit* caster = GetCaster();
-        if (!caster)
-            return;
-
-        if (Unit* owner = caster->GetOwner())
-            if (AuraEffect const* effect = owner->GetDummyAuraEffect(SPELLFAMILY_SHAMAN, SHAMAN_ICON_ID_SEARING_FLAMES, EFFECT_0))
-                if (roll_chance_i(effect->GetAmount()))
-                    owner->CastSpell(GetHitUnit(), SPELL_SHAMAN_SEARING_FLAMES_DAMAGE, effect);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget.Register(&spell_sha_searing_bolt::HandleSearingFlames, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
-    }
-};
-
-// 53817 - Maelstrom Weapon
-class spell_sha_maelstrom_weapon : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_MAELSTROM_DUMMY });
-    }
-
-    void AfterApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        if (GetStackAmount() == GetSpellInfo()->StackAmount)
-            GetTarget()->CastSpell(nullptr, SPELL_SHAMAN_MAELSTROM_DUMMY);
-    }
-
-    void AfterRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        GetTarget()->RemoveAurasDueToSpell(SPELL_SHAMAN_MAELSTROM_DUMMY, GetTarget()->GetGUID());
-    }
-
-    void Register() override
-    {
-        AfterEffectApply.Register(&spell_sha_maelstrom_weapon::AfterApply, EFFECT_0, SPELL_AURA_ADD_PCT_MODIFIER, AURA_EFFECT_HANDLE_REAL_OR_REAPPLY_MASK);
-        AfterEffectRemove.Register(&spell_sha_maelstrom_weapon::AfterRemove, EFFECT_0, SPELL_AURA_ADD_PCT_MODIFIER, AURA_EFFECT_HANDLE_REAL_OR_REAPPLY_MASK);
-    }
-};
-
-// 16246 - Clearcasting
-class spell_sha_clearcasting : public AuraScript
-{
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_SHAMAN_ELEMENTAL_OATH });
-    }
-
-    // Elemental Oath bonus
-    void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
-    {
-        Unit const* owner = GetUnitOwner();
-        if (Aura const* aura = owner->GetAuraOfRankedSpell(SPELL_SHAMAN_ELEMENTAL_OATH, owner->GetGUID()))
-            amount = aura->GetSpellInfo()->Effects[EFFECT_1].BasePoints;
-    }
-
-    void Register() override
-    {
-        DoEffectCalcAmount.Register(&spell_sha_clearcasting::CalculateAmount, EFFECT_1, SPELL_AURA_MOD_DAMAGE_PERCENT_DONE);
-    }
+    int32 _refreshTimer;
 };
 
 void AddSC_shaman_spell_scripts()
 {
-    RegisterSpellScript(spell_sha_ancestral_awakening);
-    RegisterSpellScript(spell_sha_ancestral_awakening_proc);
-    RegisterSpellScript(spell_sha_ancestral_healing);
-    RegisterSpellScript(spell_sha_ancestral_resolve);
+    RegisterSpellScript(spell_sha_aftershock);
+    RegisterSpellScript(spell_sha_ancestral_guidance);
+    RegisterSpellScript(spell_sha_ancestral_guidance_heal);
     RegisterSpellScript(spell_sha_bloodlust);
-    RegisterSpellScript(spell_sha_cleanse_spirit);
-    RegisterSpellScript(spell_sha_clearcasting);
-    RegisterSpellScript(spell_sha_chain_heal);
+    RegisterSpellScript(spell_sha_chain_lightning);
+    RegisterSpellScript(spell_sha_chain_lightning_overload);
+    RegisterSpellScript(spell_sha_crash_lightning);
+    RegisterSpellScript(spell_sha_downpour);
     RegisterSpellScript(spell_sha_earth_shield);
-    RegisterSpellScript(spell_sha_earth_shock);
-    RegisterSpellScript(spell_sha_earthbind_totem);
-    RegisterSpellScript(spell_sha_earthen_power);
-    RegisterSpellScript(spell_sha_earthliving_weapon);
-    RegisterSpellScript(spell_sha_earthquake);
-    RegisterSpellScript(spell_sha_earthquake_damage);
-    RegisterSpellScript(spell_sha_elemental_overload);
-    RegisterSpellScript(spell_sha_feedback);
-    RegisterSpellScript(spell_sha_fire_nova);
-    RegisterSpellScript(spell_sha_fire_nova_damage);
-    RegisterSpellScript(spell_sha_flame_shock);
+    RegisterSpellScript(spell_sha_earthen_rage_passive);
+    RegisterSpellScript(spell_sha_earthen_rage_proc_aura);
+    RegisterAreaTriggerAI(areatrigger_sha_earthquake);
+    RegisterSpellScript(spell_sha_earthquake_tick);
+    RegisterSpellScript(spell_sha_elemental_blast);
     RegisterSpellScript(spell_sha_flametongue_weapon);
-    RegisterSpellScript(spell_sha_focused_insight);
-    RegisterSpellScript(spell_sha_frozen_power);
-    RegisterSpellScript(spell_sha_glyph_of_healing_wave);
-    RegisterSpellScript(spell_sha_healing_rain);
-    RegisterSpellScript(spell_sha_healing_rain_triggered);
-    RegisterSpellScript(spell_sha_healing_stream_totem);
+    RegisterSpellScript(spell_sha_flametongue_weapon_aura);
+    RegisterSpellAndAuraScriptPair(spell_sha_healing_rain, spell_sha_healing_rain_aura);
+    RegisterSpellScript(spell_sha_healing_rain_target_limit);
+    RegisterSpellScript(spell_sha_healing_stream_totem_heal);
     RegisterSpellScript(spell_sha_heroism);
+    RegisterSpellScript(spell_sha_icefury);
     RegisterSpellScript(spell_sha_item_lightning_shield);
     RegisterSpellScript(spell_sha_item_lightning_shield_trigger);
     RegisterSpellScript(spell_sha_item_mana_surge);
+    RegisterSpellScript(spell_sha_item_t6_trinket);
     RegisterSpellScript(spell_sha_item_t10_elemental_2p_bonus);
-    RegisterSpellScript(spell_sha_lava_lash);
-    RegisterSpellScript(spell_sha_lava_lash_script);
+    RegisterSpellScript(spell_sha_item_t18_elemental_4p_bonus);
+    RegisterSpellScript(spell_sha_lava_burst);
+    RegisterSpellScript(spell_sha_lava_crit_chance);
     RegisterSpellScript(spell_sha_lava_surge);
     RegisterSpellScript(spell_sha_lava_surge_proc);
-    RegisterSpellScript(spell_sha_lightning_shield);
-    RegisterSpellScript(spell_sha_maelstrom_weapon);
-    RegisterSpellScript(spell_sha_mana_tide_totem);
-    RegisterSpellScript(spell_sha_nature_guardian);
-    RegisterSpellScript(spell_sha_resurgence);
-    RegisterSpellScript(spell_sha_rolling_thunder);
-    RegisterSpellScript(spell_sha_searing_bolt);
-    RegisterSpellScript(spell_sha_static_shock);
-    RegisterSpellScript(spell_sha_telluric_currents);
-    RegisterSpellScript(spell_sha_thunderstorm);
+    RegisterSpellScript(spell_sha_lightning_bolt);
+    RegisterSpellScript(spell_sha_lightning_bolt_overload);
+    RegisterSpellScript(spell_sha_liquid_magma_totem);
+    RegisterSpellScript(spell_sha_mastery_elemental_overload);
+    RegisterSpellScript(spell_sha_mastery_elemental_overload_proc);
+    RegisterSpellScript(spell_sha_natures_guardian);
+    RegisterSpellScript(spell_sha_path_of_flames_spread);
+    RegisterSpellScript(spell_sha_spirit_wolf);
     RegisterSpellScript(spell_sha_tidal_waves);
-    RegisterSpellScript(spell_sha_totemic_mastery);
-    RegisterSpellScript(spell_sha_unleash_elements);
+    RegisterSpellScript(spell_sha_t3_6p_bonus);
+    RegisterSpellScript(spell_sha_t3_8p_bonus);
+    RegisterSpellScript(spell_sha_t8_elemental_4p_bonus);
+    RegisterSpellScript(spell_sha_t9_elemental_4p_bonus);
+    RegisterSpellScript(spell_sha_t10_elemental_4p_bonus);
+    RegisterSpellScript(spell_sha_t10_restoration_4p_bonus);
+    RegisterSpellScript(spell_sha_unlimited_power);
+    RegisterSpellScript(spell_sha_undulation_passive);
     RegisterSpellScript(spell_sha_windfury_weapon);
+    RegisterSpellScript(spell_sha_windfury_weapon_proc);
+    RegisterAreaTriggerAI(areatrigger_sha_wind_rush_totem);
 }

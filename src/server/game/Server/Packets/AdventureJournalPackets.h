@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 TrinityCore-Legion <https://gitlab.com/celestial-wow/trinitycore-legion/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,19 +31,36 @@ namespace WorldPackets
 
             void Read() override;
 
-            uint32 AdventureJournalEntry = 0;
+            int32 AdventureJournalID = 0;
         };
 
-        class AdventureJournalStartQuest final : public ClientPacket
+        class AdventureJournalUpdateSuggestions final : public ClientPacket
         {
         public:
-            AdventureJournalStartQuest(WorldPacket&& packet) : ClientPacket(CMSG_ADVENTURE_JOURNAL_START_QUEST, std::move(packet)) { }
+            AdventureJournalUpdateSuggestions(WorldPacket&& packet) : ClientPacket(CMSG_ADVENTURE_JOURNAL_UPDATE_SUGGESTIONS, std::move(packet)) { }
 
             void Read() override;
 
-            uint32 QuestEntry = 0;
+            bool OnLevelUp = false;
+        };
+
+        struct AdventureJournalEntry
+        {
+            int32 AdventureJournalID = 0;
+            int32 Priority = 0;
+        };
+
+        class AdventureJournalDataResponse final : public ServerPacket
+        {
+        public:
+            AdventureJournalDataResponse() : ServerPacket(SMSG_ADVENTURE_JOURNAL_DATA_RESPONSE, 7) { }
+
+            WorldPacket const* Write() override;
+
+            bool OnLevelUp = false;
+            std::vector<AdventureJournalEntry> Entries;
         };
     }
 }
 
-#endif
+#endif // AdventureJournalPackets_h__

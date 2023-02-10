@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,14 +19,16 @@
 #define AllPackets_h__
 
 #include "AchievementPackets.h"
+#include "AddonPackets.h"
 #include "AdventureJournalPackets.h"
+#include "AdventureMapPackets.h"
 #include "AreaTriggerPackets.h"
 #include "ArtifactPackets.h"
 #include "AuctionHousePackets.h"
 #include "AuthenticationPackets.h"
+#include "AzeritePackets.h"
 #include "BankPackets.h"
 #include "BlackMarketPackets.h"
-#include "BattlefieldPackets.h"
 #include "BattlegroundPackets.h"
 #include "BattlenetPackets.h"
 #include "BattlePetPackets.h"
@@ -43,7 +45,6 @@
 #include "EquipmentSetPackets.h"
 #include "GameObjectPackets.h"
 #include "GarrisonPackets.h"
-#include "GuildFinderPackets.h"
 #include "GuildPackets.h"
 #include "HotfixPackets.h"
 #include "InspectPackets.h"

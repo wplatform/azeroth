@@ -20,7 +20,10 @@
 #define TRINITY_SHAREDDEFINES_H
 
 #include "Define.h"
-#include "DetourNavMesh.h"
+#include "EnumFlag.h"
+
+float const GROUND_HEIGHT_TOLERANCE = 0.05f; // Extra tolerance to z position to check if it is in air or on ground.
+constexpr float Z_OFFSET_FIND_HEIGHT = 0.5f;
 
 enum SpellEffIndex : uint8
 {
@@ -2078,34 +2081,34 @@ enum AuraStateType
 {   // (C) used in caster aura state     (T) used in target aura state
     // (c) used in caster aura state-not (t) used in target aura state-not
     AURA_STATE_NONE                         = 0,            // C   |
-    AURA_STATE_DEFENSE                      = 1,            // C   |
-    AURA_STATE_HEALTHLESS_20_PERCENT        = 2,            // CcT |
-    AURA_STATE_BERSERKING                   = 3,            // C T |
-    AURA_STATE_FROZEN                       = 4,            //  c t| frozen target
-    AURA_STATE_JUDGEMENT                    = 5,            // C   |
-    //AURA_STATE_UNKNOWN6                   = 6,            //     | not used
-    AURA_STATE_HUNTER_PARRY                 = 7,            // C   |
-    //AURA_STATE_UNKNOWN7                   = 7,            //  c  | creature cheap shot / focused bursts spells
-    //AURA_STATE_UNKNOWN8                   = 8,            //    t| test spells
-    //AURA_STATE_UNKNOWN9                   = 9,            //     |
-    AURA_STATE_WARRIOR_VICTORY_RUSH         = 10,           // C   | warrior victory rush
-    //AURA_STATE_UNKNOWN11                  = 11,           // C  t| 60348 - Maelstrom Ready!, test spells
+    AURA_STATE_DEFENSIVE                    = 1,            // CcTt|
+    AURA_STATE_WOUNDED_20_PERCENT           = 2,            // CcT |
+    AURA_STATE_UNBALANCED                   = 3,            // CcT | NYI
+    AURA_STATE_FROZEN                       = 4,            //  c t|
+    AURA_STATE_MARKED                       = 5,            // C  t| NYI
+    AURA_STATE_WOUNDED_25_PERCENT           = 6,            //   T |
+    AURA_STATE_DEFENSIVE_2                  = 7,            // Cc  | NYI
+    AURA_STATE_BANISHED                     = 8,            //  c  | NYI
+    AURA_STATE_DAZED                        = 9,            //    t|
+    AURA_STATE_VICTORIOUS                   = 10,           // C   |
+    AURA_STATE_RAMPAGE                      = 11,           //     | NYI
     AURA_STATE_FAERIE_FIRE                  = 12,           //  c t|
-    AURA_STATE_HEALTHLESS_35_PERCENT        = 13,           // C T |
-    AURA_STATE_CONFLAGRATE                  = 14,           //   T |
-    AURA_STATE_SWIFTMEND                    = 15,           //   T |
-    AURA_STATE_DEADLY_POISON                = 16,           //   T |
-    AURA_STATE_ENRAGE                       = 17,           // C   |
-    AURA_STATE_BLEEDING                     = 18,           //    T|
-    AURA_STATE_UNKNOWN19                    = 19,           //     |
-    //AURA_STATE_UNKNOWN20                  = 20,           //  c  | only (45317 Suicide)
-    //AURA_STATE_UNKNOWN21                  = 21,           //     | not used
-    AURA_STATE_UNKNOWN22                    = 22,           // C  t| varius spells (63884, 50240)
-    AURA_STATE_HEALTH_ABOVE_75_PERCENT      = 23            // C   |
+    AURA_STATE_WOUNDED_35_PERCENT           = 13,           // CcT |
+    AURA_STATE_RAID_ENCOUNTER_2             = 14,           //  cT |
+    AURA_STATE_DRUID_PERIODIC_HEAL          = 15,           //   T |
+    AURA_STATE_ROGUE_POISONED               = 16,           //     |
+    AURA_STATE_ENRAGED                      = 17,           // C   |
+    AURA_STATE_BLEED                        = 18,           //   T |
+    AURA_STATE_VULNERABLE                   = 19,           //     | NYI
+    AURA_STATE_ARENA_PREPARATION            = 20,           //  c  |
+    AURA_STATE_WOUND_HEALTH_20_80           = 21,           //   T |
+    AURA_STATE_RAID_ENCOUNTER               = 22,           // CcTt|
+    AURA_STATE_HEALTHY_75_PERCENT           = 23,           // C   |
+    AURA_STATE_WOUND_HEALTH_35_80           = 24            //   T |
 };
 
 #define PER_CASTER_AURA_STATE_MASK (\
-    (1<<(AURA_STATE_CONFLAGRATE-1))|(1<<(AURA_STATE_DEADLY_POISON-1)))
+    (1<<(AURA_STATE_RAID_ENCOUNTER_2-1))|(1<<(AURA_STATE_ROGUE_POISONED-1)))
 
 // Spell mechanics
 enum Mechanics
@@ -2143,7 +2146,11 @@ enum Mechanics
     MECHANIC_SAPPED           = 30,
     MECHANIC_ENRAGED          = 31,
     MECHANIC_WOUNDED          = 32,
-    MAX_MECHANIC = 33
+    MECHANIC_INFECTED_2       = 33,
+    MECHANIC_INFECTED_3       = 34,
+    MECHANIC_INFECTED_4       = 35,
+    MECHANIC_TAUNTED          = 36,
+    MAX_MECHANIC              = 37  // SKIP
 };
 
 // Used for spell 42292 Immune Movement Impairment and Loss of Control (0x49967ca6)
@@ -2448,29 +2455,41 @@ enum GameobjectTypes : uint8
 
 enum GameObjectFlags
 {
-    GO_FLAG_IN_USE          = 0x00000001,                   // disables interaction while animated
-    GO_FLAG_LOCKED          = 0x00000002,                   // require key, spell, event, etc to be opened. Makes "Locked" appear in tooltip
-    GO_FLAG_INTERACT_COND   = 0x00000004,                   // cannot interact (condition to interact - requires GO_DYNFLAG_LO_ACTIVATE to enable interaction clientside)
-    GO_FLAG_TRANSPORT       = 0x00000008,                   // any kind of transport? Object can transport (elevator, boat, car)
-    GO_FLAG_NOT_SELECTABLE  = 0x00000010,                   // not selectable even in GM mode
-    GO_FLAG_NODESPAWN       = 0x00000020,                   // never despawn, typically for doors, they just change state
-    GO_FLAG_AI_OBSTACLE     = 0x00000040,                   // makes the client register the object in something called AIObstacleMgr, unknown what it does
-    GO_FLAG_FREEZE_ANIMATION = 0x00000080,
+    GO_FLAG_IN_USE                                  = 0x00000001, // disables interaction while animated
+    GO_FLAG_LOCKED                                  = 0x00000002, // require key, spell, event, etc to be opened. Makes "Locked" appear in tooltip
+    GO_FLAG_INTERACT_COND                           = 0x00000004, // cannot interact (condition to interact - requires GO_DYNFLAG_LO_ACTIVATE to enable interaction clientside)
+    GO_FLAG_TRANSPORT                               = 0x00000008, // any kind of transport? Object can transport (elevator, boat, car)
+    GO_FLAG_NOT_SELECTABLE                          = 0x00000010, // not selectable even in GM mode
+    GO_FLAG_NODESPAWN                               = 0x00000020, // never despawn, typically for doors, they just change state
+    GO_FLAG_AI_OBSTACLE                             = 0x00000040, // makes the client register the object in something called AIObstacleMgr, unknown what it does
+    GO_FLAG_FREEZE_ANIMATION                        = 0x00000080,
+
     // for object types GAMEOBJECT_TYPE_GARRISON_BUILDING, GAMEOBJECT_TYPE_GARRISON_PLOT and GAMEOBJECT_TYPE_PHASEABLE_MO flag bits 8 to 12 are used as WMOAreaTable::NameSetID
-    GO_FLAG_DAMAGED         = 0x00000200,
-    GO_FLAG_DESTROYED       = 0x00000400,
-    GO_FLAG_INTERACT_DISTANCE_USES_TEMPLATE_MODEL = 0x00080000, // client checks interaction distance from model sent in SMSG_QUERY_GAMEOBJECT_RESPONSE instead of GAMEOBJECT_DISPLAYID
-    GO_FLAG_MAP_OBJECT      = 0x00100000                    // pre-7.0 model loading used to be controlled by file extension (wmo vs m2)
+    GO_FLAG_DAMAGED                                 = 0x00000200,
+    GO_FLAG_DESTROYED                               = 0x00000400,
+
+    GO_FLAG_IGNORE_CURRENT_STATE_FOR_USE_SPELL      = 0x00004000, // Allows casting use spell without checking current state (opening open gameobjects, unlocking unlocked gameobjects and closing closed gameobjects)
+    GO_FLAG_INTERACT_DISTANCE_IGNORES_MODEL         = 0x00008000, // Client completely ignores model bounds for interaction distance check
+    GO_FLAG_IGNORE_CURRENT_STATE_FOR_USE_SPELL_EXCEPT_UNLOCKED = 0x00040000, // Allows casting use spell without checking current state except unlocking unlocked gamobjets (opening open gameobjects and closing closed gameobjects)
+    GO_FLAG_INTERACT_DISTANCE_USES_TEMPLATE_MODEL   = 0x00080000, // client checks interaction distance from model sent in SMSG_QUERY_GAMEOBJECT_RESPONSE instead of GAMEOBJECT_DISPLAYID
+    GO_FLAG_MAP_OBJECT                              = 0x00100000, // pre-7.0 model loading used to be controlled by file extension (wmo vs m2)
+    GO_FLAG_IN_MULTI_USE                            = 0x00200000, // GO_FLAG_IN_USE equivalent for objects usable by multiple players
+    GO_FLAG_LOW_PRIORITY_SELECTION                  = 0x04000000, // client will give lower cursor priority to this object when multiple objects overlap
 };
 
-enum GameObjectDynamicLowFlags
+DEFINE_ENUM_FLAG(GameObjectFlags);
+
+enum GameObjectDynamicLowFlags : uint16
 {
-    GO_DYNFLAG_LO_HIDE_MODEL        = 0x02,                 // Object model is not shown with this flag
-    GO_DYNFLAG_LO_ACTIVATE          = 0x04,                 // enables interaction with GO
-    GO_DYNFLAG_LO_ANIMATE           = 0x08,                 // possibly more distinct animation of GO
-    GO_DYNFLAG_LO_NO_INTERACT       = 0x10,                 // appears to disable interaction (not fully verified)
-    GO_DYNFLAG_LO_SPARKLE           = 0x20,                 // makes GO sparkle
-    GO_DYNFLAG_LO_STOPPED           = 0x40                  // Transport is stopped
+    GO_DYNFLAG_LO_HIDE_MODEL        = 0x0002,               // Object model is not shown with this flag
+    GO_DYNFLAG_LO_ACTIVATE          = 0x0004,               // enables interaction with GO
+    GO_DYNFLAG_LO_ANIMATE           = 0x0008,               // possibly more distinct animation of GO
+    GO_DYNFLAG_LO_DEPLETED          = 0x0010,               // can no longer be interacted with (and for gathering nodes it forces "open" visual state)
+    GO_DYNFLAG_LO_SPARKLE           = 0x0020,               // makes GO sparkle
+    GO_DYNFLAG_LO_STOPPED           = 0x0040,               // Transport is stopped
+    GO_DYNFLAG_LO_NO_INTERACT       = 0x0080,
+    GO_DYNFLAG_LO_INVERTED_MOVEMENT = 0x0100,               // GAMEOBJECT_TYPE_TRANSPORT only
+    GO_DYNFLAG_LO_HIGHLIGHT         = 0x0200,               // Allows object highlight when GO_DYNFLAG_LO_ACTIVATE or GO_DYNFLAG_LO_SPARKLE are set, not only when player is on quest determined by Data fields
 };
 
 // client side GO show states
@@ -2494,7 +2513,7 @@ enum GameObjectDestructibleState
     GO_DESTRUCTIBLE_REBUILDING  = 3
 };
 
-// EmotesText.dbc (6.0.2.18988)
+// EmotesText.db2 (9.2.0.42423)
 enum TextEmotes
 {
     TEXT_EMOTE_AGREE                = 1,
@@ -3947,28 +3966,26 @@ enum CreatureFamily
     CREATURE_FAMILY_RAVAGER             = 31,
     CREATURE_FAMILY_WARP_STALKER        = 32,
     CREATURE_FAMILY_SPOREBAT            = 33,
-    CREATURE_FAMILY_NETHER_RAY          = 34,
+    CREATURE_FAMILY_RAY                 = 34,
     CREATURE_FAMILY_SERPENT             = 35,
     CREATURE_FAMILY_MOTH                = 37,
     CREATURE_FAMILY_CHIMAERA            = 38,
     CREATURE_FAMILY_DEVILSAUR           = 39,
     CREATURE_FAMILY_GHOUL               = 40,
-    CREATURE_FAMILY_SILITHID            = 41,
+    CREATURE_FAMILY_AQIRI               = 41,
     CREATURE_FAMILY_WORM                = 42,
-    CREATURE_FAMILY_RHINO               = 43,
+    CREATURE_FAMILY_CLEFTHOOF           = 43,
     CREATURE_FAMILY_WASP                = 44,
     CREATURE_FAMILY_CORE_HOUND          = 45,
     CREATURE_FAMILY_SPIRIT_BEAST        = 46,
     CREATURE_FAMILY_WATER_ELEMENTAL     = 49,
     CREATURE_FAMILY_FOX                 = 50,
     CREATURE_FAMILY_MONKEY              = 51,
-    CREATURE_FAMILY_DOG                 = 52,
+    CREATURE_FAMILY_HOUND               = 52,
     CREATURE_FAMILY_BEETLE              = 53,
-    CREATURE_FAMILY_SHALE_SPIDER        = 55,
+    CREATURE_FAMILY_SHALE_BEAST         = 55,
     CREATURE_FAMILY_ZOMBIE              = 56,
-    CREATURE_FAMILY_BEETLE_OLD          = 57,
-    CREATURE_FAMILY_SILITHID2           = 59,
-    CREATURE_FAMILY_WASP2               = 66,
+    CREATURE_FAMILY_QA_TEST             = 57,
     CREATURE_FAMILY_HYDRA               = 68,
     CREATURE_FAMILY_FELIMP              = 100,
     CREATURE_FAMILY_VOIDLORD            = 101,
@@ -3980,45 +3997,43 @@ enum CreatureFamily
     CREATURE_FAMILY_EARTHELEMENTAL      = 117,
     CREATURE_FAMILY_CRANE               = 125,
     CREATURE_FAMILY_WATERSTRIDER        = 126,
-    CREATURE_FAMILY_PORCUPINE           = 127,
-    CREATURE_FAMILY_QUILEN              = 128,
-    CREATURE_FAMILY_GOAT                = 129,
+    CREATURE_FAMILY_RODENT              = 127,
+    CREATURE_FAMILY_STONE_HOUND         = 128,
+    CREATURE_FAMILY_GRUFFHORN           = 129,
     CREATURE_FAMILY_BASILISK            = 130,
     CREATURE_FAMILY_DIREHORN            = 138,
     CREATURE_FAMILY_STORMELEMENTAL      = 145,
-    CREATURE_FAMILY_MTWATERELEMENTAL    = 146,
     CREATURE_FAMILY_TORRORGUARD         = 147,
     CREATURE_FAMILY_ABYSSAL             = 148,
-    CREATURE_FAMILY_RYLAK               = 149,
     CREATURE_FAMILY_RIVERBEAST          = 150,
     CREATURE_FAMILY_STAG                = 151
 };
 
 enum CreatureTypeFlags
 {
-    CREATURE_TYPE_FLAG_TAMEABLE_PET                      = 0x00000001, // Makes the mob tameable (must also be a beast and have family set)
-    CREATURE_TYPE_FLAG_GHOST_VISIBLE                     = 0x00000002, // Creature are also visible for not alive player. Allow gossip interaction if npcflag allow?
+    CREATURE_TYPE_FLAG_TAMEABLE                          = 0x00000001, // Makes the mob tameable (must also be a beast and have family set)
+    CREATURE_TYPE_FLAG_VISIBLE_TO_GHOSTS                 = 0x00000002, // Creature is also visible for not alive player. Allows gossip interaction if npcflag allows?
     CREATURE_TYPE_FLAG_BOSS_MOB                          = 0x00000004, // Changes creature's visible level to "??" in the creature's portrait - Immune Knockback.
-    CREATURE_TYPE_FLAG_DO_NOT_PLAY_WOUND_PARRY_ANIMATION = 0x00000008,
-    CREATURE_TYPE_FLAG_HIDE_FACTION_TOOLTIP              = 0x00000010,
-    CREATURE_TYPE_FLAG_UNK5                              = 0x00000020, // Sound related
+    CREATURE_TYPE_FLAG_DO_NOT_PLAY_WOUND_ANIM            = 0x00000008,
+    CREATURE_TYPE_FLAG_NO_FACTION_TOOLTIP                = 0x00000010,
+    CREATURE_TYPE_FLAG_MORE_AUDIBLE                      = 0x00000020, // Sound related
     CREATURE_TYPE_FLAG_SPELL_ATTACKABLE                  = 0x00000040,
-    CREATURE_TYPE_FLAG_CAN_INTERACT_WHILE_DEAD           = 0x00000080, // Player can interact with the creature if its dead (not player dead)
-    CREATURE_TYPE_FLAG_HERB_SKINNING_SKILL               = 0x00000100, // Can be looted by herbalist
-    CREATURE_TYPE_FLAG_MINING_SKINNING_SKILL             = 0x00000200, // Can be looted by miner
-    CREATURE_TYPE_FLAG_DO_NOT_LOG_DEATH                  = 0x00000400, // Death event will not show up in combat log
-    CREATURE_TYPE_FLAG_MOUNTED_COMBAT_ALLOWED            = 0x00000800, // Creature can remain mounted when entering combat
+    CREATURE_TYPE_FLAG_INTERACT_WHILE_DEAD               = 0x00000080, // Player can interact with the creature if creature is dead (not if player is dead)
+    CREATURE_TYPE_FLAG_SKIN_WITH_HERBALISM               = 0x00000100, // Can be looted by herbalist
+    CREATURE_TYPE_FLAG_SKIN_WITH_MINING                  = 0x00000200, // Can be looted by miner
+    CREATURE_TYPE_FLAG_NO_DEATH_MESSAGE                  = 0x00000400, // Death event will not show up in combat log
+    CREATURE_TYPE_FLAG_ALLOW_MOUNTED_COMBAT              = 0x00000800, // Creature can remain mounted when entering combat
     CREATURE_TYPE_FLAG_CAN_ASSIST                        = 0x00001000, // ? Can aid any player in combat if in range?
-    CREATURE_TYPE_FLAG_IS_PET_BAR_USED                   = 0x00002000,
+    CREATURE_TYPE_FLAG_NO_PET_BAR                        = 0x00002000,
     CREATURE_TYPE_FLAG_MASK_UID                          = 0x00004000,
-    CREATURE_TYPE_FLAG_ENGINEERING_SKINNING_SKILL        = 0x00008000, // Can be looted by engineer
-    CREATURE_TYPE_FLAG_EXOTIC_PET                        = 0x00010000, // Can be tamed by hunter as exotic pet
-    CREATURE_TYPE_FLAG_USE_DEFAULT_COLLISION_BOX         = 0x00020000, // Collision related. (always using default collision box?)
-    CREATURE_TYPE_FLAG_IS_SIEGE_WEAPON                   = 0x00040000,
-    CREATURE_TYPE_FLAG_CAN_COLLIDE_WITH_MISSILES         = 0x00080000, // Projectiles can collide with this creature - interacts with TARGET_DEST_TRAJ
-    CREATURE_TYPE_FLAG_HIDE_NAME_PLATE                   = 0x00100000,
+    CREATURE_TYPE_FLAG_SKIN_WITH_ENGINEERING             = 0x00008000, // Can be looted by engineer
+    CREATURE_TYPE_FLAG_TAMEABLE_EXOTIC                   = 0x00010000, // Can be tamed by hunter as exotic pet
+    CREATURE_TYPE_FLAG_USE_MODEL_COLLISION_SIZE          = 0x00020000, // Collision related. (always using default collision box?)
+    CREATURE_TYPE_FLAG_ALLOW_INTERACTION_WHILE_IN_COMBAT = 0x00040000,
+    CREATURE_TYPE_FLAG_COLLIDE_WITH_MISSILES             = 0x00080000, // Projectiles can collide with this creature - interacts with TARGET_DEST_TRAJ
+    CREATURE_TYPE_FLAG_NO_NAME_PLATE                     = 0x00100000,
     CREATURE_TYPE_FLAG_DO_NOT_PLAY_MOUNTED_ANIMATIONS    = 0x00200000,
-    CREATURE_TYPE_FLAG_IS_LINK_ALL                       = 0x00400000,
+    CREATURE_TYPE_FLAG_LINK_ALL                          = 0x00400000,
     CREATURE_TYPE_FLAG_INTERACT_ONLY_WITH_CREATOR        = 0x00800000,
     CREATURE_TYPE_FLAG_DO_NOT_PLAY_UNIT_EVENT_SOUNDS     = 0x01000000,
     CREATURE_TYPE_FLAG_HAS_NO_SHADOW_BLOB                = 0x02000000,
@@ -4027,7 +4042,7 @@ enum CreatureTypeFlags
     CREATURE_TYPE_FLAG_DO_NOT_SHEATHE                    = 0x10000000,
     CREATURE_TYPE_FLAG_DO_NOT_TARGET_ON_INTERACTION      = 0x20000000,
     CREATURE_TYPE_FLAG_DO_NOT_RENDER_OBJECT_NAME         = 0x40000000,
-    CREATURE_TYPE_FLAG_UNIT_IS_QUEST_BOSS                = 0x80000000  // Not verified
+    CREATURE_TYPE_FLAG_QUEST_BOSS                        = 0x80000000  // Not verified
 };
 
 enum CreatureTypeFlags2
@@ -4510,7 +4525,7 @@ enum UnitDynFlags
     UNIT_DYNFLAG_TRACK_UNIT                 = 0x0008,
     UNIT_DYNFLAG_TAPPED                     = 0x0010, // Lua_UnitIsTapped
     UNIT_DYNFLAG_SPECIALINFO                = 0x0020,
-    UNIT_DYNFLAG_DEAD                       = 0x0040,
+    UNIT_DYNFLAG_CAN_SKIN                   = 0x0040,
     UNIT_DYNFLAG_REFER_A_FRIEND             = 0x0080
 };
 

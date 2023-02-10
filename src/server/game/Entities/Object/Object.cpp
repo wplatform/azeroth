@@ -89,21 +89,6 @@ Object::Object()
     m_objectUpdated     = false;
 }
 
-WorldObject::~WorldObject()
-{
-    // this may happen because there are many !create/delete
-    if (IsWorldObject() && m_currMap)
-    {
-        if (GetTypeId() == TYPEID_CORPSE)
-        {
-            TC_LOG_FATAL("misc", "WorldObject::~WorldObject Corpse Type: {} ({}) deleted but still in map!!",
-                ToCorpse()->GetType(), GetGUID().ToString());
-            ABORT();
-        }
-        ResetMap();
-    }
-}
-
 Object::~Object()
 {
     if (IsInWorld())
@@ -253,7 +238,7 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) c
         if (unit->GetVictim())
             flags |= UPDATEFLAG_HAS_TARGET;
 
-    ByteBuffer buf(0x400);
+    ByteBuffer& buf = data->GetBuffer();
     buf << uint8(updateType);
     buf << GetGUID();
     buf << uint8(m_objectTypeId);
@@ -280,7 +265,7 @@ void Object::SendUpdateToPlayer(Player* player)
 
 void Object::BuildValuesUpdateBlockForPlayer(UpdateData* data, Player* target) const
 {
-    ByteBuffer buf(500);
+    ByteBuffer& buf = data->GetBuffer();
 
     buf << uint8(UPDATETYPE_VALUES);
     buf << GetGUID();
@@ -535,31 +520,32 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
     if (HasAreaTrigger)
     {
         AreaTrigger const* areaTrigger = ToAreaTrigger();
-        AreaTriggerMiscTemplate const* areaTriggerMiscTemplate = areaTrigger->GetMiscTemplate();
+        AreaTriggerCreateProperties const* createProperties = areaTrigger->GetCreateProperties();
         AreaTriggerTemplate const* areaTriggerTemplate = areaTrigger->GetTemplate();
+        AreaTriggerShapeInfo const& shape = areaTrigger->GetShape();
 
         *data << uint32(areaTrigger->GetTimeSinceCreated());
 
         *data << areaTrigger->GetRollPitchYaw().PositionXYZStream();
 
-        bool hasAbsoluteOrientation = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_HAS_ABSOLUTE_ORIENTATION);
-        bool hasDynamicShape        = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_HAS_DYNAMIC_SHAPE);
-        bool hasAttached            = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_HAS_ATTACHED);
-        bool hasFaceMovementDir     = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_HAS_FACE_MOVEMENT_DIR);
-        bool hasFollowsTerrain      = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_HAS_FOLLOWS_TERRAIN);
-        bool hasUnk1                = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_UNK1);
-        bool hasTargetRollPitchYaw  = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_HAS_TARGET_ROLL_PITCH_YAW);
-        bool hasScaleCurveID        = areaTriggerMiscTemplate->ScaleCurveId != 0;
-        bool hasMorphCurveID        = areaTriggerMiscTemplate->MorphCurveId != 0;
-        bool hasFacingCurveID       = areaTriggerMiscTemplate->FacingCurveId != 0;
-        bool hasMoveCurveID         = areaTriggerMiscTemplate->MoveCurveId != 0;
-        bool hasUnk2                = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_UNK2);
+        bool hasAbsoluteOrientation = areaTriggerTemplate && areaTrigger->GetTemplate()->HasFlag(AREATRIGGER_FLAG_HAS_ABSOLUTE_ORIENTATION);
+        bool hasDynamicShape        = areaTriggerTemplate && areaTrigger->GetTemplate()->HasFlag(AREATRIGGER_FLAG_HAS_DYNAMIC_SHAPE);
+        bool hasAttached            = areaTriggerTemplate && areaTrigger->GetTemplate()->HasFlag(AREATRIGGER_FLAG_HAS_ATTACHED);
+        bool hasFaceMovementDir     = areaTriggerTemplate && areaTrigger->GetTemplate()->HasFlag(AREATRIGGER_FLAG_HAS_FACE_MOVEMENT_DIR);
+        bool hasFollowsTerrain      = areaTriggerTemplate && areaTrigger->GetTemplate()->HasFlag(AREATRIGGER_FLAG_HAS_FOLLOWS_TERRAIN);
+        bool hasUnk1                = areaTriggerTemplate && areaTrigger->GetTemplate()->HasFlag(AREATRIGGER_FLAG_UNK1);
+        bool hasTargetRollPitchYaw  = areaTriggerTemplate && areaTrigger->GetTemplate()->HasFlag(AREATRIGGER_FLAG_HAS_TARGET_ROLL_PITCH_YAW);
+        bool hasScaleCurveID        = createProperties && createProperties->ScaleCurveId != 0;
+        bool hasMorphCurveID        = createProperties && createProperties->MorphCurveId != 0;
+        bool hasFacingCurveID       = createProperties && createProperties->FacingCurveId != 0;
+        bool hasMoveCurveID         = createProperties && createProperties->MoveCurveId != 0;
+        bool hasUnk2                = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_HAS_ANIM_ID);
         bool hasUnk3                = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_UNK3);
-        bool hasUnk4                = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_UNK4);
-        bool hasAreaTriggerSphere   = areaTriggerTemplate->IsSphere();
-        bool hasAreaTriggerBox      = areaTriggerTemplate->IsBox();
-        bool hasAreaTriggerPolygon  = areaTriggerTemplate->IsPolygon();
-        bool hasAreaTriggerCylinder = areaTriggerTemplate->IsCylinder();
+        bool hasUnk4                = areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_HAS_ANIM_KIT_ID);
+        bool hasAreaTriggerSphere   = shape.IsSphere();
+        bool hasAreaTriggerBox      = shape.IsBox();
+        bool hasAreaTriggerPolygon  = createProperties && shape.IsPolygon();
+        bool hasAreaTriggerCylinder = shape.IsCylinder();
         bool hasAreaTriggerSpline   = areaTrigger->HasSplines();
         bool hasAreaTriggerUnkType  = false; // areaTriggerTemplate->HasFlag(AREATRIGGER_FLAG_UNK5);
 
@@ -601,16 +587,16 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
             *data << areaTrigger->GetTargetRollPitchYaw().PositionXYZStream();
 
         if (hasScaleCurveID)
-            *data << uint32(areaTriggerMiscTemplate->ScaleCurveId);
+            *data << uint32(createProperties->ScaleCurveId);
 
         if (hasMorphCurveID)
-            *data << uint32(areaTriggerMiscTemplate->MorphCurveId);
+            *data << uint32(createProperties->MorphCurveId);
 
         if (hasFacingCurveID)
-            *data << uint32(areaTriggerMiscTemplate->FacingCurveId);
+            *data << uint32(createProperties->FacingCurveId);
 
         if (hasMoveCurveID)
-            *data << uint32(areaTriggerMiscTemplate->MoveCurveId);
+            *data << uint32(createProperties->MoveCurveId);
 
         if (hasUnk2)
             *data << int32(0);
@@ -620,42 +606,42 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint32 flags) const
 
         if (hasAreaTriggerSphere)
         {
-            *data << float(areaTriggerTemplate->SphereDatas.Radius);
-            *data << float(areaTriggerTemplate->SphereDatas.RadiusTarget);
+            *data << float(shape.SphereDatas.Radius);
+            *data << float(shape.SphereDatas.RadiusTarget);
         }
 
         if (hasAreaTriggerBox)
         {
-            *data << float(areaTriggerTemplate->BoxDatas.Extents[0]);
-            *data << float(areaTriggerTemplate->BoxDatas.Extents[1]);
-            *data << float(areaTriggerTemplate->BoxDatas.Extents[2]);
-            *data << float(areaTriggerTemplate->BoxDatas.ExtentsTarget[0]);
-            *data << float(areaTriggerTemplate->BoxDatas.ExtentsTarget[1]);
-            *data << float(areaTriggerTemplate->BoxDatas.ExtentsTarget[2]);
+            *data << float(shape.BoxDatas.Extents[0]);
+            *data << float(shape.BoxDatas.Extents[1]);
+            *data << float(shape.BoxDatas.Extents[2]);
+            *data << float(shape.BoxDatas.ExtentsTarget[0]);
+            *data << float(shape.BoxDatas.ExtentsTarget[1]);
+            *data << float(shape.BoxDatas.ExtentsTarget[2]);
         }
 
         if (hasAreaTriggerPolygon)
         {
-            *data << int32(areaTriggerTemplate->PolygonVertices.size());
-            *data << int32(areaTriggerTemplate->PolygonVerticesTarget.size());
-            *data << float(areaTriggerTemplate->PolygonDatas.Height);
-            *data << float(areaTriggerTemplate->PolygonDatas.HeightTarget);
+            *data << int32(createProperties->PolygonVertices.size());
+            *data << int32(createProperties->PolygonVerticesTarget.size());
+            *data << float(shape.PolygonDatas.Height);
+            *data << float(shape.PolygonDatas.HeightTarget);
 
-            for (TaggedPosition<Position::XY> const& vertice : areaTriggerTemplate->PolygonVertices)
+            for (TaggedPosition<Position::XY> const& vertice : createProperties->PolygonVertices)
                 *data << vertice;
 
-            for (TaggedPosition<Position::XY> const& vertice : areaTriggerTemplate->PolygonVerticesTarget)
+            for (TaggedPosition<Position::XY> const& vertice : createProperties->PolygonVerticesTarget)
                 *data << vertice;
         }
 
         if (hasAreaTriggerCylinder)
         {
-            *data << float(areaTriggerTemplate->CylinderDatas.Radius);
-            *data << float(areaTriggerTemplate->CylinderDatas.RadiusTarget);
-            *data << float(areaTriggerTemplate->CylinderDatas.Height);
-            *data << float(areaTriggerTemplate->CylinderDatas.HeightTarget);
-            *data << float(areaTriggerTemplate->CylinderDatas.LocationZOffset);
-            *data << float(areaTriggerTemplate->CylinderDatas.LocationZOffsetTarget);
+            *data << float(shape.CylinderDatas.Radius);
+            *data << float(shape.CylinderDatas.RadiusTarget);
+            *data << float(shape.CylinderDatas.Height);
+            *data << float(shape.CylinderDatas.HeightTarget);
+            *data << float(shape.CylinderDatas.LocationZOffset);
+            *data << float(shape.CylinderDatas.LocationZOffsetTarget);
         }
 
         if (hasAreaTriggerUnkType)
@@ -1903,7 +1889,7 @@ bool WorldObject::GetDistanceOrder(WorldObject const* obj1, WorldObject const* o
 
 bool WorldObject::IsInRange(WorldObject const* obj, float minRange, float maxRange, bool is3D /* = true */) const
 {
-    float dx = Position::GetPositionX() - obj->GetPositionX();
+    float dx = GetPositionX() - obj->GetPositionX();
     float dy = GetPositionY() - obj->GetPositionY();
     float distsq = dx*dx + dy*dy;
     if (is3D)
@@ -3112,7 +3098,7 @@ void WorldObject::ModSpellCastTime(SpellInfo const* spellInfo, int32& castTime, 
         castTime = 0;
     else if (!(spellInfo->HasAttribute(SPELL_ATTR0_IS_ABILITY) || spellInfo->HasAttribute(SPELL_ATTR0_IS_TRADESKILL) || spellInfo->HasAttribute(SPELL_ATTR3_IGNORE_CASTER_MODIFIERS)) &&
         ((GetTypeId() == TYPEID_PLAYER && spellInfo->SpellFamilyName) || GetTypeId() == TYPEID_UNIT))
-        castTime = unitCaster->CanInstantCast() ? 0 : int32(float(castTime) * unitCaster->m_unitData->ModCastingSpeed);
+        castTime = unitCaster->CanInstantCast() ? 0 : int32(float(castTime) * unitCaster->GetModCastingSpeed());
     else if (spellInfo->HasAttribute(SPELL_ATTR0_USES_RANGED_SLOT) && !spellInfo->HasAttribute(SPELL_ATTR2_AUTO_REPEAT))
         castTime = int32(float(castTime) * unitCaster->m_modAttackSpeedPct[RANGED_ATTACK]);
     else if (IsPartOfSkillLine(SKILL_COOKING, spellInfo->Id) && unitCaster->HasAura(67556)) // cooking with Chef Hat.
@@ -3137,7 +3123,7 @@ void WorldObject::ModSpellDurationTime(SpellInfo const* spellInfo, int32& durati
 
     if (!(spellInfo->HasAttribute(SPELL_ATTR0_IS_ABILITY) || spellInfo->HasAttribute(SPELL_ATTR0_IS_TRADESKILL) || spellInfo->HasAttribute(SPELL_ATTR3_IGNORE_CASTER_MODIFIERS)) &&
         ((GetTypeId() == TYPEID_PLAYER && spellInfo->SpellFamilyName) || GetTypeId() == TYPEID_UNIT))
-        duration = int32(float(duration) * unitCaster->m_unitData->ModCastingSpeed);
+        duration = int32(float(duration) * unitCaster->GetModCastingSpeed());
     else if (spellInfo->HasAttribute(SPELL_ATTR0_USES_RANGED_SLOT) && !spellInfo->HasAttribute(SPELL_ATTR2_AUTO_REPEAT))
         duration = int32(float(duration) * unitCaster->m_modAttackSpeedPct[RANGED_ATTACK]);
 }
@@ -4112,13 +4098,13 @@ void WorldObject::MovePosition(Position &pos, float dist, float angle)
     // Prevent invalid coordinates here, position is unchanged
     if (!Trinity::IsValidMapCoord(destx, desty, pos.m_positionZ))
     {
-        TC_LOG_FATAL("misc", "WorldObject::MovePosition: Object (Entry: %u %s) has invalid coordinates X: %f and Y: %f were passed!",
-            GetEntry(), GetGUID().ToString().c_str(), destx, desty);
+        TC_LOG_FATAL("misc", "WorldObject::MovePosition: Object {} has invalid coordinates X: {} and Y: {} were passed!",
+            GetGUID().ToString(), destx, desty);
         return;
     }
 
-    ground = GetMap()->GetHeight(GetPhases(), destx, desty, MAX_HEIGHT, true);
-    floor = GetMap()->GetHeight(GetPhases(), destx, desty, pos.m_positionZ, true);
+    ground = GetMapHeight(destx, desty, MAX_HEIGHT);
+    floor = GetMapHeight(destx, desty, pos.m_positionZ);
     destz = std::fabs(ground - pos.m_positionZ) <= std::fabs(floor - pos.m_positionZ) ? ground : floor;
 
     float step = dist/10.0f;
@@ -4130,8 +4116,8 @@ void WorldObject::MovePosition(Position &pos, float dist, float angle)
         {
             destx -= step * std::cos(angle);
             desty -= step * std::sin(angle);
-            ground = GetMap()->GetHeight(GetPhases(), destx, desty, MAX_HEIGHT, true);
-            floor = GetMap()->GetHeight(GetPhases(), destx, desty, pos.m_positionZ, true);
+            ground = GetMap()->GetHeight(GetPhaseShift(), destx, desty, MAX_HEIGHT, true);
+            floor = GetMap()->GetHeight(GetPhaseShift(), destx, desty, pos.m_positionZ, true);
             destz = std::fabs(ground - pos.m_positionZ) <= std::fabs(floor - pos.m_positionZ) ? ground : floor;
         }
         // we have correct destz now
@@ -4148,236 +4134,98 @@ void WorldObject::MovePosition(Position &pos, float dist, float angle)
     pos.SetOrientation(GetOrientation());
 }
 
-// @todo: replace with WorldObject::UpdateAllowedPositionZ
-float NormalizeZforCollision(WorldObject* obj, float x, float y, float z)
-{
-    float ground = obj->GetMap()->GetHeight(obj->GetPhases(), x, y, MAX_HEIGHT, true);
-    float floor = obj->GetMap()->GetHeight(obj->GetPhases(), x, y, z + 2.0f, true);
-    float helper = std::fabs(ground - z) <= std::fabs(floor - z) ? ground : floor;
-    if (z > helper) // must be above ground
-    {
-        if (Unit* unit = obj->ToUnit())
-        {
-            if (unit->CanFly())
-                return z;
-        }
-        LiquidData liquid_status;
-        ZLiquidStatus res = obj->GetMap()->getLiquidStatus(x, y, z, MAP_ALL_LIQUIDS, &liquid_status);
-        if (res && liquid_status.level > helper) // water must be above ground
-        {
-            if (liquid_status.level > z) // z is underwater
-                return z;
-            else
-                return std::fabs(liquid_status.level - z) <= std::fabs(helper - z) ? liquid_status.level : helper;
-        }
-    }
-    return helper;
-}
-
 void WorldObject::MovePositionToFirstCollision(Position &pos, float dist, float angle)
 {
     angle += GetOrientation();
     float destx, desty, destz;
     destx = pos.m_positionX + dist * std::cos(angle);
     desty = pos.m_positionY + dist * std::sin(angle);
+    destz = pos.m_positionZ;
 
     // Prevent invalid coordinates here, position is unchanged
     if (!Trinity::IsValidMapCoord(destx, desty))
     {
-        TC_LOG_FATAL("misc", "WorldObject::MovePositionToFirstCollision invalid coordinates X: %f and Y: %f were passed!", destx, desty);
+        TC_LOG_FATAL("misc", "WorldObject::MovePositionToFirstCollision invalid coordinates X: {} and Y: {} were passed!", destx, desty);
         return;
     }
 
-    destz = NormalizeZforCollision(this, destx, desty, pos.GetPositionZ());
-    bool col = VMAP::VMapFactory::createOrGetVMapManager()->getObjectHitPos(GetMapId(), pos.m_positionX, pos.m_positionY, pos.m_positionZ + 0.5f, destx, desty, destz + 0.5f, destx, desty, destz, -0.5f);
+    // Use a detour raycast to get our first collision point
+    PathGenerator path(this);
+    path.SetUseRaycast(true);
+    path.CalculatePath(destx, desty, destz, false);
 
-    // collision occured
-    if (col)
+    // Check for valid path types before we proceed
+    if (!(path.GetPathType() & PATHFIND_NOT_USING_PATH))
+        if (path.GetPathType() & ~(PATHFIND_NORMAL | PATHFIND_SHORTCUT | PATHFIND_INCOMPLETE | PATHFIND_FARFROMPOLY_END))
+            return;
+
+    G3D::Vector3 result = path.GetPath().back();
+    destx = result.x;
+    desty = result.y;
+    destz = result.z;
+
+    // check static LOS
+    float halfHeight = GetCollisionHeight() * 0.5f;
+    bool col = false;
+
+    // Unit is flying, check for potential collision via vmaps
+    if (path.GetPathType() & PATHFIND_NOT_USING_PATH)
     {
-        // move back a bit
-        destx -= CONTACT_DISTANCE * std::cos(angle);
-        desty -= CONTACT_DISTANCE * std::sin(angle);
-        dist = std::sqrt((pos.m_positionX - destx)*(pos.m_positionX - destx) + (pos.m_positionY - desty)*(pos.m_positionY - desty));
+        col = VMAP::VMapFactory::createOrGetVMapManager()->getObjectHitPos(PhasingHandler::GetTerrainMapId(GetPhaseShift(), GetMapId(), GetMap()->GetTerrain(), pos.m_positionX, pos.m_positionY),
+            pos.m_positionX, pos.m_positionY, pos.m_positionZ + halfHeight,
+            destx, desty, destz + halfHeight,
+            destx, desty, destz, -0.5f);
+
+        destz -= halfHeight;
+
+        // Collided with static LOS object, move back to collision point
+        if (col)
+        {
+            destx -= CONTACT_DISTANCE * std::cos(angle);
+            desty -= CONTACT_DISTANCE * std::sin(angle);
+            dist = std::sqrt((pos.m_positionX - destx) * (pos.m_positionX - destx) + (pos.m_positionY - desty) * (pos.m_positionY - desty));
+        }
     }
 
     // check dynamic collision
-    col = GetMap()->getObjectHitPos(GetPhases(), pos.m_positionX, pos.m_positionY, pos.m_positionZ + 0.5f, destx, desty, destz + 0.5f, destx, desty, destz, -0.5f);
+    col = GetMap()->getObjectHitPos(GetPhaseShift(),
+        pos.m_positionX, pos.m_positionY, pos.m_positionZ + halfHeight,
+        destx, desty, destz + halfHeight,
+        destx, desty, destz, -0.5f);
 
-    // Collided with a gameobject
+    destz -= halfHeight;
+
+    // Collided with a gameobject, move back to collision point
     if (col)
     {
         destx -= CONTACT_DISTANCE * std::cos(angle);
         desty -= CONTACT_DISTANCE * std::sin(angle);
-        dist = std::sqrt((pos.m_positionX - destx)*(pos.m_positionX - destx) + (pos.m_positionY - desty)*(pos.m_positionY - desty));
+        dist = std::sqrt((pos.m_positionX - destx)*(pos.m_positionX - destx) + (pos.m_positionY - desty) * (pos.m_positionY - desty));
     }
 
-    float step = dist / 10.0f;
-
-    for (uint8 j = 0; j < 10; ++j)
-    {
-        // do not allow too big z changes
-        if (std::fabs(pos.m_positionZ - destz) > 6.0f)
-        {
-            destx -= step * std::cos(angle);
-            desty -= step * std::sin(angle);
-            destz = NormalizeZforCollision(this, destx, desty, pos.GetPositionZ());
-        }
-        // we have correct destz now
-        else
-        {
-            pos.Relocate(destx, desty, destz);
-            break;
-        }
-    }
-
+    float groundZ = VMAP_INVALID_HEIGHT_VALUE;
     Trinity::NormalizeMapCoord(pos.m_positionX);
     Trinity::NormalizeMapCoord(pos.m_positionY);
-    pos.m_positionZ = NormalizeZforCollision(this, destx, desty, pos.GetPositionZ());
+    UpdateAllowedPositionZ(destx, desty, destz, &groundZ);
+
     pos.SetOrientation(GetOrientation());
-}
+    pos.Relocate(destx, desty, destz);
 
-bool WorldObject::HasInPhaseList(uint32 phase)
-{
-    return _phases.find(phase) != _phases.end();
-}
-
-// Updates Area based phases, does not remove phases from auras
-// Phases from gm commands are not taken into calculations, they can be lost!!
-void WorldObject::UpdateAreaAndZonePhase()
-{
-    bool updateNeeded = false;
-    PhaseInfo const& allAreasPhases = sObjectMgr->GetAreaAndZonePhases();
-    uint32 zoneAndArea[] = { GetZoneId(), GetAreaId() };
-
-    // We first remove all phases from other areas & zones
-    for (auto itr = allAreasPhases.begin(); itr != allAreasPhases.end(); ++itr)
-        for (PhaseInfoStruct const& phase : itr->second)
-            if (!DB2Manager::IsInArea(GetAreaId(), itr->first))
-                updateNeeded = SetInPhase(phase.Id, false, false) || updateNeeded; // not in area, remove phase, true if there was something removed
-
-    // Then we add the phases from this area and zone if conditions are met
-    // Zone is done before Area, so if Area does not meet condition, the phase will be removed
-    for (uint32 area : zoneAndArea)
+    // position has no ground under it (or is too far away)
+    if (groundZ <= INVALID_HEIGHT)
     {
-        if (std::vector<PhaseInfoStruct> const* currentPhases = sObjectMgr->GetPhasesForArea(area))
+        if (Unit const* unit = ToUnit())
         {
-            for (PhaseInfoStruct const& phaseInfoStruct : *currentPhases)
-            {
-                bool apply = sConditionMgr->IsObjectMeetToConditions(this, phaseInfoStruct.Conditions);
+            // unit can fly, ignore.
+            if (unit->CanFly())
+                return;
 
-                // add or remove phase depending of condition
-                updateNeeded = SetInPhase(phaseInfoStruct.Id, false, apply) || updateNeeded;
-            }
+            // fall back to gridHeight if any
+            float gridHeight = GetMap()->GetGridHeight(GetPhaseShift(), pos.m_positionX, pos.m_positionY);
+            if (gridHeight > INVALID_HEIGHT)
+                pos.m_positionZ = gridHeight + unit->GetHoverOffset();
         }
     }
-
-    // do not remove a phase if it would be removed by an area but we have the same phase from an aura
-    if (Unit* unit = ToUnit())
-    {
-        Unit::AuraEffectList const& auraPhaseList = unit->GetAuraEffectsByType(SPELL_AURA_PHASE);
-        for (Unit::AuraEffectList::const_iterator itr = auraPhaseList.begin(); itr != auraPhaseList.end(); ++itr)
-        {
-            uint32 phase = uint32((*itr)->GetMiscValueB());
-            updateNeeded = SetInPhase(phase, false, true) || updateNeeded;
-        }
-        Unit::AuraEffectList const& auraPhaseGroupList = unit->GetAuraEffectsByType(SPELL_AURA_PHASE_GROUP);
-        for (Unit::AuraEffectList::const_iterator itr = auraPhaseGroupList.begin(); itr != auraPhaseGroupList.end(); ++itr)
-        {
-            uint32 phaseGroup = uint32((*itr)->GetMiscValueB());
-            std::set<uint32> phaseIDs = sDB2Manager.GetPhasesForGroup(phaseGroup);
-            for (uint32 phase : phaseIDs)
-                updateNeeded = SetInPhase(phase, false, true) || updateNeeded;
-        }
-    }
-
-    // only update visibility and send packets if there was a change in the phase list
-    if (updateNeeded && GetTypeId() == TYPEID_PLAYER && IsInWorld())
-        ToPlayer()->GetSession()->SendSetPhaseShift(GetPhases(), GetTerrainSwaps(), GetWorldMapAreaSwaps());
-
-    // only update visibilty once, to prevent objects appearing for a moment while adding in multiple phases
-    if (updateNeeded && IsInWorld())
-        UpdateObjectVisibility();
-}
-
-bool WorldObject::SetInPhase(uint32 id, bool update, bool apply)
-{
-    if (id)
-    {
-        if (apply)
-        {
-            // do not run the updates if we are already in this phase
-            if (!_phases.insert(id).second)
-                return false;
-        }
-        else
-        {
-            auto phaseItr = _phases.find(id);
-            if (phaseItr == _phases.end())
-                return false;
-
-            // if area phase passes the condition we should not remove it (ie: if remove called from aura remove)
-            // this however breaks the .mod phase command, you wont be able to remove any area based phases with it
-            if (std::vector<PhaseInfoStruct> const* phases = sObjectMgr->GetPhasesForArea(GetAreaId()))
-                for (PhaseInfoStruct const& phase : *phases)
-                    if (id == phase.Id)
-                        if (sConditionMgr->IsObjectMeetToConditions(this, phase.Conditions))
-                            return false;
-
-            _phases.erase(phaseItr);
-        }
-    }
-
-    RebuildTerrainSwaps();
-
-    if (update && IsInWorld())
-        UpdateObjectVisibility();
-
-    return true;
-}
-
-void WorldObject::CopyPhaseFrom(WorldObject* obj, bool update)
-{
-    if (!obj)
-        return;
-
-    for (uint32 phase : obj->GetPhases())
-        SetInPhase(phase, false, true);
-
-    if (update && IsInWorld())
-        UpdateObjectVisibility();
-}
-
-void WorldObject::ClearPhases(bool update)
-{
-    _phases.clear();
-
-    RebuildTerrainSwaps();
-
-    if (update && IsInWorld())
-        UpdateObjectVisibility();
-}
-
-bool WorldObject::IsInPhase(std::set<uint32> const& phases) const
-{
-    // PhaseId 169 is the default fallback phase
-    if (_phases.empty() && phases.empty())
-        return true;
-
-    if (_phases.empty() && phases.count(DEFAULT_PHASE) > 0)
-        return true;
-
-    if (phases.empty() && _phases.count(DEFAULT_PHASE) > 0)
-        return true;
-
-    return Trinity::Containers::Intersects(_phases.begin(), _phases.end(), phases.begin(), phases.end());
-}
-
-bool WorldObject::IsInPhase(WorldObject const* obj) const
-{
-    if (GetTypeId() == TYPEID_PLAYER && ToPlayer()->IsGameMaster())
-        return true;
-
-    return IsInPhase(obj->GetPhases());
 }
 
 void WorldObject::PlayDistanceSound(uint32 soundId, Player* target /*= nullptr*/)
@@ -4388,12 +4236,12 @@ void WorldObject::PlayDistanceSound(uint32 soundId, Player* target /*= nullptr*/
         SendMessageToSet(WorldPackets::Misc::PlaySpeakerbotSound(GetGUID(), soundId).Write(), true);
 }
 
-void WorldObject::PlayDirectSound(uint32 soundId, Player* target /*= nullptr*/)
+void WorldObject::PlayDirectSound(uint32 soundId, Player* target /*= nullptr*/, uint32 broadcastTextId /*= 0*/)
 {
     if (target)
-        target->SendDirectMessage(WorldPackets::Misc::PlaySound(GetGUID(), soundId).Write());
+        target->SendDirectMessage(WorldPackets::Misc::PlaySound(GetGUID(), soundId, broadcastTextId).Write());
     else
-        SendMessageToSet(WorldPackets::Misc::PlaySound(GetGUID(), soundId).Write(), true);
+        SendMessageToSet(WorldPackets::Misc::PlaySound(GetGUID(), soundId, broadcastTextId).Write(), true);
 }
 
 void WorldObject::PlayDirectMusic(uint32 musicId, Player* target /*= nullptr*/)
@@ -4490,7 +4338,7 @@ struct WorldObjectChangeAccumulator
             {
                 //Caster may be nullptr if DynObj is in removelist
                 if (Player* caster = ObjectAccessor::FindPlayer(guid))
-                    if (*caster->m_activePlayerData->FarsightObject == source->GetGUID())
+                    if (caster->GetGuidValue(PLAYER_FARSIGHT) == source->GetGUID())
                         BuildPacket(caster);
             }
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +24,10 @@
 #include "Position.h"
 #include <array>
 
+enum class GossipOptionNpc : uint8;
+enum class GossipOptionStatus : uint8;
+enum class GossipOptionRewardType : uint8;
+
 namespace WorldPackets
 {
     namespace NPC
@@ -45,26 +49,43 @@ namespace WorldPackets
             ObjectGuid Unit;
         };
 
+        struct TreasureItem
+        {
+            GossipOptionRewardType Type = GossipOptionRewardType(0);
+            int32 ID = 0;
+            int32 Quantity = 0;
+        };
+
+        struct TreasureLootList
+        {
+            std::vector<TreasureItem> Items;
+        };
+
         struct ClientGossipOptions
         {
             int32 ClientOption  = 0;
-            uint8 OptionNPC     = 0;
+            GossipOptionNpc OptionNPC = GossipOptionNpc(0);
             uint8 OptionFlags   = 0;
             int32 OptionCost    = 0;
+            uint32 OptionLanguage = 0;
+            GossipOptionStatus Status = GossipOptionStatus(0);
             std::string Text;
             std::string Confirm;
+            TreasureLootList Treasure;
+            Optional<int32> SpellID;
         };
 
         struct ClientGossipText
         {
             int32 QuestID       = 0;
+            int32 ContentTuningID = 0;
             int32 QuestType     = 0;
-            int32 QuestLevel    = 0;
-            int32 QuestMaxScalingLevel = 0;
             bool Repeatable     = false;
             std::string QuestTitle;
             int32 QuestFlags[2] = { };
         };
+
+        ByteBuffer& operator<<(ByteBuffer& data, ClientGossipText const& gossipText);
 
         class GossipMessage final : public ServerPacket
         {
@@ -99,7 +120,9 @@ namespace WorldPackets
         public:
             GossipComplete() : ServerPacket(SMSG_GOSSIP_COMPLETE, 0) { }
 
-            WorldPacket const* Write() override { return &_worldPacket; }
+            WorldPacket const* Write() override;
+
+            bool SuppressSound = false;
         };
 
         struct VendorItem
@@ -113,7 +136,9 @@ namespace WorldPackets
             int32 StackCount                = 0;
             int32 ExtendedCostID            = 0;
             int32 PlayerConditionFailed     = 0;
+            bool Locked                     = false;
             bool DoNotFilterOnVendor        = false;
+            bool Refundable                 = false;
         };
 
         class VendorInventory final : public ServerPacket
@@ -131,9 +156,9 @@ namespace WorldPackets
         struct TrainerListSpell
         {
             int32 SpellID       = 0;
-            int32 MoneyCost     = 0;
-            int32 ReqSkillLine  = 0;
-            int32 ReqSkillRank  = 0;
+            uint32 MoneyCost    = 0;
+            uint32 ReqSkillLine = 0;
+            uint32 ReqSkillRank = 0;
             std::array<int32, 3> ReqAbility = { };
             uint8 Usable        = 0;
             uint8 ReqLevel      = 0;
@@ -180,10 +205,12 @@ namespace WorldPackets
 
             WorldPacket const* Write() override;
 
+            int32 ID            = 0;
             uint32 Flags        = 0;
-            TaggedPosition<Position::XY> Pos;
+            TaggedPosition<Position::XYZ> Pos;
             int32 Icon          = 0;
             int32 Importance    = 0;
+            int32 WMOGroupID    = 0;
             std::string Name;
         };
 
@@ -239,6 +266,18 @@ namespace WorldPackets
             void Read() override;
 
             ObjectGuid StableMaster;
+        };
+
+        class SetPetSlot final : public ClientPacket
+        {
+        public:
+            SetPetSlot(WorldPacket&& packet) : ClientPacket(CMSG_SET_PET_SLOT, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid StableMaster;
+            uint32 PetNumber = 0;
+            uint8 DestSlot = 0;
         };
     }
 }

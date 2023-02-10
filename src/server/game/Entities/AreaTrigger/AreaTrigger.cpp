@@ -21,7 +21,6 @@
 #include "AreaTriggerPackets.h"
 #include "CellImpl.h"
 #include "Chat.h"
-#include "Containers.h"
 #include "CreatureAISelector.h"
 #include "DB2Stores.h"
 #include "GridNotifiersImpl.h"
@@ -101,14 +100,14 @@ bool AreaTrigger::Create(uint32 areaTriggerCreatePropertiesId, Unit* caster, Uni
     Relocate(pos);
     if (!IsPositionValid())
     {
-        TC_LOG_ERROR("entities.areatrigger", "AreaTrigger (areaTriggerCreatePropertiesId {}) not created. Invalid coordinates (X: {} Y: {})", areaTriggerCreatePropertiesId, GetPositionX(), GetPositionY());
+        TC_LOG_ERROR("entities.areatrigger", "AreaTrigger (areaTriggerCreatePropertiesId %u) not created. Invalid coordinates (X: %f Y: %f)", areaTriggerCreatePropertiesId, GetPositionX(), GetPositionY());
         return false;
     }
 
     _areaTriggerCreateProperties = sAreaTriggerDataStore->GetAreaTriggerCreateProperties(areaTriggerCreatePropertiesId);
     if (!_areaTriggerCreateProperties)
     {
-        TC_LOG_ERROR("entities.areatrigger", "AreaTrigger (areaTriggerCreatePropertiesId {}) not created. Invalid areatrigger create properties id ({})", areaTriggerCreatePropertiesId, areaTriggerCreatePropertiesId);
+        TC_LOG_ERROR("entities.areatrigger", "AreaTrigger (areaTriggerCreatePropertiesId %u) not created. Invalid areatrigger create properties id (%u)", areaTriggerCreatePropertiesId, areaTriggerCreatePropertiesId);
         return false;
     }
 
@@ -132,7 +131,7 @@ bool AreaTrigger::Create(uint32 areaTriggerCreatePropertiesId, Unit* caster, Uni
 
     SetUpdateFieldValue(areaTriggerData.ModifyValue(&UF::AreaTriggerData::SpellID), spell->Id);
     SetUpdateFieldValue(areaTriggerData.ModifyValue(&UF::AreaTriggerData::SpellForVisuals), spell->Id);
-    SetUpdateFieldValue(areaTriggerData.ModifyValue(&UF::AreaTriggerData::SpellVisual).ModifyValue(&UF::SpellCastVisual::SpellXSpellVisualID), spellVisual.SpellXSpellVisualID);
+    SetUpdateFieldValue(areaTriggerData.ModifyValue(&UF::AreaTriggerData::SpellVisual).ModifyValue(&UF::SpellCastVisual::SpellXSpellVisualID), spellVisual.spellXSpellVisualID);
     SetUpdateFieldValue(areaTriggerData.ModifyValue(&UF::AreaTriggerData::SpellVisual).ModifyValue(&UF::SpellCastVisual::ScriptVisualID), spellVisual.ScriptVisualID);
     SetUpdateFieldValue(areaTriggerData.ModifyValue(&UF::AreaTriggerData::TimeToTargetScale), GetCreateProperties()->TimeToTargetScale != 0 ? GetCreateProperties()->TimeToTargetScale : *m_areaTriggerData->Duration);
     SetUpdateFieldValue(areaTriggerData.ModifyValue(&UF::AreaTriggerData::BoundsRadius2D), GetMaxSearchRadius());
@@ -261,7 +260,7 @@ bool AreaTrigger::CreateServer(Map* map, AreaTriggerTemplate const* areaTriggerT
     Relocate(position.spawnPoint);
     if (!IsPositionValid())
     {
-        TC_LOG_ERROR("entities.areatrigger", "AreaTriggerServer (id {}) not created. Invalid coordinates (X: {} Y: {})",
+        TC_LOG_ERROR("entities.areatrigger", "AreaTriggerServer (id %u) not created. Invalid coordinates (X: %f Y: %f)",
             areaTriggerTemplate->Id.Id, GetPositionX(), GetPositionY());
         return false;
     }
@@ -968,7 +967,7 @@ void AreaTrigger::UpdateSplinePosition(uint32 diff)
         float progress = sDB2Manager.GetCurveValueAt(GetCreateProperties()->MoveCurveId, currentTimePercent);
         if (progress < 0.f || progress > 1.f)
         {
-            TC_LOG_ERROR("entities.areatrigger", "AreaTrigger (Id: {}, AreaTriggerCreatePropertiesId: {}) has wrong progress ({}) caused by curve calculation (MoveCurveId: {})",
+            TC_LOG_ERROR("entities.areatrigger", "AreaTrigger (Id: %u, AreaTriggerCreatePropertiesId: %u) has wrong progress (%f) caused by curve calculation (MoveCurveId: %u)",
                 GetEntry(), GetCreateProperties()->Id, progress, GetCreateProperties()->MorphCurveId);
         }
         else

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -72,7 +72,7 @@ ByteBuffer& operator>>(ByteBuffer& data, WorldPackets::BlackMarket::BlackMarketI
 
 WorldPacket const* WorldPackets::BlackMarket::BlackMarketRequestItemsResult::Write()
 {
-    _worldPacket << int32(LastUpdateID);
+    _worldPacket << LastUpdateID;
     _worldPacket << uint32(Items.size());
 
     for (BlackMarketItem const& item : Items)

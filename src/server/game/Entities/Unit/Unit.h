@@ -535,13 +535,13 @@ struct CalcDamageInfo
 // Spell damage info structure based on structure sending in SMSG_SPELLNONMELEEDAMAGELOG opcode
 struct TC_GAME_API SpellNonMeleeDamage
 {
-    SpellNonMeleeDamage(Unit* _attacker, Unit* _target, SpellInfo const* _spellInfo, uint32 _SpellXSpellVisualID, uint32 _schoolMask, ObjectGuid _castId = ObjectGuid::Empty);
+    SpellNonMeleeDamage(Unit* _attacker, Unit* _target, SpellInfo const* _spellInfo, uint32 _spellXSpellVisualID, uint32 _schoolMask, ObjectGuid _castId = ObjectGuid::Empty);
 
     Unit   *target;
     Unit   *attacker;
     ObjectGuid castId;
     SpellInfo const* Spell;
-    uint32 SpellXSpellVisualID;
+    uint32 spellXSpellVisualID;
     uint32 damage;
     uint32 originalDamage;
     uint32 schoolMask;
@@ -763,7 +763,7 @@ class TC_GAME_API Unit : public WorldObject
         struct VisibleAuraSlotCompare { bool operator()(AuraApplication* left, AuraApplication* right) const; };
         typedef std::set<AuraApplication*, VisibleAuraSlotCompare> VisibleAuraContainer;
 
-        virtual ~Unit();
+        ~Unit() override;
 
         bool IsAIEnabled() const { return (i_AI != nullptr); }
         void AIUpdateTick(uint32 diff);
@@ -792,7 +792,7 @@ class TC_GAME_API Unit : public WorldObject
         void ApplyDiminishingAura(DiminishingGroup group, bool apply);
         void ClearDiminishings();
 
-        virtual void Update(uint32 time) override;
+        void Update(uint32 time) override;
 
         void setAttackTimer(WeaponAttackType type, uint32 time) { m_attackTimer[type] = time; }
         void resetAttackTimer(WeaponAttackType type = BASE_ATTACK);
@@ -866,8 +866,8 @@ class TC_GAME_API Unit : public WorldObject
         virtual Gender GetNativeGender() const { return GetGender(); }
         virtual void SetNativeGender(Gender gender) { SetGender(gender); }
 
-        float GetStat(Stats stat) const { return float(GetUInt32Value(UNIT_FIELD_STAT+stat)); }
-        void SetStat(Stats stat, int32 val) { SetStatInt32Value(UNIT_FIELD_STAT+stat, val); }
+        float GetStat(Stats stat) const { return float(GetUInt32Value(UNIT_FIELD_STAT + stat)); }
+        void SetStat(Stats stat, int32 val) { SetStatInt32Value(UNIT_FIELD_STAT + stat, val); }
         uint32 GetArmor() const { return GetResistance(SPELL_SCHOOL_NORMAL); }
         void SetArmor(int32 val, int32 bonusVal)
         {
@@ -875,7 +875,7 @@ class TC_GAME_API Unit : public WorldObject
             SetBonusResistanceMod(SPELL_SCHOOL_NORMAL, bonusVal);
         }
 
-        int32 GetResistance(SpellSchools school) const { return GetInt32Value(UNIT_FIELD_RESISTANCES+school); }
+        int32 GetResistance(SpellSchools school) const { return GetInt32Value(UNIT_FIELD_RESISTANCES + school); }
         int32 GetBonusResistanceMod(SpellSchools school) const { return GetInt32Value(UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE + school); }
         int32 GetResistance(SpellSchoolMask mask) const;
         void SetResistance(SpellSchools school, int32 val) { SetStatInt32Value(UNIT_FIELD_RESISTANCES+school, val); }
@@ -930,6 +930,7 @@ class TC_GAME_API Unit : public WorldObject
         void ApplyAttackTimePercentMod(WeaponAttackType att, float val, bool apply);
         void ApplyCastTimePercentMod(float val, bool apply);
 
+        float GetModCastingSpeed() const { GetFloatValue(UNIT_MOD_CAST_SPEED); }
         void SetModCastingSpeed(float castingSpeed) { SetFloatValue(UNIT_MOD_CAST_SPEED, castingSpeed); }
         void SetModSpellHaste(float spellHaste) { SetFloatValue(UNIT_MOD_CAST_HASTE, spellHaste); }
         void SetModHaste(float haste) { SetFloatValue(UNIT_FIELD_MOD_HASTE, haste); }

@@ -45,26 +45,6 @@ class TC_GAME_API AreaTrigger : public WorldObject, public GridObject<AreaTrigge
         AreaTrigger();
         ~AreaTrigger();
 
-    protected:
-        void BuildValuesCreate(ByteBuffer* data, Player const* target) const override;
-        void BuildValuesUpdate(ByteBuffer* data, Player const* target) const override;
-        void ClearUpdateMask(bool remove) override;
-
-    public:
-        void BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::Mask const& requestedObjectMask,
-            UF::AreaTriggerData::Mask const& requestedAreaTriggerMask, Player const* target) const;
-
-        struct ValuesUpdateForPlayerWithMaskSender // sender compatible with MessageDistDeliverer
-        {
-            explicit ValuesUpdateForPlayerWithMaskSender(AreaTrigger const* owner) : Owner(owner) { }
-
-            AreaTrigger const* Owner;
-            UF::ObjectData::Base ObjectMask;
-            UF::AreaTriggerData::Base AreaTriggerMask;
-
-            void operator()(Player const* player) const;
-        };
-
         void AddToWorld() override;
         void RemoveFromWorld() override;
 
@@ -78,22 +58,22 @@ class TC_GAME_API AreaTrigger : public WorldObject, public GridObject<AreaTrigge
         bool IsNeverVisibleFor(WorldObject const* seer) const override { return WorldObject::IsNeverVisibleFor(seer) || IsServerSide(); }
 
     private:
-        bool Create(uint32 areaTriggerCreatePropertiesId, Unit* caster, Unit* target, SpellInfo const* spell, Position const& pos, int32 duration, SpellCastVisual spellVisual, ObjectGuid const& castId, AuraEffect const* aurEff);
+        bool Create(uint32 areaTriggerCreatePropertiesId, Unit* caster, Unit* target, SpellInfo const* spell, Position const& pos, int32 duration, uint32 spellXSpellVisualId, ObjectGuid const& castId, AuraEffect const* aurEff);
         bool CreateServer(Map* map, AreaTriggerTemplate const* areaTriggerTemplate, AreaTriggerSpawn const& position);
 
     public:
-        static AreaTrigger* CreateAreaTrigger(uint32 areaTriggerCreatePropertiesId, Unit* caster, Unit* target, SpellInfo const* spell, Position const& pos, int32 duration, SpellCastVisual spellVisual, ObjectGuid const& castId = ObjectGuid::Empty, AuraEffect const* aurEff = nullptr);
+        static AreaTrigger* CreateAreaTrigger(uint32 areaTriggerCreatePropertiesId, Unit* caster, Unit* target, SpellInfo const* spell, Position const& pos, int32 duration, uint32 spellXSpellVisualId, ObjectGuid const& castId = ObjectGuid::Empty, AuraEffect const* aurEff = nullptr);
         static ObjectGuid CreateNewMovementForceId(Map* map, uint32 areaTriggerId);
         bool LoadFromDB(ObjectGuid::LowType spawnId, Map* map, bool addToMap, bool allowDuplicate);
 
         void Update(uint32 diff) override;
         void Remove();
         bool IsRemoved() const { return _isRemoved; }
-        uint32 GetSpellId() const { return m_areaTriggerData->SpellID; }
+        uint32 GetSpellId() const { return GetUInt32Value(AREATRIGGER_SPELLID); }
         AuraEffect const* GetAuraEffect() const { return _aurEff; }
         uint32 GetTimeSinceCreated() const { return _timeSinceCreated; }
-        uint32 GetTimeToTarget() const { return m_areaTriggerData->TimeToTarget; }
-        uint32 GetTimeToTargetScale() const { return m_areaTriggerData->TimeToTargetScale; }
+        uint32 GetTimeToTarget() const { return GetUInt32Value(AREATRIGGER_TIME_TO_TARGET); }
+        uint32 GetTimeToTargetScale() const { return GetUInt32Value(AREATRIGGER_TIME_TO_TARGET_SCALE); }
         int32 GetDuration() const { return _duration; }
         int32 GetTotalDuration() const { return _totalDuration; }
         void SetDuration(int32 newDuration);
@@ -106,7 +86,7 @@ class TC_GAME_API AreaTrigger : public WorldObject, public GridObject<AreaTrigge
         uint32 GetScriptId() const;
 
         ObjectGuid GetOwnerGUID() const override { return GetCasterGuid(); }
-        ObjectGuid const& GetCasterGuid() const { return m_areaTriggerData->Caster; }
+        ObjectGuid const& GetCasterGuid() const { return GetGuidValue(AREATRIGGER_CASTER); }
         Unit* GetCaster() const;
         Unit* GetTarget() const;
 
@@ -127,8 +107,6 @@ class TC_GAME_API AreaTrigger : public WorldObject, public GridObject<AreaTrigge
         Optional<AreaTriggerOrbitInfo> const& GetCircularMovementInfo() const { return _orbitInfo; }
 
         void UpdateShape();
-
-        UF::UpdateField<UF::AreaTriggerData, 0, TYPEID_AREATRIGGER> m_areaTriggerData;
 
     protected:
         void _UpdateDuration(int32 newDuration);

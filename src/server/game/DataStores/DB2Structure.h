@@ -1906,11 +1906,32 @@ struct MapEntry
 
     bool IsContinent() const
     {
-        return ID == 0 || ID == 1 || ID == 530 || ID == 571 || ID == 870 || ID == 1116 || ID == 1220;
+        switch (ID)
+        {
+            case 0:
+            case 1:
+            case 530:
+            case 571:
+            case 870:
+            case 1116:
+            case 1220:
+            case 1642:
+            case 1643:
+            case 2222:
+            case 2444:
+                return true;
+            default:
+                return false;
+        }
     }
 
-    bool IsDynamicDifficultyMap() const { return (Flags[0] & MAP_FLAG_CAN_TOGGLE_DIFFICULTY) != 0; }
-    bool IsGarrison() const { return (Flags[0] & MAP_FLAG_GARRISON) != 0; }
+    bool IsDynamicDifficultyMap() const { return GetFlags().HasFlag(MapFlags::DynamicDifficulty); }
+    bool IsFlexLocking() const { return GetFlags().HasFlag(MapFlags::FlexibleRaidLocking); }
+    bool IsGarrison() const { return GetFlags().HasFlag(MapFlags::Garrison); }
+    bool IsSplitByFaction() const { return ID == 609 || ID == 2175 || ID == 2570; }
+
+    EnumFlag<MapFlags> GetFlags() const { return static_cast<MapFlags>(Flags[0]); }
+    EnumFlag<MapFlags2> GetFlags2() const { return static_cast<MapFlags2>(Flags[1]); }
 };
 
 struct MapDifficultyEntry
@@ -2848,6 +2869,7 @@ struct SummonPropertiesEntry
     int32 Faction;
     int32 Title;
     int32 Slot;
+    EnumFlag<SummonPropertiesFlags> GetFlags() const { return static_cast<SummonPropertiesFlags>(Flags); }
 };
 
 #define TACTKEY_SIZE 16

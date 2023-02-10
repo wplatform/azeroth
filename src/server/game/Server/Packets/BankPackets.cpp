@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -34,4 +34,23 @@ void WorldPackets::Bank::AutoStoreBankItem::Read()
 void WorldPackets::Bank::BuyBankSlot::Read()
 {
     _worldPacket >> Guid;
+}
+
+void WorldPackets::Bank::AutoBankReagent::Read()
+{
+    _worldPacket >> Inv;
+    _worldPacket >> PackSlot;
+    _worldPacket >> Slot;
+}
+
+void WorldPackets::Bank::AutoStoreBankReagent::Read()
+{
+    _worldPacket >> Inv;
+    _worldPacket >> Slot;
+    _worldPacket >> PackSlot;
+}
+
+void WorldPackets::Bank::ReagentBank::Read()
+{
+    _worldPacket >> Banker;
 }

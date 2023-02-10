@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -37,8 +37,9 @@ namespace WorldPackets
             ObjectGuid CasterGUID;
             ObjectGuid CastID;
             int32 SpellID = 0;
-            int32 SpellXSpellVisualID = 0;
+            Spells::SpellCastVisual Visual;
             int32 Damage = 0;
+            int32 OriginalDamage = 0;
             int32 Overkill = -1;
             uint8 SchoolMask = 0;
             int32 ShieldBlock = 0;
@@ -47,7 +48,7 @@ namespace WorldPackets
             int32 Absorbed = 0;
             int32 Flags = 0;
             // Optional<SpellNonMeleeDamageLogDebugInfo> DebugInfo;
-            Optional<Spells::SandboxScalingData> SandboxScaling;
+            Optional<Spells::ContentTuningParams> ContentTuning;
         };
 
         class EnvironmentalDamageLog final : public CombatLogServerPacket
@@ -67,31 +68,19 @@ namespace WorldPackets
         class SpellExecuteLog final : public CombatLogServerPacket
         {
         public:
-            struct SpellLogEffect
-            {
-                int32 Effect = 0;
-
-                std::vector<SpellLogEffectPowerDrainParams> PowerDrainTargets;
-                std::vector<SpellLogEffectExtraAttacksParams> ExtraAttacksTargets;
-                std::vector<SpellLogEffectDurabilityDamageParams> DurabilityDamageTargets;
-                std::vector<SpellLogEffectGenericVictimParams> GenericVictimTargets;
-                std::vector<SpellLogEffectTradeSkillItemParams> TradeSkillTargets;
-                std::vector<SpellLogEffectFeedPetParams> FeedPetTargets;
-            };
-
             SpellExecuteLog() : CombatLogServerPacket(SMSG_SPELL_EXECUTE_LOG, 16 + 4 + 4 + 1) { }
 
             WorldPacket const* Write() override;
 
             ObjectGuid Caster;
             int32 SpellID = 0;
-            std::vector<SpellLogEffect> Effects;
+            std::vector<SpellLogEffect> const* Effects = nullptr;
         };
 
         class SpellHealLog final : public CombatLogServerPacket
         {
         public:
-            SpellHealLog() : CombatLogServerPacket(SMSG_SPELL_HEAL_LOG, 16 + 16 + 4 * 4 + 1) { }
+            SpellHealLog() : CombatLogServerPacket(SMSG_SPELL_HEAL_LOG, 16 + 16 + 4 * 5 + 1) { }
 
             WorldPacket const* Write() override;
 
@@ -99,12 +88,13 @@ namespace WorldPackets
             ObjectGuid TargetGUID;
             int32 SpellID       = 0;
             int32 Health        = 0;
+            int32 OriginalHeal  = 0;
             int32 OverHeal      = 0;
             int32 Absorbed      = 0;
             bool Crit           = false;
             Optional<float> CritRollMade;
             Optional<float> CritRollNeeded;
-            Optional<Spells::SandboxScalingData> SandboxScaling;
+            Optional<Spells::ContentTuningParams> ContentTuning;
         };
 
         class SpellPeriodicAuraLog final : public CombatLogServerPacket
@@ -120,13 +110,14 @@ namespace WorldPackets
             {
                 int32 Effect              = 0;
                 int32 Amount              = 0;
+                int32 OriginalDamage      = 0;
                 int32 OverHealOrKill      = 0;
                 int32 SchoolMaskOrPower   = 0;
                 int32 AbsorbedOrAmplitude = 0;
                 int32 Resisted            = 0;
                 bool Crit                 = false;
                 Optional<PeriodicalAuraLogEffectDebugInfo> DebugInfo;
-                Optional<Spells::SandboxScalingData> SandboxScaling;
+                Optional<Spells::ContentTuningParams> ContentTuning;
             };
 
             SpellPeriodicAuraLog() : CombatLogServerPacket(SMSG_SPELL_PERIODIC_AURA_LOG, 16 + 16 + 4 + 4 + 1) { }
@@ -267,6 +258,7 @@ namespace WorldPackets
             ObjectGuid Defender;
             int32 SpellID = 0;
             int32 TotalDamage = 0;
+            int32 OriginalDamage = 0;
             int32 OverKill = 0;
             int32 SchoolMask = 0;
             int32 LogAbsorbed = 0;
@@ -308,6 +300,7 @@ namespace WorldPackets
             ObjectGuid AttackerGUID;
             ObjectGuid VictimGUID;
             int32 Damage = 0;
+            int32 OriginalDamage = 0;
             int32 OverDamage = -1; // (damage - health) or -1 if unit is still alive
             Optional<SubDamage> SubDmg;
             uint8 VictimState = 0;
@@ -317,7 +310,41 @@ namespace WorldPackets
             int32 RageGained = 0;
             UnkAttackerState UnkState;
             float Unk = 0.0f;
-            Spells::SandboxScalingData SandboxScaling;
+            Spells::ContentTuningParams ContentTuning;
+        };
+
+        class SpellAbsorbLog final : public CombatLogServerPacket
+        {
+        public:
+            SpellAbsorbLog() : CombatLogServerPacket(SMSG_SPELL_ABSORB_LOG, 100) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Attacker;
+            ObjectGuid Victim;
+            ObjectGuid Caster;
+            int32 AbsorbedSpellID = 0;
+            int32 AbsorbSpellID = 0;
+            int32 Absorbed = 0;
+            int32 OriginalDamage = 0;
+            bool Unk = false;
+        };
+
+        class SpellHealAbsorbLog final : public ServerPacket
+        {
+        public:
+            SpellHealAbsorbLog() : ServerPacket(SMSG_SPELL_HEAL_ABSORB_LOG, 100) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Healer;
+            ObjectGuid Target;
+            ObjectGuid AbsorbCaster;
+            int32 AbsorbSpellID = 0;
+            int32 AbsorbedSpellID = 0;
+            int32 Absorbed = 0;
+            int32 OriginalHeal = 0;
+            Optional<Spells::ContentTuningParams> ContentTuning;
         };
     }
 }

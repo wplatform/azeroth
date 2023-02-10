@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,33 +19,40 @@
 #define SystemPackets_h__
 
 #include "Packet.h"
+#include "ObjectGuid.h"
 #include "Optional.h"
 
 namespace WorldPackets
 {
     namespace System
     {
+        struct SavedThrottleObjectState
+        {
+            uint32 MaxTries               = 0;
+            uint32 PerMilliseconds        = 0;
+            uint32 TryCount               = 0;
+            uint32 LastResetTimeBeforeNow = 0;
+        };
+
+        struct EuropaTicketConfig
+        {
+            bool TicketsEnabled     = false;
+            bool BugsEnabled        = false;
+            bool ComplaintsEnabled  = false;
+            bool SuggestionsEnabled = false;
+
+            SavedThrottleObjectState ThrottleState;
+        };
+
+        struct GameRuleValuePair
+        {
+            int32 Rule = 0;
+            int32 Value = 0;
+        };
+
         class FeatureSystemStatus final : public ServerPacket
         {
         public:
-            struct SavedThrottleObjectState
-            {
-                uint32 MaxTries               = 0;
-                uint32 PerMilliseconds        = 0;
-                uint32 TryCount               = 0;
-                uint32 LastResetTimeBeforeNow = 0;
-            };
-
-            struct EuropaTicketConfig
-            {
-                bool TicketsEnabled     = false;
-                bool BugsEnabled        = false;
-                bool ComplaintsEnabled  = false;
-                bool SuggestionsEnabled = false;
-
-                SavedThrottleObjectState ThrottleState;
-            };
-
             struct SessionAlertConfig
             {
                 int32 Delay       = 0;
@@ -80,14 +87,30 @@ namespace WorldPackets
                 float ThrottleDfBestPriority = 0.0f;
             };
 
-            FeatureSystemStatus() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS, 48) { }
+            struct SquelchInfo
+            {
+                bool IsSquelched = false;
+                ObjectGuid BnetAccountGuid;
+                ObjectGuid GuildGuid;
+            };
+
+            struct RafSystemFeatureInfo
+            {
+                bool Enabled = false;
+                bool RecruitingEnabled = false;
+                uint32 MaxRecruits = 0;
+                uint32 MaxRecruitMonths = 0;
+                uint32 MaxRecruitmentUses = 0;
+                uint32 DaysInCycle = 0;
+            };
+
+            FeatureSystemStatus() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS, 200) { }
 
             WorldPacket const* Write() override;
 
             bool VoiceEnabled                        = false;
             bool BrowserEnabled                      = false;
             bool BpayStoreAvailable                  = false;
-            bool RecruitAFriendSendingEnabled        = false;
             bool BpayStoreEnabled                    = false;
             Optional<SessionAlertConfig> SessionAlert;
             uint32 ScrollOfResurrectionMaxRequestsPerDay = 0;
@@ -100,9 +123,14 @@ namespace WorldPackets
             uint32 TwitterPostThrottleLimit              = 0; ///< Number of twitter posts the client can send before they start being throttled
             uint32 TwitterPostThrottleCooldown           = 0; ///< Time in seconds the client has to wait before posting again after hitting post limit
             uint32 TokenPollTimeSeconds                  = 0;
-            uint32 TokenRedeemIndex                      = 0;
             int64 TokenBalanceAmount                     = 0;
             uint32 BpayStoreProductDeliveryDelay         = 0;
+            uint32 ClubsPresenceUpdateTimer              = 0;
+            uint32 HiddenUIClubsPresenceUpdateTimer      = 0; ///< Timer for updating club presence when communities ui frame is hidden
+            uint32 KioskSessionMinutes                   = 0;
+            int32 ActiveSeason                           = 0; ///< Currently active Classic season
+            int16 MaxPlayerNameQueriesPerPacket          = 50;
+            int16 PlayerNameQueryTelemetryInterval       = 600;
             bool ItemRestorationButtonEnabled        = false;
             bool CharUndeleteEnabled                 = false; ///< Implemented
             bool BpayStoreDisabledByParentalControls = false;
@@ -110,22 +138,38 @@ namespace WorldPackets
             bool CommerceSystemEnabled               = false;
             bool Unk67                               = false;
             bool WillKickFromWorld                   = false;
-
             bool RestrictedAccount                   = false;
             bool TutorialsEnabled                    = false;
             bool NPETutorialsEnabled                 = false;
             bool KioskModeEnabled                    = false;
             bool CompetitiveModeEnabled              = false;
             bool TokenBalanceEnabled                 = false;
+            bool WarModeFeatureEnabled               = true;
+            bool ClubsEnabled                        = false;
+            bool ClubsBattleNetClubTypeAllowed       = false;
+            bool ClubsCharacterClubTypeAllowed       = false;
+            bool ClubsPresenceUpdateEnabled          = false;
+            bool VoiceChatDisabledByParentalControl  = false;
+            bool VoiceChatMutedByParentalControl     = false;
+            bool QuestSessionEnabled                 = false;
+            bool IsMuted                             = false;
+            bool ClubFinderEnabled                   = false;
+            bool Unknown901CheckoutRelated           = false;
+            bool TextToSpeechFeatureEnabled          = false;
+            bool ChatDisabledByDefault               = false;
+            bool ChatDisabledByPlayer                = false;
+            bool LFGListCustomRequiresAuthenticator  = false;
 
-            Optional<std::vector<uint8>> RaceClassExpansionLevels;
             SocialQueueConfig QuickJoinConfig;
+            SquelchInfo Squelch;
+            RafSystemFeatureInfo RAFSystem;
+            std::vector<GameRuleValuePair> GameRuleValues;
         };
 
         class FeatureSystemStatusGlueScreen final : public ServerPacket
         {
         public:
-            FeatureSystemStatusGlueScreen() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS_GLUE_SCREEN, 1) { }
+            FeatureSystemStatusGlueScreen() : ServerPacket(SMSG_FEATURE_SYSTEM_STATUS_GLUE_SCREEN, 64) { }
 
             WorldPacket const* Write() override;
 
@@ -144,10 +188,24 @@ namespace WorldPackets
             bool LiveRegionCharacterListEnabled      = false; // NYI
             bool LiveRegionCharacterCopyEnabled      = false; // NYI
             bool LiveRegionAccountCopyEnabled        = false; // NYI
-            int32 TokenPollTimeSeconds               = 0;     // NYI
-            int32 TokenRedeemIndex                   = 0;     // NYI
+            bool LiveRegionKeyBindingsCopyEnabled    = false;
+            bool Unknown901CheckoutRelated           = false; // NYI
+            Optional<EuropaTicketConfig> EuropaTicketSystemStatus;
+            std::vector<int32> LiveRegionCharacterCopySourceRegions;
+            uint32 TokenPollTimeSeconds              = 0;     // NYI
             int64 TokenBalanceAmount                 = 0;     // NYI
+            int32 MaxCharactersPerRealm              = 0;
             uint32 BpayStoreProductDeliveryDelay     = 0;     // NYI
+            int32 ActiveCharacterUpgradeBoostType    = 0;     // NYI
+            int32 ActiveClassTrialBoostType          = 0;     // NYI
+            int32 MinimumExpansionLevel              = 0;
+            int32 MaximumExpansionLevel              = 0;
+            uint32 KioskSessionMinutes               = 0;
+            int32 ActiveSeason                       = 0;     // Currently active Classic season
+            std::vector<GameRuleValuePair> GameRuleValues;
+            int16 MaxPlayerNameQueriesPerPacket = 50;
+            int16 PlayerNameQueryTelemetryInterval = 600;
+            Optional<int32> LaunchETA;
         };
 
         class MOTD final : public ServerPacket

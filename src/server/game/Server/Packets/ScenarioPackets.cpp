@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -46,6 +46,7 @@ WorldPacket const* WorldPackets::Scenario::ScenarioState::Write()
     _worldPacket << uint32(BonusObjectives.size());
     _worldPacket << uint32(PickedSteps.size());
     _worldPacket << uint32(Spells.size());
+    _worldPacket << PlayerGUID;
 
     for (uint32 i = 0; i < PickedSteps.size(); ++i)
         _worldPacket << uint32(PickedSteps[i]);
@@ -79,7 +80,7 @@ WorldPacket const* WorldPackets::Scenario::ScenarioCompleted::Write()
     return &_worldPacket;
 }
 
-WorldPacket const* WorldPackets::Scenario::ScenarioBoot::Write()
+WorldPacket const* WorldPackets::Scenario::ScenarioVacate::Write()
 {
     _worldPacket << int32(ScenarioID);
     _worldPacket << int32(Unk1);
@@ -109,18 +110,19 @@ WorldPacket const* WorldPackets::Scenario::ScenarioPOIs::Write()
         {
             _worldPacket << int32(scenarioPOI.BlobIndex);
             _worldPacket << int32(scenarioPOI.MapID);
-            _worldPacket << int32(scenarioPOI.WorldMapAreaID);
-            _worldPacket << int32(scenarioPOI.Floor);
+            _worldPacket << int32(scenarioPOI.UiMapID);
             _worldPacket << int32(scenarioPOI.Priority);
             _worldPacket << int32(scenarioPOI.Flags);
             _worldPacket << int32(scenarioPOI.WorldEffectID);
             _worldPacket << int32(scenarioPOI.PlayerConditionID);
+            _worldPacket << int32(scenarioPOI.NavigationPlayerConditionID);
             _worldPacket << uint32(scenarioPOI.Points.size());
 
             for (ScenarioPOIPoint const& scenarioPOIBlobPoint : scenarioPOI.Points)
             {
                 _worldPacket << int32(scenarioPOIBlobPoint.X);
                 _worldPacket << int32(scenarioPOIBlobPoint.Y);
+                _worldPacket << int32(scenarioPOIBlobPoint.Z);
             }
         }
     }

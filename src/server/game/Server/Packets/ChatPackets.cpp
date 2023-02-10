@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -41,38 +41,38 @@ void WorldPackets::Chat::ChatMessageWhisper::Read()
 void WorldPackets::Chat::ChatMessageChannel::Read()
 {
     _worldPacket >> Language;
+    _worldPacket >> ChannelGUID;
     uint32 targetLen = _worldPacket.ReadBits(9);
     uint32 textLen = _worldPacket.ReadBits(9);
     Target = _worldPacket.ReadString(targetLen);
     Text = _worldPacket.ReadString(textLen);
+}
+
+ByteBuffer& operator>>(ByteBuffer& data, WorldPackets::Chat::ChatAddonMessageParams& params)
+{
+    uint32 prefixLen = data.ReadBits(5);
+    uint32 textLen = data.ReadBits(8);
+    params.IsLogged = data.ReadBit();
+    params.Type = ChatMsg(data.read<int32>());
+    params.Prefix = data.ReadString(prefixLen);
+    params.Text = data.ReadString(textLen, false);
+
+    return data;
 }
 
 void WorldPackets::Chat::ChatAddonMessage::Read()
 {
-    uint32 prefixLen = _worldPacket.ReadBits(5);
-    uint32 textLen = _worldPacket.ReadBits(9);
-    Prefix = _worldPacket.ReadString(prefixLen);
-    Text = _worldPacket.ReadString(textLen);
+    _worldPacket >> Params;
 }
 
-void WorldPackets::Chat::ChatAddonMessageWhisper::Read()
+void WorldPackets::Chat::ChatAddonMessageTargeted::Read()
 {
     uint32 targetLen = _worldPacket.ReadBits(9);
-    uint32 prefixLen = _worldPacket.ReadBits(5);
-    uint32 textLen = _worldPacket.ReadBits(9);
-    Target = _worldPacket.ReadString(targetLen);
-    Prefix = _worldPacket.ReadString(prefixLen);
-    Text = _worldPacket.ReadString(textLen);
-}
+    _worldPacket.ResetBitPos();
 
-void WorldPackets::Chat::ChatAddonMessageChannel::Read()
-{
-    uint32 targetLen = _worldPacket.ReadBits(9);
-    uint32 prefixLen = _worldPacket.ReadBits(5);
-    uint32 textLen = _worldPacket.ReadBits(9);
+    _worldPacket >> Params;
+    _worldPacket >> *ChannelGUID;
     Target = _worldPacket.ReadString(targetLen);
-    Prefix = _worldPacket.ReadString(prefixLen);
-    Text = _worldPacket.ReadString(textLen);
 }
 
 void WorldPackets::Chat::ChatMessageDND::Read()
@@ -102,8 +102,8 @@ WorldPackets::Chat::Chat::Chat(Chat const& chat) : ServerPacket(SMSG_CHAT, chat.
 {
 }
 
-void WorldPackets::Chat::Chat::Initialize(ChatMsg chatType, Language language, WorldObject const* sender, WorldObject const* receiver, std::string message,
-    uint32 achievementId /*= 0*/, std::string channelName /*= ""*/, LocaleConstant locale /*= DEFAULT_LOCALE*/, std::string addonPrefix /*= ""*/)
+void WorldPackets::Chat::Chat::Initialize(ChatMsg chatType, Language language, WorldObject const* sender, WorldObject const* receiver, std::string_view message,
+    uint32 achievementId /*= 0*/, std::string_view channelName /*= ""*/, LocaleConstant locale /*= DEFAULT_LOCALE*/, std::string_view addonPrefix /*= ""*/)
 {
     // Clear everything because same packet can be used multiple times
     Clear();
@@ -131,7 +131,7 @@ void WorldPackets::Chat::Chat::Initialize(ChatMsg chatType, Language language, W
     AchievementID = achievementId;
     _Channel = std::move(channelName);
     Prefix = std::move(addonPrefix);
-    ChatText = std::move(message);
+    ChatText = message;
 }
 
 void WorldPackets::Chat::Chat::SetSender(WorldObject const* sender, LocaleConstant locale)
@@ -162,25 +162,27 @@ void WorldPackets::Chat::Chat::SetReceiver(WorldObject const* receiver, LocaleCo
 
 WorldPacket const* WorldPackets::Chat::Chat::Write()
 {
-    _worldPacket << SlashCmd;
-    _worldPacket << _Language;
+    _worldPacket << uint8(SlashCmd);
+    _worldPacket << uint32(_Language);
     _worldPacket << SenderGUID;
     _worldPacket << SenderGuildGUID;
     _worldPacket << SenderAccountGUID;
     _worldPacket << TargetGUID;
-    _worldPacket << TargetVirtualAddress;
-    _worldPacket << SenderVirtualAddress;
+    _worldPacket << uint32(TargetVirtualAddress);
+    _worldPacket << uint32(SenderVirtualAddress);
     _worldPacket << PartyGUID;
-    _worldPacket << AchievementID;
-    _worldPacket << DisplayTime;
+    _worldPacket << uint32(AchievementID);
+    _worldPacket << float(DisplayTime);
     _worldPacket.WriteBits(SenderName.length(), 11);
     _worldPacket.WriteBits(TargetName.length(), 11);
     _worldPacket.WriteBits(Prefix.length(), 5);
     _worldPacket.WriteBits(_Channel.length(), 7);
     _worldPacket.WriteBits(ChatText.length(), 12);
-    _worldPacket.WriteBits(_ChatFlags, 11);
+    _worldPacket.WriteBits(_ChatFlags, 14);
     _worldPacket.WriteBit(HideChatLog);
     _worldPacket.WriteBit(FakeSenderName);
+    _worldPacket.WriteBit(Unused_801.has_value());
+    _worldPacket.WriteBit(ChannelGUID.has_value());
     _worldPacket.FlushBits();
 
     _worldPacket.WriteString(SenderName);
@@ -189,13 +191,23 @@ WorldPacket const* WorldPackets::Chat::Chat::Write()
     _worldPacket.WriteString(_Channel);
     _worldPacket.WriteString(ChatText);
 
+    if (Unused_801)
+        _worldPacket << uint32(*Unused_801);
+
+    if (ChannelGUID)
+        _worldPacket << *ChannelGUID;
+
     return &_worldPacket;
 }
 
 WorldPacket const* WorldPackets::Chat::Emote::Write()
 {
     _worldPacket << Guid;
-    _worldPacket << EmoteID;
+    _worldPacket << uint32(EmoteID);
+    _worldPacket << uint32(SpellVisualKitIDs.size());
+    _worldPacket << int32(SequenceVariation);
+    if (!SpellVisualKitIDs.empty())
+        _worldPacket.append(SpellVisualKitIDs.data(), SpellVisualKitIDs.size());
 
     return &_worldPacket;
 }
@@ -205,6 +217,10 @@ void WorldPackets::Chat::CTextEmote::Read()
     _worldPacket >> Target;
     _worldPacket >> EmoteID;
     _worldPacket >> SoundIndex;
+    SpellVisualKitIDs.resize(_worldPacket.read<uint32>());
+    _worldPacket >> SequenceVariation;
+    for (int32& spellVisualKitId : SpellVisualKitIDs)
+        _worldPacket >> spellVisualKitId;
 }
 
 WorldPacket const* WorldPackets::Chat::STextEmote::Write()
@@ -240,7 +256,7 @@ WorldPacket const* WorldPackets::Chat::ChatPlayerNotfound::Write()
 
 WorldPacket const* WorldPackets::Chat::ChatServerMessage::Write()
 {
-    _worldPacket << MessageID;
+    _worldPacket << int32(MessageID);
 
     _worldPacket.WriteBits(StringParam.length(), 11);
     _worldPacket.FlushBits();

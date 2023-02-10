@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,7 +18,39 @@
 #include "SystemPackets.h"
 #include "Errors.h"
 
-WorldPacket const* WorldPackets::System::FeatureSystemStatus::Write()
+namespace WorldPackets
+{
+namespace System
+{
+ByteBuffer& operator<<(ByteBuffer& data, SavedThrottleObjectState const& throttleState)
+{
+    data << uint32(throttleState.MaxTries);
+    data << uint32(throttleState.PerMilliseconds);
+    data << uint32(throttleState.TryCount);
+    data << uint32(throttleState.LastResetTimeBeforeNow);
+    return data;
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, EuropaTicketConfig const& europaTicketSystemStatus)
+{
+    data.WriteBit(europaTicketSystemStatus.TicketsEnabled);
+    data.WriteBit(europaTicketSystemStatus.BugsEnabled);
+    data.WriteBit(europaTicketSystemStatus.ComplaintsEnabled);
+    data.WriteBit(europaTicketSystemStatus.SuggestionsEnabled);
+
+    data << europaTicketSystemStatus.ThrottleState;
+
+    return data;
+}
+
+WorldPacket operator<<(WorldPacket& data, GameRuleValuePair const& gameRuleValue)
+{
+    data << int32(gameRuleValue.Rule);
+    data << int32(gameRuleValue.Value);
+    return data;
+}
+
+WorldPacket const* FeatureSystemStatus::Write()
 {
     _worldPacket << uint8(ComplaintStatus);
 
@@ -28,37 +60,68 @@ WorldPacket const* WorldPackets::System::FeatureSystemStatus::Write()
     _worldPacket << uint32(CfgRealmID);
     _worldPacket << int32(CfgRealmRecID);
 
+    _worldPacket << uint32(RAFSystem.MaxRecruits);
+    _worldPacket << uint32(RAFSystem.MaxRecruitMonths);
+    _worldPacket << uint32(RAFSystem.MaxRecruitmentUses);
+    _worldPacket << uint32(RAFSystem.DaysInCycle);
+
     _worldPacket << uint32(TwitterPostThrottleLimit);
     _worldPacket << uint32(TwitterPostThrottleCooldown);
 
     _worldPacket << uint32(TokenPollTimeSeconds);
-    _worldPacket << uint32(TokenRedeemIndex);
+    _worldPacket << uint32(KioskSessionMinutes);
     _worldPacket << int64(TokenBalanceAmount);
 
     _worldPacket << uint32(BpayStoreProductDeliveryDelay);
 
+    _worldPacket << uint32(ClubsPresenceUpdateTimer);
+    _worldPacket << uint32(HiddenUIClubsPresenceUpdateTimer);
+
+    _worldPacket << int32(ActiveSeason);
+    _worldPacket << uint32(GameRuleValues.size());
+
+    _worldPacket << int16(MaxPlayerNameQueriesPerPacket);
+    _worldPacket << int16(PlayerNameQueryTelemetryInterval);
+
+    for (GameRuleValuePair const& gameRuleValue : GameRuleValues)
+        _worldPacket << gameRuleValue;
+
     _worldPacket.WriteBit(VoiceEnabled);
-    _worldPacket.WriteBit(EuropaTicketSystemStatus.is_initialized());
+    _worldPacket.WriteBit(EuropaTicketSystemStatus.has_value());
     _worldPacket.WriteBit(ScrollOfResurrectionEnabled);
     _worldPacket.WriteBit(BpayStoreEnabled);
     _worldPacket.WriteBit(BpayStoreAvailable);
     _worldPacket.WriteBit(BpayStoreDisabledByParentalControls);
     _worldPacket.WriteBit(ItemRestorationButtonEnabled);
     _worldPacket.WriteBit(BrowserEnabled);
-    _worldPacket.WriteBit(SessionAlert.is_initialized());
-    _worldPacket.WriteBit(RecruitAFriendSendingEnabled);
+    _worldPacket.WriteBit(SessionAlert.has_value());
+    _worldPacket.WriteBit(RAFSystem.Enabled);
+    _worldPacket.WriteBit(RAFSystem.RecruitingEnabled);
     _worldPacket.WriteBit(CharUndeleteEnabled);
     _worldPacket.WriteBit(RestrictedAccount);
-    _worldPacket.WriteBit(TutorialsEnabled);
-    _worldPacket.WriteBit(NPETutorialsEnabled);
-    _worldPacket.WriteBit(TwitterEnabled);
     _worldPacket.WriteBit(CommerceSystemEnabled);
+    _worldPacket.WriteBit(TutorialsEnabled);
+    _worldPacket.WriteBit(TwitterEnabled);
     _worldPacket.WriteBit(Unk67);
     _worldPacket.WriteBit(WillKickFromWorld);
     _worldPacket.WriteBit(KioskModeEnabled);
     _worldPacket.WriteBit(CompetitiveModeEnabled);
-    _worldPacket.WriteBit(RaceClassExpansionLevels.is_initialized());
     _worldPacket.WriteBit(TokenBalanceEnabled);
+    _worldPacket.WriteBit(WarModeFeatureEnabled);
+    _worldPacket.WriteBit(ClubsEnabled);
+    _worldPacket.WriteBit(ClubsBattleNetClubTypeAllowed);
+    _worldPacket.WriteBit(ClubsCharacterClubTypeAllowed);
+    _worldPacket.WriteBit(ClubsPresenceUpdateEnabled);
+    _worldPacket.WriteBit(VoiceChatDisabledByParentalControl);
+    _worldPacket.WriteBit(VoiceChatMutedByParentalControl);
+    _worldPacket.WriteBit(QuestSessionEnabled);
+    _worldPacket.WriteBit(IsMuted);
+    _worldPacket.WriteBit(ClubFinderEnabled);
+    _worldPacket.WriteBit(Unknown901CheckoutRelated);
+    _worldPacket.WriteBit(TextToSpeechFeatureEnabled);
+    _worldPacket.WriteBit(ChatDisabledByDefault);
+    _worldPacket.WriteBit(ChatDisabledByPlayer);
+    _worldPacket.WriteBit(LFGListCustomRequiresAuthenticator);
 
     _worldPacket.FlushBits();
 
@@ -95,30 +158,19 @@ WorldPacket const* WorldPackets::System::FeatureSystemStatus::Write()
         _worldPacket << int32(SessionAlert->DisplayTime);
     }
 
-    if (RaceClassExpansionLevels)
     {
-        _worldPacket << uint32(RaceClassExpansionLevels->size());
-        if (!RaceClassExpansionLevels->empty())
-            _worldPacket.append(RaceClassExpansionLevels->data(), RaceClassExpansionLevels->size());
+        _worldPacket.WriteBit(Squelch.IsSquelched);
+        _worldPacket << Squelch.BnetAccountGuid;
+        _worldPacket << Squelch.GuildGuid;
     }
 
     if (EuropaTicketSystemStatus)
-    {
-        _worldPacket.WriteBit(EuropaTicketSystemStatus->TicketsEnabled);
-        _worldPacket.WriteBit(EuropaTicketSystemStatus->BugsEnabled);
-        _worldPacket.WriteBit(EuropaTicketSystemStatus->ComplaintsEnabled);
-        _worldPacket.WriteBit(EuropaTicketSystemStatus->SuggestionsEnabled);
-
-        _worldPacket << uint32(EuropaTicketSystemStatus->ThrottleState.MaxTries);
-        _worldPacket << uint32(EuropaTicketSystemStatus->ThrottleState.PerMilliseconds);
-        _worldPacket << uint32(EuropaTicketSystemStatus->ThrottleState.TryCount);
-        _worldPacket << uint32(EuropaTicketSystemStatus->ThrottleState.LastResetTimeBeforeNow);
-    }
+        _worldPacket << *EuropaTicketSystemStatus;
 
     return &_worldPacket;
 }
 
-WorldPacket const* WorldPackets::System::FeatureSystemStatusGlueScreen::Write()
+WorldPacket const* FeatureSystemStatusGlueScreen::Write()
 {
     _worldPacket.WriteBit(BpayStoreEnabled);
     _worldPacket.WriteBit(BpayStoreAvailable);
@@ -130,23 +182,48 @@ WorldPacket const* WorldPackets::System::FeatureSystemStatusGlueScreen::Write()
     _worldPacket.WriteBit(IsExpansionPreorderInStore);
     _worldPacket.WriteBit(KioskModeEnabled);
     _worldPacket.WriteBit(CompetitiveModeEnabled);
-    _worldPacket.WriteBit(false); // not accessed in handler
     _worldPacket.WriteBit(TrialBoostEnabled);
     _worldPacket.WriteBit(TokenBalanceEnabled);
     _worldPacket.WriteBit(LiveRegionCharacterListEnabled);
     _worldPacket.WriteBit(LiveRegionCharacterCopyEnabled);
     _worldPacket.WriteBit(LiveRegionAccountCopyEnabled);
+    _worldPacket.WriteBit(LiveRegionKeyBindingsCopyEnabled);
+    _worldPacket.WriteBit(Unknown901CheckoutRelated);
+    _worldPacket.WriteBit(EuropaTicketSystemStatus.has_value());
+    _worldPacket.WriteBit(LaunchETA.has_value());
     _worldPacket.FlushBits();
 
-    _worldPacket << int32(TokenPollTimeSeconds);
-    _worldPacket << int32(TokenRedeemIndex);
+    if (EuropaTicketSystemStatus)
+        _worldPacket << *EuropaTicketSystemStatus;
+
+    _worldPacket << uint32(TokenPollTimeSeconds);
+    _worldPacket << uint32(KioskSessionMinutes);
     _worldPacket << int64(TokenBalanceAmount);
+    _worldPacket << int32(MaxCharactersPerRealm);
+    _worldPacket << uint32(LiveRegionCharacterCopySourceRegions.size());
     _worldPacket << uint32(BpayStoreProductDeliveryDelay);
+    _worldPacket << int32(ActiveCharacterUpgradeBoostType);
+    _worldPacket << int32(ActiveClassTrialBoostType);
+    _worldPacket << int32(MinimumExpansionLevel);
+    _worldPacket << int32(MaximumExpansionLevel);
+    _worldPacket << int32(ActiveSeason);
+    _worldPacket << uint32(GameRuleValues.size());
+    _worldPacket << int16(MaxPlayerNameQueriesPerPacket);
+    _worldPacket << int16(PlayerNameQueryTelemetryInterval);
+
+    if (LaunchETA)
+        _worldPacket << int32(*LaunchETA);
+
+    if (!LiveRegionCharacterCopySourceRegions.empty())
+        _worldPacket.append(LiveRegionCharacterCopySourceRegions.data(), LiveRegionCharacterCopySourceRegions.size());
+
+    for (GameRuleValuePair const& gameRuleValue : GameRuleValues)
+        _worldPacket << gameRuleValue;
 
     return &_worldPacket;
 }
 
-WorldPacket const* WorldPackets::System::MOTD::Write()
+WorldPacket const* MOTD::Write()
 {
     ASSERT(Text);
     _worldPacket.WriteBits(Text->size(), 4);
@@ -162,7 +239,7 @@ WorldPacket const* WorldPackets::System::MOTD::Write()
     return &_worldPacket;
 }
 
-WorldPacket const* WorldPackets::System::SetTimeZoneInformation::Write()
+WorldPacket const* SetTimeZoneInformation::Write()
 {
     _worldPacket.WriteBits(ServerTimeTZ.length(), 7);
     _worldPacket.WriteBits(GameTimeTZ.length(), 7);
@@ -172,4 +249,6 @@ WorldPacket const* WorldPackets::System::SetTimeZoneInformation::Write()
     _worldPacket.WriteString(GameTimeTZ);
 
     return &_worldPacket;
+}
+}
 }
