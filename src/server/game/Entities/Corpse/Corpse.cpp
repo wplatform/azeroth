@@ -35,7 +35,10 @@ Corpse::Corpse(CorpseType type) : WorldObject(type != CORPSE_BONES), m_type(type
     m_objectType |= TYPEMASK_CORPSE;
     m_objectTypeId = TYPEID_CORPSE;
 
-    m_updateFlag.Stationary = true;
+    m_updateFlag = UPDATEFLAG_STATIONARY_POSITION;
+
+    m_valuesCount = CORPSE_END;
+    _dynamicValuesCount = CORPSE_DYNAMIC_END;
 
     m_time = GameTime::GetGameTime();
 
@@ -107,10 +110,6 @@ void Corpse::SaveToDB()
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
     DeleteFromDB(trans);
 
-    std::ostringstream items;
-    for (size_t index = 0; index < m_corpseData->Items.size(); ++index)
-        items << m_corpseData->Items[index] << ' ';
-
     uint16 index = 0;
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CORPSE);
     stmt->setUInt64(index++, GetOwnerGUID().GetCounter());                            // guid
@@ -119,13 +118,12 @@ void Corpse::SaveToDB()
     stmt->setFloat (index++, GetPositionZ());                                         // posZ
     stmt->setFloat (index++, GetOrientation());                                       // orientation
     stmt->setUInt16(index++, GetMapId());                                             // mapId
-    stmt->setUInt32(index++, m_corpseData->DisplayID);                                // displayId
-    stmt->setString(index++, items.str());                                            // itemCache
-    stmt->setUInt8 (index++, m_corpseData->RaceID);                                   // race
-    stmt->setUInt8 (index++, m_corpseData->Class);                                    // class
-    stmt->setUInt8 (index++, m_corpseData->Sex);                                      // gender
-    stmt->setUInt8 (index++, m_corpseData->Flags);                                    // flags
-    stmt->setUInt8 (index++, m_corpseData->DynamicFlags);                             // dynFlags
+    stmt->setUInt32(index++, GetUInt32Value(CORPSE_FIELD_DISPLAY_ID));                // displayId
+    stmt->setString(index++, _ConcatFields(CORPSE_FIELD_ITEM, EQUIPMENT_SLOT_END));   // itemCache
+    stmt->setUInt32(index++, GetUInt32Value(CORPSE_FIELD_BYTES_1));                   // bytes1
+    stmt->setUInt32(index++, GetUInt32Value(CORPSE_FIELD_BYTES_2));                   // bytes2
+    stmt->setUInt8 (index++, GetUInt32Value(CORPSE_FIELD_FLAGS));                     // flags
+    stmt->setUInt8 (index++, GetUInt32Value(CORPSE_FIELD_DYNAMIC_FLAGS));             // dynFlags
     stmt->setUInt32(index++, uint32(m_time));                                         // time
     stmt->setUInt8 (index++, GetType());                                              // corpseType
     stmt->setUInt32(index++, GetInstanceId());                                        // instanceId
@@ -137,16 +135,6 @@ void Corpse::SaveToDB()
         stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CORPSE_PHASES);
         stmt->setUInt64(index++, GetOwnerGUID().GetCounter());                        // OwnerGuid
         stmt->setUInt32(index++, phase.Id);                                           // PhaseId
-        trans->Append(stmt);
-    }
-
-    for (UF::ChrCustomizationChoice customization : m_corpseData->Customizations)
-    {
-        index = 0;
-        stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CORPSE_CUSTOMIZATIONS);
-        stmt->setUInt64(index++, GetOwnerGUID().GetCounter());                        // OwnerGuid
-        stmt->setUInt32(index++, customization.ChrCustomizationOptionID);
-        stmt->setUInt32(index++, customization.ChrCustomizationChoiceID);
         trans->Append(stmt);
     }
 
@@ -167,10 +155,6 @@ void Corpse::DeleteFromDB(ObjectGuid const& ownerGuid, CharacterDatabaseTransact
     stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CORPSE_PHASES);
     stmt->setUInt64(0, ownerGuid.GetCounter());
     CharacterDatabase.ExecuteOrAppend(trans, stmt);
-
-    stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CORPSE_CUSTOMIZATIONS);
-    stmt->setUInt64(0, ownerGuid.GetCounter());
-    CharacterDatabase.ExecuteOrAppend(trans, stmt);
 }
 
 void Corpse::ResetGhostTime()
@@ -180,31 +164,28 @@ void Corpse::ResetGhostTime()
 
 bool Corpse::LoadCorpseFromDB(ObjectGuid::LowType guid, Field* fields)
 {
-    //        0     1     2     3            4      5          6          7     8      9       10     11        12    13          14          15
-    // SELECT posX, posY, posZ, orientation, mapId, displayId, itemCache, race, class, gender, flags, dynFlags, time, corpseType, instanceId, guid FROM corpse WHERE mapId = ? AND instanceId = ?
+    //        0     1     2     3            4      5          6          7       8       9      10        11    12          13          14
+    // SELECT posX, posY, posZ, orientation, mapId, displayId, itemCache, bytes1, bytes2, flags, dynFlags, time, corpseType, instanceId, guid FROM corpse WHERE mapId = ? AND instanceId = ?
 
     float posX   = fields[0].GetFloat();
     float posY   = fields[1].GetFloat();
     float posZ   = fields[2].GetFloat();
     float o      = fields[3].GetFloat();
     uint32 mapId = fields[4].GetUInt16();
+    uint32 bytes1 = fields[7].GetUInt32();
+    uint32 bytes2 = fields[8].GetUInt32();
 
     Object::_Create(ObjectGuid::Create<HighGuid::Corpse>(mapId, 0, guid));
 
     SetObjectScale(1.0f);
     SetDisplayId(fields[5].GetUInt32());
-    std::vector<std::string_view> items = Trinity::Tokenize(fields[6].GetStringView(), ' ', false);
-    if (items.size() == m_corpseData->Items.size())
-        for (size_t index = 0; index < m_corpseData->Items.size(); ++index)
-            SetItem(index, Trinity::StringTo<uint32>(items[index]).value_or(0));
-
-    SetRace(fields[7].GetUInt8());
-    SetClass(fields[8].GetUInt8());
-    SetSex(fields[9].GetUInt8());
-    ReplaceAllFlags(fields[10].GetUInt8());
-    ReplaceAllCorpseDynamicFlags(CorpseDynFlags(fields[11].GetUInt8()));
-    SetOwnerGUID(ObjectGuid::Create<HighGuid::Player>(fields[15].GetUInt64()));
-    SetFactionTemplate(sChrRacesStore.AssertEntry(m_corpseData->RaceID)->FactionID);
+    _LoadIntoDataField(fields[6].GetString(), CORPSE_FIELD_ITEM, EQUIPMENT_SLOT_END);
+    SetUInt32Value(CORPSE_FIELD_BYTES_1, bytes1);
+    SetUInt32Value(CORPSE_FIELD_BYTES_2, bytes2);
+    SetUInt32Value(CORPSE_FIELD_FLAGS, fields[9].GetUInt8());
+    SetUInt32Value(CORPSE_FIELD_DYNAMIC_FLAGS, fields[10].GetUInt8());
+    SetGuidValue(CORPSE_FIELD_OWNER, ObjectGuid::Create<HighGuid::Player>(fields[14].GetUInt64()));
+    SetUInt32Value(CORPSE_FIELD_FACTIONTEMPLATE, sChrRacesStore.AssertEntry((bytes1 >> 8) & 0xFF)->FactionID);
 
     m_time = time_t(fields[12].GetUInt32());
 
@@ -236,74 +217,4 @@ bool Corpse::IsExpired(time_t t) const
         return m_time < t - 60 * MINUTE;
     else
         return m_time < t - 3 * DAY;
-}
-
-void Corpse::BuildValuesCreate(ByteBuffer* data, Player const* target) const
-{
-    UF::UpdateFieldFlag flags = GetUpdateFieldFlagsFor(target);
-    std::size_t sizePos = data->wpos();
-    *data << uint32(0);
-    *data << uint8(flags);
-    m_objectData->WriteCreate(*data, flags, this, target);
-    m_corpseData->WriteCreate(*data, flags, this, target);
-    data->put<uint32>(sizePos, data->wpos() - sizePos - 4);
-}
-
-void Corpse::BuildValuesUpdate(ByteBuffer* data, Player const* target) const
-{
-    UF::UpdateFieldFlag flags = GetUpdateFieldFlagsFor(target);
-    std::size_t sizePos = data->wpos();
-    *data << uint32(0);
-    *data << uint32(m_values.GetChangedObjectTypeMask());
-
-    if (m_values.HasChanged(TYPEID_OBJECT))
-        m_objectData->WriteUpdate(*data, flags, this, target);
-
-    if (m_values.HasChanged(TYPEID_CORPSE))
-        m_corpseData->WriteUpdate(*data, flags, this, target);
-
-    data->put<uint32>(sizePos, data->wpos() - sizePos - 4);
-}
-
-void Corpse::BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::Mask const& requestedObjectMask,
-    UF::CorpseData::Mask const& requestedCorpseMask, Player const* target) const
-{
-    UpdateMask<NUM_CLIENT_OBJECT_TYPES> valuesMask;
-    if (requestedObjectMask.IsAnySet())
-        valuesMask.Set(TYPEID_OBJECT);
-
-    if (requestedCorpseMask.IsAnySet())
-        valuesMask.Set(TYPEID_CORPSE);
-
-    ByteBuffer& buffer = PrepareValuesUpdateBuffer(data);
-    std::size_t sizePos = buffer.wpos();
-    buffer << uint32(0);
-    buffer << uint32(valuesMask.GetBlock(0));
-
-    if (valuesMask[TYPEID_OBJECT])
-        m_objectData->WriteUpdate(buffer, requestedObjectMask, true, this, target);
-
-    if (valuesMask[TYPEID_CORPSE])
-        m_corpseData->WriteUpdate(buffer, requestedCorpseMask, true, this, target);
-
-    buffer.put<uint32>(sizePos, buffer.wpos() - sizePos - 4);
-
-    data->AddUpdateBlock();
-}
-
-void Corpse::ValuesUpdateForPlayerWithMaskSender::operator()(Player const* player) const
-{
-    UpdateData udata(Owner->GetMapId());
-    WorldPacket packet;
-
-    Owner->BuildValuesUpdateForPlayerWithMask(&udata, ObjectMask.GetChangesMask(), CorpseMask.GetChangesMask(), player);
-
-    udata.BuildPacket(&packet);
-    player->SendDirectMessage(&packet);
-}
-
-void Corpse::ClearUpdateMask(bool remove)
-{
-    m_values.ClearChangesMask(&Corpse::m_corpseData);
-    Object::ClearUpdateMask(remove);
 }

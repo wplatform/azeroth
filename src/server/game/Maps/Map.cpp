@@ -3683,20 +3683,13 @@ Corpse* Map::ConvertCorpseToBones(ObjectGuid const& ownerGuid, bool insignia /*=
         bones = new Corpse();
         bones->Create(corpse->GetGUID().GetCounter(), this);
 
-        bones->ReplaceAllCorpseDynamicFlags(corpse->GetCorpseDynamicFlags());
-        bones->SetOwnerGUID(corpse->m_corpseData->Owner);
-        bones->SetPartyGUID(corpse->m_corpseData->PartyGUID);
-        bones->SetGuildGUID(corpse->m_corpseData->GuildGUID);
-        bones->SetDisplayId(corpse->m_corpseData->DisplayID);
-        bones->SetRace(corpse->m_corpseData->RaceID);
-        bones->SetSex(corpse->m_corpseData->Sex);
-        bones->SetClass(corpse->m_corpseData->Class);
-        bones->SetCustomizations(Trinity::Containers::MakeIteratorPair(corpse->m_corpseData->Customizations.begin(), corpse->m_corpseData->Customizations.end()));
-        bones->ReplaceAllFlags(corpse->m_corpseData->Flags | CORPSE_FLAG_BONES);
-        bones->SetFactionTemplate(corpse->m_corpseData->FactionTemplate);
+        for (uint8 i = OBJECT_FIELD_GUID + 4; i < CORPSE_END; ++i)                    // don't overwrite guid
+            bones->SetUInt32Value(i, corpse->GetUInt32Value(i));
 
         bones->SetCellCoord(corpse->GetCellCoord());
         bones->Relocate(corpse->GetPositionX(), corpse->GetPositionY(), corpse->GetPositionZ(), corpse->GetOrientation());
+
+        bones->SetUInt32Value(CORPSE_FIELD_FLAGS, corpse->GetUInt32Value(CORPSE_FIELD_FLAGS) | CORPSE_FLAG_BONES);
 
         PhasingHandler::InheritPhaseShift(bones, corpse);
 

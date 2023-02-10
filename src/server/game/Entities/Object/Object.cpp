@@ -1047,6 +1047,21 @@ uint32 Object::GetDynamicUpdateFieldData(Player const* target, uint32*& flags) c
     return visibleFlag;
 }
 
+void Object::_LoadIntoDataField(std::string const& data, uint32 startOffset, uint32 count)
+{
+    if (data.empty())
+        return;
+
+    std::vector<std::string_view> tokens = Trinity::Tokenize(data, ' ', false);
+    if (tokens.size() != count)
+        return;
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        m_uint32Values[startOffset + index] = Trinity::StringTo<int32>(tokens[index]).value_or(0);
+        _changesMask[startOffset + index] = 1;
+    }
+}
 
 void Object::SetInt32Value(uint16 index, int32 value)
 {
