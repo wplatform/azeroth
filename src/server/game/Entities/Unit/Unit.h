@@ -921,6 +921,9 @@ class TC_GAME_API Unit : public WorldObject
         // returns the change in power
         int32 ModifyPower(Powers power, int32 val, bool withPowerUpdate = true);
 
+        void ApplyModManaCostMultiplier(float manaCostMultiplier, bool apply) { ApplyModSignedFloatValue(UNIT_FIELD_POWER_COST_MULTIPLIER, manaCostMultiplier, apply); }
+        void ApplyModManaCostModifier(SpellSchools school, int32 mod, bool apply) { ApplyModInt32Value(UNIT_FIELD_POWER_COST_MODIFIER + school, mod, apply); }
+
         uint32 GetBaseAttackTime(WeaponAttackType att) const;
         void SetBaseAttackTime(WeaponAttackType att, uint32 val);
         void UpdateAttackTimeField(WeaponAttackType att);
@@ -937,17 +940,17 @@ class TC_GAME_API Unit : public WorldObject
         bool HasUnitFlag(UnitFlags flags) const { return HasFlag(UNIT_FIELD_FLAGS, flags); }
         void SetUnitFlag(UnitFlags flags) { SetFlag(UNIT_FIELD_FLAGS, flags); }
         void RemoveUnitFlag(UnitFlags flags) { RemoveFlag(UNIT_FIELD_FLAGS, flags); }
-        void ReplaceAllUnitFlags(UnitFlags flags) { SetUInt32Value(UNIT_FIELD_FLAGS, flags); }
+        void ReplaceAllUnitFlags(UnitFlags flags) { ToggleFlag(UNIT_FIELD_FLAGS, flags); }
 
         bool HasUnitFlag2(UnitFlags2 flags) const { return HasFlag(UNIT_FIELD_FLAGS_2, flags); }
         void SetUnitFlag2(UnitFlags2 flags) { SetFlag(UNIT_FIELD_FLAGS_2, flags); }
         void RemoveUnitFlag2(UnitFlags2 flags) { RemoveFlag(UNIT_FIELD_FLAGS_2, flags); }
-        void ReplaceAllUnitFlags2(UnitFlags2 flags) { SetUInt32Value(UNIT_FIELD_FLAGS_2, flags); }
+        void ReplaceAllUnitFlags2(UnitFlags2 flags) { ToggleFlag(UNIT_FIELD_FLAGS_2, flags); }
 
         bool HasUnitFlag3(UnitFlags3 flags) const { return HasFlag(UNIT_FIELD_FLAGS_3, flags); }
         void SetUnitFlag3(UnitFlags3 flags) { SetFlag(UNIT_FIELD_FLAGS_3, flags); }
         void RemoveUnitFlag3(UnitFlags3 flags) { RemoveFlag(UNIT_FIELD_FLAGS_3, flags); }
-        void ReplaceAllUnitFlags3(UnitFlags3 flags) { SetUInt32Value(UNIT_FIELD_FLAGS_3, flags); }
+        void ReplaceAllUnitFlags3(UnitFlags3 flags) { ToggleFlag(UNIT_FIELD_FLAGS_3, flags); }
 
         void SetCreatedBySpell(int32 spellId) { SetUInt32Value(UNIT_CREATED_BY_SPELL, spellId); }
 
@@ -970,7 +973,7 @@ class TC_GAME_API Unit : public WorldObject
         bool HasPvpFlag(UnitPVPStateFlags flags) const { return HasByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PVP_FLAG, flags); }
         void SetPvpFlag(UnitPVPStateFlags flags) {  SetByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PVP_FLAG, flags); }
         void RemovePvpFlag(UnitPVPStateFlags flags) { RemoveByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PVP_FLAG, flags); }
-        void ReplaceAllPvpFlags(UnitPVPStateFlags flags) { SetByteValue(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PVP_FLAG, flags); }
+        void ReplaceAllPvpFlags(UnitPVPStateFlags flags) { ToggleByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PVP_FLAG, flags); }
 
         bool IsInSanctuary() const { return HasPvpFlag(UNIT_BYTE2_FLAG_SANCTUARY); }
         bool IsPvP() const { return HasPvpFlag(UNIT_BYTE2_FLAG_PVP); }
@@ -981,7 +984,7 @@ class TC_GAME_API Unit : public WorldObject
         bool HasPetFlag(UnitPetFlag flags) const { return HasByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PET_FLAGS, flags); }
         void SetPetFlag(UnitPetFlag flags) { SetByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PET_FLAGS, flags); }
         void RemovePetFlag(UnitPetFlag flags) { RemoveByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PET_FLAGS, flags); }
-        void ReplaceAllPetFlags(UnitPetFlag flags) { SetByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PET_FLAGS, flags); }
+        void ReplaceAllPetFlags(UnitPetFlag flags) { ToggleByteFlag(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PET_FLAGS, flags); }
 
         uint32 GetCreatureType() const;
         uint32 GetCreatureTypeMask() const;
@@ -993,7 +996,7 @@ class TC_GAME_API Unit : public WorldObject
 
         void SetVisFlag(UnitVisFlags flags) { SetByteFlag(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_VIS_FLAG, flags); }
         void RemoveVisFlag(UnitVisFlags flags) { RemoveByteFlag(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_VIS_FLAG, flags); }
-        void ReplaceAllVisFlags(UnitVisFlags flags) { SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_VIS_FLAG, flags); }
+        void ReplaceAllVisFlags(UnitVisFlags flags) { ToggleByteFlag(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_VIS_FLAG, flags); }
 
         AnimTier GetAnimTier() const { return AnimTier(GetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER)); }
         void SetAnimTier(AnimTier animTier, bool notifyClient = true);
@@ -1081,13 +1084,13 @@ class TC_GAME_API Unit : public WorldObject
         bool HasNpcFlag(NPCFlags flags) const { return HasFlag(UNIT_NPC_FLAGS, flags); }
         void SetNpcFlag(NPCFlags flags) { SetUInt32Value(UNIT_NPC_FLAGS, flags); }
         void RemoveNpcFlag(NPCFlags flags) { RemoveFlag(UNIT_NPC_FLAGS, flags); }
-        void ReplaceAllNpcFlags(NPCFlags flags) { SetUInt32Value(UNIT_NPC_FLAGS, flags); }
+        void ReplaceAllNpcFlags(NPCFlags flags) { ToggleFlag(UNIT_NPC_FLAGS, flags); }
 
         NPCFlags2 GetNpcFlags2() const { return NPCFlags2(GetUInt32Value(UNIT_NPC_FLAGS + 1)); }
         bool HasNpcFlag2(NPCFlags2 flags) const { return HasFlag(UNIT_NPC_FLAGS + 1, flags); }
         void SetNpcFlag2(NPCFlags2 flags) { SetUInt32Value(UNIT_NPC_FLAGS + 1, flags); }
         void RemoveNpcFlag2(NPCFlags2 flags) { RemoveFlag(UNIT_NPC_FLAGS + 1, flags); }
-        void ReplaceAllNpcFlags2(NPCFlags2 flags) { SetUInt32Value(UNIT_NPC_FLAGS + 1, flags); }
+        void ReplaceAllNpcFlags2(NPCFlags2 flags) { ToggleFlag(UNIT_NPC_FLAGS + 1, flags); }
 
         bool IsVendor()         const { return HasNpcFlag(UNIT_NPC_FLAG_VENDOR); }
         bool IsTrainer()        const { return HasNpcFlag(UNIT_NPC_FLAG_TRAINER); }
