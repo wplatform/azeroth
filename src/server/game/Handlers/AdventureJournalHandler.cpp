@@ -1,7 +1,5 @@
 /*
- * Copyright (C) 2021 TrinityCore-Legion <https://gitlab.com/celestial-wow/trinitycore-legion/>
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,46 +22,46 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 
-
-void WorldSession::HandleAdventureJournalOpenQuest(WorldPackets::AdventureJournal::AdventureJournalOpenQuest& openAdventureJournalQuest)
+void WorldSession::HandleAdventureJournalOpenQuest(WorldPackets::AdventureJournal::AdventureJournalOpenQuest& openQuest)
 {
-    AdventureJournalEntry const* journalEntry = sAdventureJournalStore.LookupEntry(openAdventureJournalQuest.AdventureJournalEntry);
+    if (ChrClassUIDisplayEntry const* uiDisplay = sDB2Manager.GetUiDisplayForClass(Classes(_player->GetClass())))
+        if (!_player->MeetPlayerCondition(uiDisplay->AdvGuidePlayerConditionID))
+            return;
 
-    if (!journalEntry)
-    {
+    AdventureJournalEntry const* adventureJournal = sAdventureJournalStore.LookupEntry(openQuest.AdventureJournalID);
+    if (!adventureJournal)
         return;
-    }
 
-    if (!_player->MeetPlayerCondition(journalEntry->PlayerConditionID))
-    {
+    if (!_player->MeetPlayerCondition(adventureJournal->PlayerConditionID))
         return;
-    }
 
-    Quest const* quest = sObjectMgr->GetQuestTemplate(journalEntry->QuestID);
-
+    Quest const* quest = sObjectMgr->GetQuestTemplate(adventureJournal->QuestID);
     if (!quest)
-    {
         return;
-    }
+
     if (_player->CanTakeQuest(quest, true))
-    {
-        PlayerMenu menu(_player->GetSession());
-        menu.SendQuestGiverQuestDetails(quest, _player->GetGUID(), true, false);
-    }
+        _player->PlayerTalkClass->SendQuestGiverQuestDetails(quest, _player->GetGUID(), true, false);
 }
 
-void WorldSession::HandleAdventureJournalStartQuest(WorldPackets::AdventureJournal::AdventureJournalStartQuest& startAdventureJournalQuest)
+void WorldSession::HandleAdventureJournalUpdateSuggestions(WorldPackets::AdventureJournal::AdventureJournalUpdateSuggestions& updateSuggestions)
 {
-    Quest const* quest = sObjectMgr->GetQuestTemplate(startAdventureJournalQuest.QuestEntry);
+    if (ChrClassUIDisplayEntry const* uiDisplay = sDB2Manager.GetUiDisplayForClass(Classes(_player->GetClass())))
+        if (!_player->MeetPlayerCondition(uiDisplay->AdvGuidePlayerConditionID))
+            return;
 
-    if (!quest)
+    WorldPackets::AdventureJournal::AdventureJournalDataResponse response;
+    response.OnLevelUp = updateSuggestions.OnLevelUp;
+
+    for (AdventureJournalEntry const* adventureJournal : sAdventureJournalStore)
     {
-        return;
+        if (_player->MeetPlayerCondition(adventureJournal->PlayerConditionID))
+        {
+            WorldPackets::AdventureJournal::AdventureJournalEntry adventureJournalData;
+            adventureJournalData.AdventureJournalID = int32(adventureJournal->ID);
+            adventureJournalData.Priority = int32(adventureJournal->PriorityMax);
+            response.Entries.push_back(adventureJournalData);
+        }
     }
-    if (_player->hasQuest(startAdventureJournalQuest.QuestEntry))
-    {
-        return;
-    }
-    _player->AddQuest(quest, nullptr);
+
+    SendPacket(response.Write());
 }
-

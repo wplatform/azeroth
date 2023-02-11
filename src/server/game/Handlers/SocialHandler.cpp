@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,11 +17,13 @@
 
 #include "WorldSession.h"
 #include "AccountMgr.h"
+#include "CharacterCache.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "QueryCallback.h"
 #include "RBAC.h"
 #include "Realm.h"
 #include "SocialMgr.h"
@@ -31,7 +32,7 @@
 
 void WorldSession::HandleContactListOpcode(WorldPackets::Social::SendContactList& packet)
 {
-    TC_LOG_DEBUG("network", "WorldSession::HandleContactListOpcode: Flags: %u", packet.Flags);
+    TC_LOG_DEBUG("network", "WorldSession::HandleContactListOpcode: Flags: {}", packet.Flags);
     _player->GetSocial()->SendSocialList(_player, packet.Flags);
 }
 
@@ -40,66 +41,86 @@ void WorldSession::HandleAddFriendOpcode(WorldPackets::Social::AddFriend& packet
     if (!normalizePlayerName(packet.Name))
         return;
 
-    TC_LOG_DEBUG("network", "WorldSession::HandleAddFriendOpcode: %s asked to add friend: %s",
-        GetPlayerInfo().c_str(), packet.Name.c_str());
+    TC_LOG_DEBUG("network", "WorldSession::HandleAddFriendOpcode: {} asked to add friend: {}",
+        GetPlayerInfo(), packet.Name);
 
-    PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_GUID_RACE_ACC_BY_NAME);
-    stmt->setString(0, packet.Name);
-
-    _queryProcessor.AddQuery(CharacterDatabase.AsyncQuery(stmt)
-        .WithPreparedCallback(std::bind(&WorldSession::HandleAddFriendOpcodeCallBack, this, std::move(packet.Notes), std::placeholders::_1)));
-}
-
-void WorldSession::HandleAddFriendOpcodeCallBack(std::string const& friendNote, PreparedQueryResult result)
-{
-    if (!GetPlayer())
-        return;
-
-    ObjectGuid friendGuid;
-    FriendsResult friendResult = FRIEND_NOT_FOUND;
-
-    if (result)
+    CharacterCacheEntry const* friendCharacterInfo = sCharacterCache->GetCharacterCacheByName(packet.Name);
+    if (!friendCharacterInfo)
     {
-        Field* fields = result->Fetch();
-
-        if (ObjectGuid::LowType lowGuid = fields[0].GetUInt64())
-        {
-            friendGuid = ObjectGuid::Create<HighGuid::Player>(lowGuid);
-            uint32 team = Player::TeamForRace(fields[1].GetUInt8());
-            uint32 friendAccountId = fields[2].GetUInt32();
-
-            if (HasPermission(rbac::RBAC_PERM_ALLOW_GM_FRIEND) || AccountMgr::IsPlayerAccount(AccountMgr::GetSecurity(friendAccountId, realm.Id.Realm)))
-            {
-                if (friendGuid == GetPlayer()->GetGUID())
-                    friendResult = FRIEND_SELF;
-                else if (GetPlayer()->GetTeam() != team && !HasPermission(rbac::RBAC_PERM_TWO_SIDE_ADD_FRIEND))
-                    friendResult = FRIEND_ENEMY;
-                else if (GetPlayer()->GetSocial()->HasFriend(friendGuid))
-                    friendResult = FRIEND_ALREADY;
-                else
-                {
-                    Player* playerFriend = ObjectAccessor::FindPlayer(friendGuid);
-                    if (playerFriend && playerFriend->IsVisibleGloballyFor(GetPlayer()))
-                        friendResult = FRIEND_ADDED_ONLINE;
-                    else
-                        friendResult = FRIEND_ADDED_OFFLINE;
-
-                    if (GetPlayer()->GetSocial()->AddToSocialList(friendGuid, SOCIAL_FLAG_FRIEND))
-                        GetPlayer()->GetSocial()->SetFriendNote(friendGuid, friendNote);
-                    else
-                        friendResult = FRIEND_LIST_FULL;
-                }
-            }
-        }
+        sSocialMgr->SendFriendStatus(GetPlayer(), FRIEND_NOT_FOUND, ObjectGuid::Empty);
+        return;
     }
 
-    sSocialMgr->SendFriendStatus(GetPlayer(), friendResult, friendGuid);
+    auto processFriendRequest = [this,
+        playerGuid = _player->GetGUID(),
+        friendGuid = friendCharacterInfo->Guid,
+        friendAccountGuid = ObjectGuid::Create<HighGuid::WowAccount>(friendCharacterInfo->AccountId),
+        team = Player::TeamForRace(friendCharacterInfo->Race),
+        friendNote = std::move(packet.Notes)]()
+    {
+        if (playerGuid.GetCounter() != m_GUIDLow)
+            return; // not the player initiating request, do nothing
+
+        FriendsResult friendResult = FRIEND_NOT_FOUND;
+        if (friendGuid == GetPlayer()->GetGUID())
+            friendResult = FRIEND_SELF;
+        else if (GetPlayer()->GetTeam() != team && !HasPermission(rbac::RBAC_PERM_TWO_SIDE_ADD_FRIEND))
+            friendResult = FRIEND_ENEMY;
+        else if (GetPlayer()->GetSocial()->HasFriend(friendGuid))
+            friendResult = FRIEND_ALREADY;
+        else
+        {
+            Player* pFriend = ObjectAccessor::FindPlayer(friendGuid);
+            if (pFriend && pFriend->IsVisibleGloballyFor(GetPlayer()))
+                friendResult = FRIEND_ADDED_ONLINE;
+            else
+                friendResult = FRIEND_ADDED_OFFLINE;
+            if (GetPlayer()->GetSocial()->AddToSocialList(friendGuid, friendAccountGuid, SOCIAL_FLAG_FRIEND))
+                GetPlayer()->GetSocial()->SetFriendNote(friendGuid, friendNote);
+            else
+                friendResult = FRIEND_LIST_FULL;
+        }
+
+        sSocialMgr->SendFriendStatus(GetPlayer(), friendResult, friendGuid);
+    };
+
+    if (HasPermission(rbac::RBAC_PERM_ALLOW_GM_FRIEND))
+    {
+        processFriendRequest();
+        return;
+    }
+
+    // First try looking up friend candidate security from online object
+    if (Player* friendPlayer = ObjectAccessor::FindPlayer(friendCharacterInfo->Guid))
+    {
+        if (!AccountMgr::IsPlayerAccount(friendPlayer->GetSession()->GetSecurity()))
+        {
+            sSocialMgr->SendFriendStatus(GetPlayer(), FRIEND_NOT_FOUND, ObjectGuid::Empty);
+            return;
+        }
+
+        processFriendRequest();
+        return;
+    }
+
+    // When not found, consult database
+    GetQueryProcessor().AddCallback(AccountMgr::GetSecurityAsync(friendCharacterInfo->AccountId, realm.Id.Realm,
+        [this, continuation = std::move(processFriendRequest)](uint32 friendSecurity)
+    {
+        if (!AccountMgr::IsPlayerAccount(friendSecurity))
+        {
+            sSocialMgr->SendFriendStatus(GetPlayer(), FRIEND_NOT_FOUND, ObjectGuid::Empty);
+            return;
+        }
+
+        continuation();
+    }));
 }
 
 void WorldSession::HandleDelFriendOpcode(WorldPackets::Social::DelFriend& packet)
 {
     /// @todo: handle VirtualRealmAddress
-    TC_LOG_DEBUG("network", "WorldSession::HandleDelFriendOpcode: %s", packet.Player.Guid.ToString().c_str());
+    TC_LOG_DEBUG("network", "WorldSession::HandleDelFriendOpcode: {}", packet.Player.Guid.ToString());
 
     GetPlayer()->GetSocial()->RemoveFromSocialList(packet.Player.Guid, SOCIAL_FLAG_FRIEND);
 
@@ -111,43 +132,27 @@ void WorldSession::HandleAddIgnoreOpcode(WorldPackets::Social::AddIgnore& packet
     if (!normalizePlayerName(packet.Name))
         return;
 
-    TC_LOG_DEBUG("network", "WorldSession::HandleAddIgnoreOpcode: %s asked to Ignore: %s",
-        GetPlayerInfo().c_str(), packet.Name.c_str());
-
-    PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_GUID_BY_NAME);
-    stmt->setString(0, packet.Name);
-
-    _queryProcessor.AddQuery(CharacterDatabase.AsyncQuery(stmt).WithPreparedCallback(std::bind(&WorldSession::HandleAddIgnoreOpcodeCallBack, this, std::placeholders::_1)));
-}
-
-void WorldSession::HandleAddIgnoreOpcodeCallBack(PreparedQueryResult result)
-{
-    if (!GetPlayer())
-        return;
+    TC_LOG_DEBUG("network", "WorldSession::HandleAddIgnoreOpcode: {} asked to Ignore: {}",
+        GetPlayer()->GetName(), packet.Name);
 
     ObjectGuid ignoreGuid;
     FriendsResult ignoreResult = FRIEND_IGNORE_NOT_FOUND;
 
-    if (result)
+    if (CharacterCacheEntry const* characterInfo = sCharacterCache->GetCharacterCacheByName(packet.Name))
     {
-        Field* fields = result->Fetch();
-
-        if (ObjectGuid::LowType lowGuid = fields[0].GetUInt64())
+        ignoreGuid = characterInfo->Guid;
+        ObjectGuid ignoreAccountGuid = ObjectGuid::Create<HighGuid::WowAccount>(characterInfo->AccountId);
+        if (ignoreGuid == GetPlayer()->GetGUID())              //not add yourself
+            ignoreResult = FRIEND_IGNORE_SELF;
+        else if (GetPlayer()->GetSocial()->HasIgnore(ignoreGuid, ignoreAccountGuid))
+            ignoreResult = FRIEND_IGNORE_ALREADY;
+        else
         {
-            ignoreGuid = ObjectGuid::Create<HighGuid::Player>(lowGuid);
+            ignoreResult = FRIEND_IGNORE_ADDED;
 
-            if (ignoreGuid == GetPlayer()->GetGUID())              //not add yourself
-                ignoreResult = FRIEND_IGNORE_SELF;
-            else if (GetPlayer()->GetSocial()->HasIgnore(ignoreGuid))
-                ignoreResult = FRIEND_IGNORE_ALREADY;
-            else
-            {
-                ignoreResult = FRIEND_IGNORE_ADDED;
-
-                // ignore list full
-                if (!GetPlayer()->GetSocial()->AddToSocialList(ignoreGuid, SOCIAL_FLAG_IGNORED))
-                    ignoreResult = FRIEND_IGNORE_FULL;
-            }
+            // ignore list full
+            if (!GetPlayer()->GetSocial()->AddToSocialList(ignoreGuid, ignoreAccountGuid, SOCIAL_FLAG_IGNORED))
+                ignoreResult = FRIEND_IGNORE_FULL;
         }
     }
 
@@ -157,7 +162,7 @@ void WorldSession::HandleAddIgnoreOpcodeCallBack(PreparedQueryResult result)
 void WorldSession::HandleDelIgnoreOpcode(WorldPackets::Social::DelIgnore& packet)
 {
     /// @todo: handle VirtualRealmAddress
-    TC_LOG_DEBUG("network", "WorldSession::HandleDelIgnoreOpcode: %s", packet.Player.Guid.ToString().c_str());
+    TC_LOG_DEBUG("network", "WorldSession::HandleDelIgnoreOpcode: {}", packet.Player.Guid.ToString());
 
     GetPlayer()->GetSocial()->RemoveFromSocialList(packet.Player.Guid, SOCIAL_FLAG_IGNORED);
 
@@ -167,6 +172,13 @@ void WorldSession::HandleDelIgnoreOpcode(WorldPackets::Social::DelIgnore& packet
 void WorldSession::HandleSetContactNotesOpcode(WorldPackets::Social::SetContactNotes& packet)
 {
     /// @todo: handle VirtualRealmAddress
-    TC_LOG_DEBUG("network", "WorldSession::HandleSetContactNotesOpcode: Contact: %s, Notes: %s", packet.Player.Guid.ToString().c_str(), packet.Notes.c_str());
+    TC_LOG_DEBUG("network", "WorldSession::HandleSetContactNotesOpcode: Contact: {}, Notes: {}", packet.Player.Guid.ToString(), packet.Notes);
     _player->GetSocial()->SetFriendNote(packet.Player.Guid, packet.Notes);
+}
+
+void WorldSession::HandleSocialContractRequest(WorldPackets::Social::SocialContractRequest& /*socialContractRequest*/)
+{
+    WorldPackets::Social::SocialContractRequestResponse response;
+    response.ShowSocialContract = false;
+    SendPacket(response.Write());
 }
