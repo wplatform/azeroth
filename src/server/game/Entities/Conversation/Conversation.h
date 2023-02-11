@@ -32,26 +32,6 @@ class TC_GAME_API Conversation : public WorldObject, public GridObject<Conversat
         Conversation();
         ~Conversation();
 
-    protected:
-        void BuildValuesCreate(ByteBuffer* data, Player const* target) const override;
-        void BuildValuesUpdate(ByteBuffer* data, Player const* target) const override;
-        void ClearUpdateMask(bool remove) override;
-
-    public:
-        void BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::Mask const& requestedObjectMask,
-            UF::ConversationData::Mask const& requestedConversationMask, Player const* target) const;
-
-        struct ValuesUpdateForPlayerWithMaskSender // sender compatible with MessageDistDeliverer
-        {
-            explicit ValuesUpdateForPlayerWithMaskSender(Conversation const* owner) : Owner(owner) { }
-
-            Conversation const* Owner;
-            UF::ObjectData::Base ObjectMask;
-            UF::ConversationData::Base ConversationMask;
-
-            void operator()(Player const* player) const;
-        };
-
         void AddToWorld() override;
         void RemoveFromWorld() override;
 
@@ -80,8 +60,6 @@ class TC_GAME_API Conversation : public WorldObject, public GridObject<Conversat
         Milliseconds GetLastLineEndTime(LocaleConstant locale) const;
 
         uint32 GetScriptId() const;
-
-        UF::UpdateField<UF::ConversationData, 0, TYPEID_CONVERSATION> m_conversationData;
 
     private:
         Position _stationaryPosition;
