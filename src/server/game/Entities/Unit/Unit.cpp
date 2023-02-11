@@ -2297,21 +2297,21 @@ uint32 Unit::CalculateDamage(WeaponAttackType attType, bool normalized, bool add
         switch (attType)
         {
             case RANGED_ATTACK:
-                minDamage = m_unitData->MinRangedDamage;
-                maxDamage = m_unitData->MaxRangedDamage;
+                minDamage = GetFloatValue(UNIT_FIELD_MINRANGEDDAMAGE);
+                maxDamage = GetFloatValue(UNIT_FIELD_MAXRANGEDDAMAGE);
                 break;
             case BASE_ATTACK:
-                minDamage = m_unitData->MinDamage;
-                maxDamage = m_unitData->MaxDamage;
+                minDamage = GetFloatValue(UNIT_FIELD_MINDAMAGE);
+                maxDamage = GetFloatValue(UNIT_FIELD_MAXDAMAGE);
                 if (IsInFeralForm())
                 {
-                    minDamage += m_unitData->MinOffHandDamage;
-                    maxDamage += m_unitData->MaxOffHandDamage;
+                    minDamage += GetFloatValue(UNIT_FIELD_MINOFFHANDDAMAGE);
+                    maxDamage += GetFloatValue(UNIT_FIELD_MAXOFFHANDDAMAGE);
                 }
                 break;
             case OFF_ATTACK:
-                minDamage = m_unitData->MinOffHandDamage;
-                maxDamage = m_unitData->MaxOffHandDamage;
+                minDamage = GetFloatValue(UNIT_FIELD_MINOFFHANDDAMAGE);
+                maxDamage = GetFloatValue(UNIT_FIELD_MAXOFFHANDDAMAGE);
                 break;
             default:
                 break;
@@ -3278,8 +3278,10 @@ void Unit::_ApplyAura(AuraApplication* aurApp, uint32 effMask)
     {
         uint32 aStateMask = (1 << (aState - 1));
         // force update so the new caster registers it
-        if ((aStateMask & PER_CASTER_AURA_STATE_MASK) && *m_unitData->AuraState & aStateMask)
-            ForceUpdateFieldChange(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::AuraState));
+        if ((aStateMask & PER_CASTER_AURA_STATE_MASK) && HasFlag(UNIT_FIELD_AURASTATE, aStateMask))
+
+            //TODO ForceUpdateFieldChange(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::AuraState));
+
         else
             ModifyAuraState(aState, true);
     }
@@ -3388,7 +3390,7 @@ void Unit::_UnapplyAura(AuraApplicationMap::iterator& i, AuraRemoveMode removeMo
             // update for casters, some shouldn't 'see' the aura state
             uint32 aStateMask = (1 << (auraState - 1));
             if ((aStateMask & PER_CASTER_AURA_STATE_MASK) != 0)
-                ForceUpdateFieldChange(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::AuraState));
+                // TODO ForceUpdateFieldChange(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::AuraState));
         }
     }
 
@@ -5002,8 +5004,8 @@ void Unit::UpdateStatBuffMod(Stats stat)
 
 void Unit::UpdateStatBuffModForClient(Stats stat)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::StatPosBuff, stat), int32(m_floatStatPosBuff[stat]));
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::StatNegBuff, stat), int32(m_floatStatNegBuff[stat]));
+    ApplyPercentModFloatValue(UNIT_FIELD_POSSTAT + stat, m_floatStatPosBuff[stat]), true);
+    ApplyPercentModFloatValue(UNIT_FIELD_NEGSTAT + stat, m_floatStatNegBuff[stat]), true);
 }
 
 void Unit::_RegisterDynObject(DynamicObject* dynObj)
@@ -5384,7 +5386,7 @@ void Unit::SetPowerType(Powers new_powertype, bool sendUpdate/* = true*/)
     if (GetPowerType() == new_powertype)
         return;
 
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::DisplayPower), new_powertype);
+    SetUInt32Value(UNIT_FIELD_DISPLAY_POWER, new_powertype);
 
     if (!sendUpdate)
         return;
@@ -5476,7 +5478,7 @@ void Unit::UpdateDisplayPower()
 
 void Unit::SetSheath(SheathState sheathed)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::SheatheState), sheathed);
+    SetByteValue(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_SHEATH_STATE, sheathed);
     if (sheathed == SHEATH_STATE_UNARMED)
         RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Sheathing);
 }
@@ -5733,9 +5735,9 @@ void Unit::ModifyAuraState(AuraStateType flag, bool apply)
     uint32 mask = 1 << (flag - 1);
     if (apply)
     {
-        if (!(*m_unitData->AuraState & mask))
+        if (!HasFlag(UNIT_FIELD_AURASTATE, mask))
         {
-            SetUpdateFieldFlagValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::AuraState), mask);
+            SetFlag(UNIT_FIELD_AURASTATE, mask);
             if (GetTypeId() == TYPEID_PLAYER)
             {
                 PlayerSpellMap const& sp_list = ToPlayer()->GetSpellMap();
@@ -5767,9 +5769,9 @@ void Unit::ModifyAuraState(AuraStateType flag, bool apply)
     }
     else
     {
-        if (*m_unitData->AuraState & mask)
+        if (HasFlag(UNIT_FIELD_AURASTATE, mask))
         {
-            RemoveUpdateFieldFlagValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::AuraState), mask);
+            RemoveFlag(UNIT_FIELD_AURASTATE, mask);
 
             Unit::AuraApplicationMap& tAuras = GetAppliedAuras();
             for (Unit::AuraApplicationMap::iterator itr = tAuras.begin(); itr != tAuras.end();)
@@ -6093,7 +6095,7 @@ void Unit::SetCharm(Unit* charm, bool apply)
         {
             ASSERT(GetCharmedGUID().IsEmpty(),
                 "Player %s is trying to charm unit %u, but it already has a charmed unit %s", GetName().c_str(), charm->GetEntry(), GetCharmedGUID().ToString().c_str());
-            SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Charm), charm->GetGUID());
+            SetGuidValue(UNIT_FIELD_CHARM, charm->GetGUID());
             m_charmed = charm;
 
             charm->m_ControlledByPlayer = true;
@@ -6108,7 +6110,7 @@ void Unit::SetCharm(Unit* charm, bool apply)
 
         ASSERT(charm->GetCharmerGUID().IsEmpty(),
             "Unit %u is being charmed, but it already has a charmer %s", charm->GetEntry(), charm->GetCharmerGUID().ToString().c_str());
-        charm->SetUpdateFieldValue(charm->m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::CharmedBy), GetGUID());
+        charm->SetGuidValue(UNIT_FIELD_CHARMEDBY, GetGUID());
         charm->m_charmer = this;
 
         _isWalkingBeforeCharm = charm->IsWalking();
@@ -6125,13 +6127,13 @@ void Unit::SetCharm(Unit* charm, bool apply)
         {
             ASSERT(GetCharmedGUID() == charm->GetGUID(),
                 "Player %s is trying to uncharm unit %u, but it has another charmed unit %s", GetName().c_str(), charm->GetEntry(), GetCharmedGUID().ToString().c_str());
-            SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Charm), ObjectGuid::Empty);
+            RemoveGuidValue(UNIT_FIELD_CHARM, charm->GetGUID());
             m_charmed = nullptr;
         }
 
         ASSERT(charm->GetCharmerGUID() == GetGUID(),
             "Unit %u is being uncharmed, but it has another charmer %s", charm->GetEntry(), charm->GetCharmerGUID().ToString().c_str());
-        charm->SetUpdateFieldValue(charm->m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::CharmedBy), ObjectGuid::Empty);
+        charm->RemoveGuidValue(UNIT_FIELD_CHARMEDBY, GetGUID());
         charm->m_charmer = nullptr;
 
         if (charm->GetTypeId() == TYPEID_PLAYER)
@@ -8637,7 +8639,7 @@ uint32 Unit::GetCreatureTypeMask() const
 
 void Unit::SetShapeshiftForm(ShapeshiftForm form)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ShapeshiftForm), form);
+    SetByteValue(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_SHAPESHIFT_FORM, form);
 }
 
 bool Unit::IsInFeralForm() const
@@ -9052,7 +9054,7 @@ bool Unit::CanFreeMove() const
 
 void Unit::SetLevel(uint8 lvl, bool sendUpdate/* = true*/)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Level), lvl);
+    SetUInt32Value(UNIT_FIELD_LEVEL, lvl);
 
     if (!sendUpdate)
         return;
@@ -9081,7 +9083,7 @@ void Unit::SetHealth(uint64 val)
     }
 
     uint64 oldVal = GetHealth();
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Health), val);
+    SetUInt64Value(UNIT_FIELD_HEALTH, val);
 
     TriggerOnHealthChangeAuras(oldVal, val);
 
@@ -9104,7 +9106,7 @@ void Unit::SetMaxHealth(uint64 val)
         val = 1;
 
     uint64 health = GetHealth();
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::MaxHealth), val);
+    SetUInt64Value(UNIT_FIELD_MAXHEALTH, val);
 
     // group update
     if (GetTypeId() == TYPEID_PLAYER)
@@ -9128,7 +9130,7 @@ int32 Unit::GetPower(Powers power) const
     if (powerIndex == MAX_POWERS || powerIndex >= MAX_POWERS_PER_CLASS)
         return 0;
 
-    return m_unitData->Power[powerIndex];
+    return GetUInt32Value(UNIT_FIELD_POWER + powerIndex);
 }
 
 int32 Unit::GetMaxPower(Powers power) const
@@ -9137,7 +9139,7 @@ int32 Unit::GetMaxPower(Powers power) const
     if (powerIndex == MAX_POWERS || powerIndex >= MAX_POWERS_PER_CLASS)
         return 0;
 
-    return m_unitData->MaxPower[powerIndex];
+    return GetInt32Value(UNIT_FIELD_MAXPOWER + powerIndex);
 }
 
 void Unit::SetPower(Powers power, int32 val, bool withPowerUpdate /*= true*/)
@@ -9150,8 +9152,8 @@ void Unit::SetPower(Powers power, int32 val, bool withPowerUpdate /*= true*/)
     if (maxPower < val)
         val = maxPower;
 
-    int32 oldPower = m_unitData->Power[powerIndex];
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Power, powerIndex), val);
+    int32 oldPower = GetInt32Value(UNIT_FIELD_POWER + powerIndex);
+    SetInt32Value(UNIT_FIELD_POWER + powerIndex, val);
 
     if (IsInWorld() && withPowerUpdate)
     {
@@ -9184,7 +9186,7 @@ void Unit::SetMaxPower(Powers power, int32 val)
         return;
 
     int32 cur_power = GetPower(power);
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::MaxPower, powerIndex), val);
+    SetInt32Value(UNIT_FIELD_MAXPOWER + powerIndex, val);
 
     // group update
     if (GetTypeId() == TYPEID_PLAYER)
@@ -10074,7 +10076,7 @@ bool Unit::IsStandState() const
 
 void Unit::SetStandState(UnitStandStateType state, uint32 animKitID /* = 0*/)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::StandState), state);
+    SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_STAND_STATE, uint8(state));
 
     if (IsStandState())
        RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::Standing);
@@ -10088,8 +10090,7 @@ void Unit::SetStandState(UnitStandStateType state, uint32 animKitID /* = 0*/)
 
 void Unit::SetAnimTier(AnimTier animTier, bool notifyClient /*= true*/)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::AnimTier), AsUnderlyingType(animTier));
-
+    SetByteFlag(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, AsUnderlyingType(animTier));
     if (notifyClient)
     {
         WorldPackets::Misc::SetAnimTier setAnimTier;
@@ -10122,8 +10123,8 @@ void Unit::RecalculateObjectScale()
 
 void Unit::SetDisplayId(uint32 modelId, float displayScale /*= 1.f*/)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::DisplayID), modelId);
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::DisplayScale), displayScale);
+    SetUInt32Value(UNIT_FIELD_DISPLAYID, modelId);
+    //SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::DisplayScale), displayScale);
 
     // Set Gender by modelId
     if (CreatureModelInfo const* minfo = sObjectMgr->GetCreatureModelInfo(modelId))
@@ -10317,19 +10318,14 @@ void Unit::UpdateAttackTimeField(WeaponAttackType att)
     {
         case BASE_ATTACK:
         case OFF_ATTACK:
-            SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::AttackRoundBaseTime, att), uint32(m_baseAttackSpeed[att] * m_modAttackSpeedPct[att]));
+            SetUInt32Value(UNIT_FIELD_BASEATTACKTIME + att, uint32(m_baseAttackSpeed[att] * m_modAttackSpeedPct[att]));
             break;
         case RANGED_ATTACK:
-            SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::RangedAttackRoundBaseTime), uint32(m_baseAttackSpeed[RANGED_ATTACK] * m_modAttackSpeedPct[RANGED_ATTACK]));
+            SetUInt32Value(UNIT_FIELD_BASEATTACKTIME + att, uint32(m_baseAttackSpeed[RANGED_ATTACK] * m_modAttackSpeedPct[RANGED_ATTACK]));
             break;
         default:
             break;;
     }
-}
-
-void ApplyPercentModFloatVar(float& var, float val, bool apply)
-{
-    var *= (apply ? (100.0f + val) / 100.0f : 100.0f / (100.0f + val));
 }
 
 void Unit::ApplyAttackTimePercentMod(WeaponAttackType att, float val, bool apply)
@@ -10337,21 +10333,17 @@ void Unit::ApplyAttackTimePercentMod(WeaponAttackType att, float val, bool apply
     float remainingTimePct = float(m_attackTimer[att]) / (m_baseAttackSpeed[att] * m_modAttackSpeedPct[att]);
     if (val > 0.f)
     {
-        ApplyPercentModFloatVar(m_modAttackSpeedPct[att], val, !apply);
-
         if (att == BASE_ATTACK)
-            ApplyPercentModUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModHaste), val, !apply);
+            ApplyPercentModFloatValue(UNIT_FIELD_MOD_HASTE, val, !apply);
         else if (att == RANGED_ATTACK)
-            ApplyPercentModUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModRangedHaste), val, !apply);
+            ApplyPercentModFloatValue(UNIT_FIELD_MOD_RANGED_HASTE, val, !apply);
     }
     else
     {
-        ApplyPercentModFloatVar(m_modAttackSpeedPct[att], -val, apply);
-
         if (att == BASE_ATTACK)
-            ApplyPercentModUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModHaste), -val, apply);
+            ApplyPercentModFloatValue(UNIT_FIELD_MOD_HASTE, -val, apply);
         else if (att == RANGED_ATTACK)
-            ApplyPercentModUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModRangedHaste), -val, apply);
+            ApplyPercentModFloatValue(UNIT_FIELD_MOD_RANGED_HASTE, -val, apply);
     }
 
     UpdateAttackTimeField(att);
@@ -10362,15 +10354,15 @@ void Unit::ApplyCastTimePercentMod(float val, bool apply)
 {
     if (val > 0.f)
     {
-        ApplyPercentModUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModCastingSpeed), val, !apply);
-        ApplyPercentModUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModSpellHaste), val, !apply);
-        ApplyPercentModUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModHasteRegen), val, !apply);
+        ApplyPercentModFloatValue(UNIT_MOD_CAST_SPEED, val, !apply);
+        ApplyPercentModFloatValue(UNIT_MOD_CAST_HASTE, val, !apply);
+        ApplyPercentModFloatValue(UNIT_FIELD_MOD_HASTE_REGEN, val, !apply);
     }
     else
     {
-        ApplyPercentModUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModCastingSpeed), -val, apply);
-        ApplyPercentModUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModSpellHaste), -val, apply);
-        ApplyPercentModUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ModHasteRegen), -val, apply);
+        ApplyPercentModFloatValue(UNIT_MOD_CAST_SPEED, -val, apply);
+        ApplyPercentModFloatValue(UNIT_MOD_CAST_HASTE, -val, apply);
+        ApplyPercentModFloatValue(UNIT_FIELD_MOD_HASTE_REGEN, -val, apply);
     }
 }
 
@@ -13515,10 +13507,9 @@ void Unit::SetVirtualItem(uint32 slot, uint32 itemId, uint16 appearanceModId /*=
     if (slot >= MAX_EQUIPMENT_ITEMS)
         return;
 
-    auto virtualItemField = m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::VirtualItems, slot);
-    SetUpdateFieldValue(virtualItemField.ModifyValue(&UF::VisibleItem::ItemID), itemId);
-    SetUpdateFieldValue(virtualItemField.ModifyValue(&UF::VisibleItem::ItemAppearanceModID), appearanceModId);
-    SetUpdateFieldValue(virtualItemField.ModifyValue(&UF::VisibleItem::ItemVisual), itemVisual);
+    SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot * 2, itemId);
+    SetUInt16Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot * 2 + 1, 0, appearanceModId);
+    SetUInt16Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot * 2 + 1, 1, itemVisual);
 }
 
 void Unit::Talk(uint32 textId, ChatMsg msgType, float textRange, WorldObject const* target)
