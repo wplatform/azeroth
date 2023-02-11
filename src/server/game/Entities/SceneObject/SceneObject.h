@@ -35,26 +35,6 @@ public:
     SceneObject();
     ~SceneObject();
 
-protected:
-    void BuildValuesCreate(ByteBuffer* data, Player const* target) const override;
-    void BuildValuesUpdate(ByteBuffer* data, Player const* target) const override;
-    void ClearUpdateMask(bool remove) override;
-
-public:
-    void BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::Mask const& requestedObjectMask,
-        UF::SceneObjectData::Mask const& requestedSceneObjectMask, Player const* target) const;
-
-    struct ValuesUpdateForPlayerWithMaskSender // sender compatible with MessageDistDeliverer
-    {
-        explicit ValuesUpdateForPlayerWithMaskSender(SceneObject const* owner) : Owner(owner) { }
-
-        SceneObject const* Owner;
-        UF::ObjectData::Base ObjectMask;
-        UF::SceneObjectData::Base SceneObjectMask;
-
-        void operator()(Player const* player) const;
-    };
-
     void AddToWorld() override;
     void RemoveFromWorld() override;
 
@@ -65,7 +45,7 @@ public:
     bool Create(ObjectGuid::LowType lowGuid, SceneType type, uint32 sceneId, uint32 scriptPackageId, Map* map, Unit* creator,
         Position const& pos, ObjectGuid privateObjectOwner);
 
-    ObjectGuid GetOwnerGUID() const override { return *m_sceneObjectData->CreatedBy; }
+    ObjectGuid GetOwnerGUID() const override { return GetGuidValue(SCENEOBJECT_FIELD_CREATEDBY); }
     uint32 GetFaction() const override { return 0; }
 
     float GetStationaryX() const override { return _stationaryPosition.GetPositionX(); }
@@ -75,8 +55,6 @@ public:
     void RelocateStationaryPosition(Position const& pos) { _stationaryPosition.Relocate(pos); }
 
     void SetCreatedBySpellCast(ObjectGuid castId) { _createdBySpellCast = castId; }
-
-    UF::UpdateField<UF::SceneObjectData, 0, TYPEID_SCENEOBJECT> m_sceneObjectData;
 
 private:
     bool ShouldBeRemoved() const;

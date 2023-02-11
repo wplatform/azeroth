@@ -31,8 +31,10 @@ SceneObject::SceneObject() : WorldObject(false)
     m_objectType |= TYPEMASK_SCENEOBJECT;
     m_objectTypeId = TYPEID_SCENEOBJECT;
 
-    m_updateFlag.Stationary = true;
-    m_updateFlag.SceneObject = true;
+    m_updateFlag = UPDATEFLAG_SCENEOBJECT;
+
+    m_valuesCount = SCENEOBJECT_END;
+    _dynamicValuesCount = SCENEOBJECT_DYNAMIC_END;
 }
 
 SceneObject::~SceneObject() = default;
@@ -125,83 +127,13 @@ bool SceneObject::Create(ObjectGuid::LowType lowGuid, SceneType type, uint32 sce
     SetEntry(scriptPackageId);
     SetObjectScale(1.0f);
 
-    SetUpdateFieldValue(m_values.ModifyValue(&SceneObject::m_sceneObjectData).ModifyValue(&UF::SceneObjectData::ScriptPackageID), scriptPackageId);
-    SetUpdateFieldValue(m_values.ModifyValue(&SceneObject::m_sceneObjectData).ModifyValue(&UF::SceneObjectData::RndSeedVal), GameTime::GetGameTimeMS());
-    SetUpdateFieldValue(m_values.ModifyValue(&SceneObject::m_sceneObjectData).ModifyValue(&UF::SceneObjectData::CreatedBy), creator->GetGUID());
-    SetUpdateFieldValue(m_values.ModifyValue(&SceneObject::m_sceneObjectData).ModifyValue(&UF::SceneObjectData::SceneType), AsUnderlyingType(type));
+    SetUInt32Value(SCENEOBJECT_FIELD_SCRIPT_PACKAGE_ID, scriptPackageId);
+    SetUInt32Value(SCENEOBJECT_FIELD_RND_SEED_VAL, GameTime::GetGameTimeMS());
+    SetGuidValue(SCENEOBJECT_FIELD_CREATEDBY, creator->GetGUID());
+    SetUInt32Value(SCENEOBJECT_FIELD_SCENE_TYPE, AsUnderlyingType(type));
 
     if (!GetMap()->AddToMap(this))
         return false;
 
     return true;
-}
-
-void SceneObject::BuildValuesCreate(ByteBuffer* data, Player const* target) const
-{
-    UF::UpdateFieldFlag flags = GetUpdateFieldFlagsFor(target);
-    std::size_t sizePos = data->wpos();
-    *data << uint32(0);
-    *data << uint8(flags);
-    m_objectData->WriteCreate(*data, flags, this, target);
-    m_sceneObjectData->WriteCreate(*data, flags, this, target);
-    data->put<uint32>(sizePos, data->wpos() - sizePos - 4);
-}
-
-void SceneObject::BuildValuesUpdate(ByteBuffer* data, Player const* target) const
-{
-    UF::UpdateFieldFlag flags = GetUpdateFieldFlagsFor(target);
-    std::size_t sizePos = data->wpos();
-    *data << uint32(0);
-    *data << uint32(m_values.GetChangedObjectTypeMask());
-
-    if (m_values.HasChanged(TYPEID_OBJECT))
-        m_objectData->WriteUpdate(*data, flags, this, target);
-
-    if (m_values.HasChanged(TYPEID_SCENEOBJECT))
-        m_sceneObjectData->WriteUpdate(*data, flags, this, target);
-
-    data->put<uint32>(sizePos, data->wpos() - sizePos - 4);
-}
-
-void SceneObject::BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::Mask const& requestedObjectMask,
-    UF::SceneObjectData::Mask const& requestedSceneObjectMask, Player const* target) const
-{
-    UpdateMask<NUM_CLIENT_OBJECT_TYPES> valuesMask;
-    if (requestedObjectMask.IsAnySet())
-        valuesMask.Set(TYPEID_OBJECT);
-
-    if (requestedSceneObjectMask.IsAnySet())
-        valuesMask.Set(TYPEID_SCENEOBJECT);
-
-    ByteBuffer& buffer = PrepareValuesUpdateBuffer(data);
-    std::size_t sizePos = buffer.wpos();
-    buffer << uint32(0);
-    buffer << uint32(valuesMask.GetBlock(0));
-
-    if (valuesMask[TYPEID_OBJECT])
-        m_objectData->WriteUpdate(buffer, requestedObjectMask, true, this, target);
-
-    if (valuesMask[TYPEID_SCENEOBJECT])
-        m_sceneObjectData->WriteUpdate(buffer, requestedSceneObjectMask, true, this, target);
-
-    buffer.put<uint32>(sizePos, buffer.wpos() - sizePos - 4);
-
-    data->AddUpdateBlock();
-}
-
-void SceneObject::ValuesUpdateForPlayerWithMaskSender::operator()(Player const* player) const
-{
-    UpdateData udata(Owner->GetMapId());
-    WorldPacket packet;
-
-    Owner->BuildValuesUpdateForPlayerWithMask(&udata, ObjectMask.GetChangesMask(), SceneObjectMask.GetChangesMask(), player);
-
-    udata.BuildPacket(&packet);
-    player->SendDirectMessage(&packet);
-}
-
-void SceneObject::ClearUpdateMask(bool remove)
-{
-    m_values.ClearChangesMask(&SceneObject::m_sceneObjectData);
-    Object::ClearUpdateMask(remove);
 }
