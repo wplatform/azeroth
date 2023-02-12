@@ -1728,6 +1728,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         static bool IsValidGender(uint8 Gender) { return Gender <= GENDER_FEMALE; }
         static bool IsValidClass(uint8 Class) { return ((1 << (Class - 1)) & CLASSMASK_ALL_PLAYABLE) != 0; }
         static bool IsValidRace(uint8 Race) { return Trinity::RaceMask<uint64>{ RACEMASK_ALL_PLAYABLE }.HasRace(Race); }
+        static bool ValidateAppearance(uint8 race, uint8 class_, uint8 gender, uint8 hairID, uint8 hairColor, uint8 faceID, uint8 facialHair, uint8 skinColor, std::array<uint8, PLAYER_CUSTOM_DISPLAY_SIZE> const& customDisplay, bool create = false);
 
         /*********************************************************/
         /***                   SAVE SYSTEM                     ***/
@@ -2246,9 +2247,13 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void RestoreManaAfterDuel() { SetPower(POWER_MANA, manaBeforeDuel); }
 
         uint32 GetPrestigeLevel() const { return GetUInt32Value(PLAYER_FIELD_PRESTIGE); }
-        uint32 GetHonorLevel() const { return GetUInt32Value(PLAYER_FIELD_HONOR_LEVEL); }        void AddHonorXP(uint32 xp);
+        uint32 GetHonorLevel() const { return GetUInt32Value(PLAYER_FIELD_HONOR_LEVEL); }
+        void AddHonorXP(uint32 xp);
         void SetHonorLevel(uint8 honorLevel);
-        bool IsMaxHonorLevel() const { return GetHonorLevel() == PLAYER_MAX_HONOR_LEVEL; }
+        void Prestige();
+        bool CanPrestige() const;
+        bool IsMaxPrestige() const;
+        bool IsMaxHonorLevelAndPrestige() const { return IsMaxPrestige() && GetHonorLevel() == PLAYER_MAX_HONOR_LEVEL; }
         // Updates PLAYER_FIELD_HONOR_NEXT_LEVEL based on PLAYER_FIELD_HONOR_LEVEL
         void UpdateHonorNextLevel();
         //End of PvP System
@@ -2752,6 +2757,9 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void RemovePlayerLocalFlag(PlayerLocalFlags flags) { RemoveFlag(PLAYER_FIELD_LOCAL_FLAGS, flags); }
         void ReplaceAllPlayerLocalFlags(PlayerLocalFlags flags) { ToggleFlag(PLAYER_FIELD_LOCAL_FLAGS, flags); }
 
+        uint8 GetNumRespecs() const { return 0; }
+        void SetNumRespecs(uint8 /*numRespecs*/) { }
+
         void SetWatchedFactionIndex(int32 index) { SetInt32Value(PLAYER_FIELD_WATCHED_FACTION_INDEX, index); }
 
         void AddAuraVision(PlayerFieldByte2Flags flags) { SetByteFlag(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_AURA_VISION, flags); }
@@ -3132,7 +3140,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         std::unordered_map<ObjectGuid /*LootObject*/, Loot*> m_AELootView;
         std::vector<LootRoll*> m_lootRolls;                                     // loot rolls waiting for answer
 
-        void _InitHonorLevelOnLoadFromDB(uint32 honor, uint32 honorLevel);
+        void _InitHonorLevelOnLoadFromDB(uint32 honor, uint32 honorLevel, uint32 prestigeLevel);
         std::unique_ptr<RestMgr> _restMgr;
 
         bool _usePvpItemLevels;

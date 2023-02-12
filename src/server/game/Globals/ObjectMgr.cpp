@@ -7156,41 +7156,6 @@ GraveyardData const* ObjectMgr::FindGraveyardData(uint32 id, uint32 zoneId) cons
     return nullptr;
 }
 
-void ObjectMgr::LoadWorldSafeLocs()
-{
-    uint32 oldMSTime = getMSTime();
-
-    //                                                   0   1      2     3     4     5
-    if (QueryResult result = WorldDatabase.Query("SELECT ID, MapID, LocX, LocY, LocZ, Facing FROM world_safe_locs"))
-    {
-        do
-        {
-            Field* fields = result->Fetch();
-            uint32 id = fields[0].GetUInt32();
-            WorldLocation loc(fields[1].GetUInt32(), fields[2].GetFloat(), fields[3].GetFloat(), fields[4].GetFloat(), DegToRad(fields[5].GetFloat()));
-            if (!MapManager::IsValidMapCoord(loc))
-            {
-                TC_LOG_ERROR("sql.sql", "World location (ID: {}) has a invalid position MapID: {} {}, skipped", id, loc.GetMapId(), loc.ToString());
-                continue;
-            }
-
-            WorldSafeLocsEntry& worldSafeLocs = _worldSafeLocs[id];
-            worldSafeLocs.ID = id;
-            worldSafeLocs.Loc.WorldRelocate(loc);
-
-        } while (result->NextRow());
-
-        TC_LOG_INFO("server.loading", ">> Loaded {} world locations {} ms", _worldSafeLocs.size(), GetMSTimeDiffToNow(oldMSTime));
-    }
-    else
-        TC_LOG_INFO("server.loading", ">> Loaded 0 world locations. DB table `world_safe_locs` is empty.");
-}
-
-WorldSafeLocsEntry const* ObjectMgr::GetWorldSafeLoc(uint32 id) const
-{
-    return Trinity::Containers::MapGetValuePtr(_worldSafeLocs, id);
-}
-
 Trinity::IteratorPair<std::unordered_map<uint32, WorldSafeLocsEntry>::const_iterator> ObjectMgr::GetWorldSafeLocs() const
 {
     return std::make_pair(_worldSafeLocs.begin(), _worldSafeLocs.end());

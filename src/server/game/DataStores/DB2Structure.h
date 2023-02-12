@@ -2412,6 +2412,7 @@ struct SkillLineEntry
     int8 CanLink;
     int32 SpellIconFileID;
     uint32 ParentSkillLineID;
+    [[nodiscard]] EnumFlag<SkillLineFlags> GetFlags() const { return static_cast<SkillLineFlags>(Flags); }
 };
 
 struct SkillLineAbilityEntry
@@ -2712,6 +2713,12 @@ struct SpellMiscEntry
     uint8 DifficultyID;
     int32 Attributes[14];
     int32 SpellID;
+};
+
+struct SpellNameEntry
+{
+    uint32 ID;                      // SpellID
+    LocalizedString Name;
 };
 
 struct SpellPowerEntry
@@ -3221,6 +3228,12 @@ struct WorldSafeLocsEntry
     DBCPosition3D Loc;
     float Facing;
     uint16 MapID;
+
+    WorldLocation ToWorldLoc() {
+        WorldLocation loc(MapID, Loc.X, Loc.Y, Loc.Z, Facing);
+        return loc;
+    }
+
 };
 
 #pragma pack(pop)

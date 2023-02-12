@@ -331,6 +331,7 @@ typedef std::unordered_set<uint32> ToyItemIdsContainer;
 typedef std::tuple<uint16, uint8, int32> WMOAreaTableKey;
 typedef std::map<WMOAreaTableKey, WMOAreaTableEntry const*> WMOAreaTableLookupContainer;
 typedef std::unordered_map<uint32, WorldMapAreaEntry const*> WorldMapAreaByAreaIDContainer;
+typedef std::unordered_map<uint32, WorldSafeLocsEntry const*> WorldSafeLocContainer;
 
 namespace
 {
@@ -380,6 +381,8 @@ namespace
     QuestPackageItemContainer _questPackages;
     std::unordered_map<uint32, std::vector<RewardPackXCurrencyTypeEntry const*>> _rewardPackCurrencyTypes;
     std::unordered_map<uint32, std::vector<RewardPackXItemEntry const*>> _rewardPackItems;
+    std::unordered_map<uint32, std::vector<SkillLineEntry const*>> _skillLinesByParentSkillLine;
+    std::unordered_map<uint32, std::vector<SkillLineAbilityEntry const*>> _skillLineAbilitiesBySkillupSkill;
     RulesetItemUpgradeContainer _rulesetItemUpgrade;
     SkillRaceClassInfoContainer _skillRaceClassInfoBySkill;
     SpecializationSpellsContainer _specializationSpellsBySpec;
@@ -393,6 +396,7 @@ namespace
     std::unordered_map<uint32, std::vector<TransmogSetItemEntry const*>> _transmogSetItemsByTransmogSet;
     WMOAreaTableLookupContainer _wmoAreaTableLookup;
     WorldMapAreaByAreaIDContainer _worldMapAreaByAreaID;
+    WorldSafeLocContainer _worldSafeLocContainer;
 }
 
 typedef std::vector<std::string> DB2StoreProblemList;
@@ -1009,6 +1013,13 @@ void DB2Manager::LoadStores(std::string const& dataPath, uint32 defaultLocale)
     for (RewardPackXItemEntry const* rewardPackXItem : sRewardPackXItemStore)
         _rewardPackItems[rewardPackXItem->RewardPackID].push_back(rewardPackXItem);
 
+    for (SkillLineEntry const* skill : sSkillLineStore)
+        if (skill->ParentSkillLineID)
+            _skillLinesByParentSkillLine[skill->ParentSkillLineID].push_back(skill);
+
+    for (SkillLineAbilityEntry const* skillLineAbility : sSkillLineAbilityStore)
+        _skillLineAbilitiesBySkillupSkill[skillLineAbility->SkillLine].push_back(skillLineAbility);
+
     for (RulesetItemUpgradeEntry const* rulesetItemUpgrade : sRulesetItemUpgradeStore)
         _rulesetItemUpgrade[rulesetItemUpgrade->ItemID] = rulesetItemUpgrade->ItemUpgradeID;
 
@@ -1076,39 +1087,33 @@ void DB2Manager::LoadStores(std::string const& dataPath, uint32 defaultLocale)
         sTaxiPathNodesByPath[entry->PathID][entry->NodeIndex] = entry;
 
     // Initialize global taxinodes mask
+    // reinitialize internal storage for globals after loading TaxiNodes.db2
+    sTaxiNodesMask = {};
+    sHordeTaxiNodesMask = {};
+    sAllianceTaxiNodesMask = {};
+    sOldContinentsNodesMask = {};
     // include existed nodes that have at least single not spell base (scripted) path
+    for (TaxiNodesEntry const* node : sTaxiNodesStore)
     {
-        if (sTaxiNodesStore.GetNumRows())
-        {
-            ASSERT(TaxiMaskSize >= ((sTaxiNodesStore.GetNumRows() - 1) / 8) + 1,
-                "TaxiMaskSize is not large enough to contain all taxi nodes! (current value %d, required %d)",
-                TaxiMaskSize, (((sTaxiNodesStore.GetNumRows() - 1) / 8) + 1));
-        }
+        if (!(node->Flags & (TAXI_NODE_FLAG_ALLIANCE | TAXI_NODE_FLAG_HORDE)))
+            continue;
 
-        sTaxiNodesMask.fill(0);
-        sOldContinentsNodesMask.fill(0);
-        sHordeTaxiNodesMask.fill(0);
-        sAllianceTaxiNodesMask.fill(0);
-        for (TaxiNodesEntry const* node : sTaxiNodesStore)
-        {
-            if (!(node->Flags & (TAXI_NODE_FLAG_ALLIANCE | TAXI_NODE_FLAG_HORDE)))
-                continue;
+        // valid taxi network node
+        uint32 field = uint32((node->ID - 1) / (sizeof(TaxiMask::value_type) * 8));
+        TaxiMask::value_type submask = TaxiMask::value_type(1 << ((node->ID - 1) % (sizeof(TaxiMask::value_type) * 8)));
 
-            // valid taxi network node
-            uint8  field = (uint8)((node->ID - 1) / 8);
-            uint32 submask = 1 << ((node->ID - 1) % 8);
+        sTaxiNodesMask[field] |= submask;
+        if (node->Flags & TAXI_NODE_FLAG_HORDE)
+            sHordeTaxiNodesMask[field] |= submask;
+        if (node->Flags & TAXI_NODE_FLAG_ALLIANCE)
+            sAllianceTaxiNodesMask[field] |= submask;
 
-            sTaxiNodesMask[field] |= submask;
-            if (node->Flags & TAXI_NODE_FLAG_HORDE)
-                sHordeTaxiNodesMask[field] |= submask;
-            if (node->Flags & TAXI_NODE_FLAG_ALLIANCE)
-                sAllianceTaxiNodesMask[field] |= submask;
+        int32 uiMapId = -1;
+        if (!GetUiMapPosition(node->Pos.X, node->Pos.Y, node->Pos.Z, node->ContinentID, 0, 0, 0, UI_MAP_SYSTEM_ADVENTURE, false, &uiMapId))
+            GetUiMapPosition(node->Pos.X, node->Pos.Y, node->Pos.Z, node->ContinentID, 0, 0, 0, UI_MAP_SYSTEM_TAXI, false, &uiMapId);
 
-            uint32 nodeMap;
-            DeterminaAlternateMapPosition(node->ContinentID, node->Pos.X, node->Pos.Y, node->Pos.Z, &nodeMap);
-            if (nodeMap < 2)
-                sOldContinentsNodesMask[field] |= submask;
-        }
+        if (uiMapId == 985 || uiMapId == 986)
+            sOldContinentsNodesMask[field] |= submask;
     }
 
     for (ToyEntry const* toy : sToyStore)
@@ -1129,6 +1134,11 @@ void DB2Manager::LoadStores(std::string const& dataPath, uint32 defaultLocale)
 
     for (WorldMapAreaEntry const* worldMapArea : sWorldMapAreaStore)
         _worldMapAreaByAreaID[worldMapArea->AreaID] = worldMapArea;
+
+    for (WorldSafeLocsEntry const* safeLoc : sWorldSafeLocsStore)
+        _worldSafeLocContainer[safeLoc->ID] = safeLoc;
+
+
 
     // error checks
     if (bad_db2_files.size() == _stores.size())
@@ -1280,18 +1290,17 @@ ArtifactPowerRankEntry const* DB2Manager::GetArtifactPowerRank(uint32 artifactPo
 
 char const* DB2Manager::GetBroadcastTextValue(BroadcastTextEntry const* broadcastText, LocaleConstant locale /*= DEFAULT_LOCALE*/, uint8 gender /*= GENDER_MALE*/, bool forceGender /*= false*/)
 {
-    if ((gender == GENDER_FEMALE || gender == GENDER_NONE) && (forceGender || broadcastText->Text1->Str[DEFAULT_LOCALE][0] != '\0'))
+    if ((gender == GENDER_FEMALE || gender == GENDER_NONE) && (forceGender || broadcastText->Text1[DEFAULT_LOCALE][0] != '\0'))
     {
-        if (broadcastText->Text1->Str[locale][0] != '\0')
-            return broadcastText->Text1->Str[locale];
+        if (broadcastText->Text1[locale][0] != '\0')
+            return broadcastText->Text1[locale];
 
-        return broadcastText->Text1->Str[DEFAULT_LOCALE];
+        return broadcastText->Text1[DEFAULT_LOCALE];
     }
+    if (broadcastText->Text[locale][0] != '\0')
+        return broadcastText->Text[locale];
 
-    if (broadcastText->Text->Str[locale][0] != '\0')
-        return broadcastText->Text->Str[locale];
-
-    return broadcastText->Text->Str[DEFAULT_LOCALE];
+    return broadcastText->Text[DEFAULT_LOCALE];
 }
 
 bool DB2Manager::HasCharacterFacialHairStyle(uint8 race, uint8 gender, uint8 variationId) const
@@ -1329,10 +1338,10 @@ char const* DB2Manager::GetClassName(uint8 class_, LocaleConstant locale /*= DEF
     if (!classEntry)
         return "";
 
-    if (classEntry->Name->Str[locale][0] != '\0')
-        return classEntry->Name->Str[locale];
+    if (classEntry->Name[locale][0] != '\0')
+        return classEntry->Name[locale];
 
-    return classEntry->Name->Str[DEFAULT_LOCALE];
+    return classEntry->Name[DEFAULT_LOCALE];
 }
 
 uint32 DB2Manager::GetPowerIndexByClass(Powers power, uint32 classId) const
@@ -1346,10 +1355,10 @@ char const* DB2Manager::GetChrRaceName(uint8 race, LocaleConstant locale /*= DEF
     if (!raceEntry)
         return "";
 
-    if (raceEntry->Name->Str[locale][0] != '\0')
-        return raceEntry->Name->Str[locale];
+    if (raceEntry->Name[locale][0] != '\0')
+        return raceEntry->Name[locale];
 
-    return raceEntry->Name->Str[DEFAULT_LOCALE];
+    return raceEntry->Name[DEFAULT_LOCALE];
 }
 
 ChrSpecializationEntry const* DB2Manager::GetChrSpecializationByIndex(uint32 class_, uint32 index) const
@@ -1375,7 +1384,7 @@ char const* DB2Manager::GetCreatureFamilyPetName(uint32 petfamily, uint32 locale
     if (!petFamily)
         return nullptr;
 
-    return petFamily->Name->Str[locale][0] != '\0' ? petFamily->Name->Str[locale] : nullptr;
+    return petFamily->Name[locale][0] != '\0' ? petFamily->Name[locale] : nullptr;
 }
 
 enum class CurveInterpolationMode : uint8
@@ -2061,6 +2070,16 @@ uint32 DB2Manager::GetRulesetItemUpgrade(uint32 itemId) const
     return 0;
 }
 
+std::vector<SkillLineEntry const*> const* DB2Manager::GetSkillLinesForParentSkill(uint32 parentSkillId) const
+{
+    return Trinity::Containers::MapGetValuePtr(_skillLinesByParentSkillLine, parentSkillId);
+}
+
+std::vector<SkillLineAbilityEntry const*> const* DB2Manager::GetSkillLineAbilitiesBySkill(uint32 skillId) const
+{
+    return Trinity::Containers::MapGetValuePtr(_skillLineAbilitiesBySkillupSkill, skillId);
+}
+
 SkillRaceClassInfoEntry const* DB2Manager::GetSkillRaceClassInfo(uint32 skill, uint8 race, uint8 class_)
 {
     auto bounds = _skillRaceClassInfoBySkill.equal_range(skill);
@@ -2182,6 +2201,7 @@ std::vector<TransmogSetItemEntry const*> const* DB2Manager::GetTransmogSetItems(
     return Trinity::Containers::MapGetValuePtr(_transmogSetItemsByTransmogSet, transmogSetId);
 }
 
+
 WMOAreaTableEntry const* DB2Manager::GetWMOAreaTable(int32 rootId, int32 adtId, int32 groupId) const
 {
     auto i = _wmoAreaTableLookup.find(WMOAreaTableKey(int16(rootId), int8(adtId), groupId));
@@ -2295,3 +2315,14 @@ bool DB2Manager::MountTypeXCapabilityEntryComparator::Compare(MountTypeXCapabili
         return left->OrderIndex < right->OrderIndex;
     return left->MountTypeID < right->MountTypeID;
 }
+
+WorldSafeLocsEntry const* DB2Manager::GetWorldSafeLoc(uint32 id) const
+{
+    return Trinity::Containers::MapGetValuePtr(_worldSafeLocContainer, id);
+}
+
+Trinity::IteratorPair<std::unordered_map<uint32, WorldSafeLocsEntry const*>::const_iterator> DB2Manager::GetWorldSafeLocs() const
+{
+    return std::make_pair(_worldSafeLocContainer.begin(), _worldSafeLocContainer.end());
+}
+

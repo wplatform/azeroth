@@ -119,10 +119,6 @@ namespace WorldPackets
             Optional<int32> WeeklyQuantity;
             Optional<int32> TrackedQuantity;
             Optional<int32> MaxQuantity;
-            Optional<int32> Unused901;
-            Optional<int32> QuantityChange;
-            Optional<int32> QuantityGainSource;
-            Optional<int32> QuantityLostSource;
             bool SuppressChatLog = false;
         };
 
@@ -147,7 +143,6 @@ namespace WorldPackets
                 Optional<int32> MaxWeeklyQuantity;    // Weekly Currency cap.
                 Optional<int32> TrackedQuantity;
                 Optional<int32> MaxQuantity;
-                Optional<int32> Unused901;
                 uint8 Flags = 0;                      // 0 = none,
             };
 
@@ -503,7 +498,7 @@ namespace WorldPackets
         class LevelUpInfo final : public ServerPacket
         {
         public:
-            LevelUpInfo() : ServerPacket(SMSG_LEVEL_UP_INFO, 60) { }
+            LevelUpInfo() : ServerPacket(SMSG_LEVEL_UP_INFO, 56) { }
 
             WorldPacket const* Write() override;
 
@@ -512,7 +507,6 @@ namespace WorldPackets
             std::array<int32, MAX_POWERS_PER_CLASS> PowerDelta = { };
             std::array<int32, MAX_STATS> StatDelta = { };
             int32 NumNewTalents = 0;
-            int32 NumNewPvpTalentSlots = 0;
         };
 
         class PlayMusic final : public ServerPacket
