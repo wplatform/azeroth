@@ -182,7 +182,7 @@ public:
 
     static bool HandleGoGraveyardCommand(ChatHandler* handler, uint32 gyId)
     {
-        WorldSafeLocsEntry const* gy = sObjectMgr->GetWorldSafeLoc(gyId);
+        WorldSafeLocsEntry const* gy = sDB2Manager.GetWorldSafeLoc(gyId);
         if (!gy)
         {
             handler->PSendSysMessage(LANG_COMMAND_GRAVEYARDNOEXIST, gyId);
@@ -192,7 +192,7 @@ public:
 
         if (!MapManager::IsValidMapCoord(gy->Loc))
         {
-            handler->PSendSysMessage(LANG_INVALID_TARGET_COORD, gy->Loc.GetPositionX(), gy->Loc.GetPositionY(), gy->Loc.GetMapId());
+            handler->PSendSysMessage(LANG_INVALID_TARGET_COORD, gy->GetPositionX(), gy->GetPositionY(), gy->Loc.GetMapId());
             handler->SetSentErrorMessage(true);
             return false;
         }

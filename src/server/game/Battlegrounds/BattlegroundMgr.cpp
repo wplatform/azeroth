@@ -507,7 +507,7 @@ void BattlegroundMgr::LoadBattlegroundTemplates()
         if (bgTemplate.Id != BATTLEGROUND_AA && bgTemplate.Id != BATTLEGROUND_RB && bgTemplate.Id != BATTLEGROUND_RANDOM_EPIC)
         {
             uint32 startId = fields[1].GetUInt32();
-            if (WorldSafeLocsEntry const* start = sObjectMgr->GetWorldSafeLoc(startId))
+            if (WorldSafeLocsEntry const* start = sDB2Manager.GetWorldSafeLoc(startId))
                 bgTemplate.StartLocation[TEAM_ALLIANCE] = start;
             else if (bgTemplate.StartLocation[TEAM_ALLIANCE]) // reload case
                 TC_LOG_ERROR("sql.sql", "Table `battleground_template` for id {} contains a non-existing WorldSafeLocs.dbc id {} in field `AllianceStartLoc`. Ignoring.", bgTemplate.Id, startId);
@@ -519,7 +519,7 @@ void BattlegroundMgr::LoadBattlegroundTemplates()
             }
 
             startId = fields[2].GetUInt32();
-            if (WorldSafeLocsEntry const* start = sObjectMgr->GetWorldSafeLoc(startId))
+            if (WorldSafeLocsEntry const* start = sDB2Manager.GetWorldSafeLoc(startId))
                 bgTemplate.StartLocation[TEAM_HORDE] = start;
             else if (bgTemplate.StartLocation[TEAM_HORDE]) // reload case
                 TC_LOG_ERROR("sql.sql", "Table `battleground_template` for id {} contains a non-existing WorldSafeLocs.dbc id {} in field `HordeStartLoc`. Ignoring.", bgTemplate.Id, startId);

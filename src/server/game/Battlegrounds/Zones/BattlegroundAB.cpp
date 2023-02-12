@@ -647,10 +647,10 @@ WorldSafeLocsEntry const* BattlegroundAB::GetClosestGraveyard(Player* player)
         float mindist = 999999.0f;
         for (uint8 i = 0; i < nodes.size(); ++i)
         {
-            WorldSafeLocsEntry const* entry = sObjectMgr->GetWorldSafeLoc(BG_AB_GraveyardIds[nodes[i]]);
+            WorldSafeLocsEntry const* entry = sDB2Manager.GetWorldSafeLoc(BG_AB_GraveyardIds[nodes[i]]);
             if (!entry)
                 continue;
-            float dist = (entry->Loc.GetPositionX() - plr_x) * (entry->Loc.GetPositionX() - plr_x) + (entry->Loc.GetPositionY() - plr_y) * (entry->Loc.GetPositionY() - plr_y);
+            float dist = (entry->GetPositionX() - plr_x) * (entry->GetPositionX() - plr_x) + (entry->GetPositionY() - plr_y) * (entry->GetPositionY() - plr_y);
             if (mindist > dist)
             {
                 mindist = dist;
@@ -661,14 +661,14 @@ WorldSafeLocsEntry const* BattlegroundAB::GetClosestGraveyard(Player* player)
     }
     // If not, place ghost on starting location
     if (!good_entry)
-        good_entry = sObjectMgr->GetWorldSafeLoc(BG_AB_GraveyardIds[teamIndex+5]);
+        good_entry = sDB2Manager.GetWorldSafeLoc(BG_AB_GraveyardIds[teamIndex+5]);
 
     return good_entry;
 }
 
 WorldSafeLocsEntry const* BattlegroundAB::GetExploitTeleportLocation(Team team)
 {
-    return sObjectMgr->GetWorldSafeLoc(team == ALLIANCE ? AB_EXPLOIT_TELEPORT_LOCATION_ALLIANCE : AB_EXPLOIT_TELEPORT_LOCATION_HORDE);
+    return sDB2Manager.GetWorldSafeLoc(team == ALLIANCE ? AB_EXPLOIT_TELEPORT_LOCATION_ALLIANCE : AB_EXPLOIT_TELEPORT_LOCATION_HORDE);
 }
 
 bool BattlegroundAB::UpdatePlayerScore(Player* player, uint32 type, uint32 value, bool doAddHonor)

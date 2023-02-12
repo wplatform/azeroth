@@ -83,7 +83,7 @@ class npc_tb_spirit_guide : public CreatureScript
                         return true;
                 }
 
-                if (WorldSafeLocsEntry const* safeLoc = sObjectMgr->GetWorldSafeLoc(areaId))
+                if (WorldSafeLocsEntry const* safeLoc = sDB2Manager.GetWorldSafeLoc(areaId))
                     player->TeleportTo(safeLoc->Loc);
 
                 return false;

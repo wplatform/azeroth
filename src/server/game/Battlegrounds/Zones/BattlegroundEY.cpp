@@ -533,15 +533,15 @@ bool BattlegroundEY::SetupBattleground()
         return false;
     }
 
-    WorldSafeLocsEntry const* sg = sObjectMgr->GetWorldSafeLoc(EY_GRAVEYARD_MAIN_ALLIANCE);
-    if (!sg || !AddSpiritGuide(EY_SPIRIT_MAIN_ALLIANCE, sg->Loc.GetPositionX(), sg->Loc.GetPositionY(), sg->Loc.GetPositionZ(), 3.124139f, TEAM_ALLIANCE))
+    WorldSafeLocsEntry const* sg = sDB2Manager.GetWorldSafeLoc(EY_GRAVEYARD_MAIN_ALLIANCE);
+    if (!sg || !AddSpiritGuide(EY_SPIRIT_MAIN_ALLIANCE, sg->GetPositionX(), sg->GetPositionY(), sg->GetPositionZ(), 3.124139f, TEAM_ALLIANCE))
     {
         TC_LOG_ERROR("sql.sql", "BatteGroundEY: Failed to spawn spirit guide. The battleground was not created.");
         return false;
     }
 
-    sg = sObjectMgr->GetWorldSafeLoc(EY_GRAVEYARD_MAIN_HORDE);
-    if (!sg || !AddSpiritGuide(EY_SPIRIT_MAIN_HORDE, sg->Loc.GetPositionX(), sg->Loc.GetPositionY(), sg->Loc.GetPositionZ(), 3.193953f, TEAM_HORDE))
+    sg = sDB2Manager.GetWorldSafeLoc(EY_GRAVEYARD_MAIN_HORDE);
+    if (!sg || !AddSpiritGuide(EY_SPIRIT_MAIN_HORDE, sg->GetPositionX(), sg->GetPositionY(), sg->GetPositionZ(), 3.193953f, TEAM_HORDE))
     {
         TC_LOG_ERROR("sql.sql", "BatteGroundEY: Failed to spawn spirit guide. The battleground was not created.");
         return false;
@@ -778,8 +778,8 @@ void BattlegroundEY::EventTeamCapturedPoint(Player* player, uint32 Point)
     if (!BgCreatures[Point].IsEmpty())
         DelCreature(Point);
 
-    WorldSafeLocsEntry const* sg = sObjectMgr->GetWorldSafeLoc(m_CapturingPointTypes[Point].GraveyardId);
-    if (!sg || !AddSpiritGuide(Point, sg->Loc.GetPositionX(), sg->Loc.GetPositionY(), sg->Loc.GetPositionZ(), 3.124139f, GetTeamIndexByTeamId(Team)))
+    WorldSafeLocsEntry const* sg = sDB2Manager.GetWorldSafeLoc(m_CapturingPointTypes[Point].GraveyardId);
+    if (!sg || !AddSpiritGuide(Point, sg->GetPositionX(), sg->GetPositionY(), sg->GetPositionZ(), 3.124139f, GetTeamIndexByTeamId(Team)))
         TC_LOG_ERROR("bg.battleground", "BatteGroundEY: Failed to spawn spirit guide. point: {}, team: {}, graveyard_id: {}",
             Point, Team, m_CapturingPointTypes[Point].GraveyardId);
 
@@ -872,7 +872,7 @@ WorldSafeLocsEntry const* BattlegroundEY::GetClosestGraveyard(Player* player)
 
     WorldSafeLocsEntry const* entry = nullptr;
     WorldSafeLocsEntry const* nearestEntry = nullptr;
-    entry = sObjectMgr->GetWorldSafeLoc(g_id);
+    entry = sDB2Manager.GetWorldSafeLoc(g_id);
     nearestEntry = entry;
 
     if (!entry)
@@ -885,23 +885,23 @@ WorldSafeLocsEntry const* BattlegroundEY::GetClosestGraveyard(Player* player)
     float plr_y = player->GetPositionY();
     float plr_z = player->GetPositionZ();
 
-    distance = (entry->Loc.GetPositionX() - plr_x) * (entry->Loc.GetPositionX() - plr_x)
-        + (entry->Loc.GetPositionY() - plr_y) * (entry->Loc.GetPositionY() - plr_y)
-        + (entry->Loc.GetPositionZ() - plr_z) * (entry->Loc.GetPositionZ() - plr_z);
+    distance = (entry->GetPositionX() - plr_x) * (entry->GetPositionX() - plr_x)
+        + (entry->GetPositionY() - plr_y) * (entry->GetPositionY() - plr_y)
+        + (entry->GetPositionZ() - plr_z) * (entry->GetPositionZ() - plr_z);
     nearestDistance = distance;
 
     for (uint8 i = 0; i < EY_POINTS_MAX; ++i)
     {
         if (m_PointOwnedByTeam[i] == team && m_PointState[i] == EY_POINT_UNDER_CONTROL)
         {
-            entry = sObjectMgr->GetWorldSafeLoc(m_CapturingPointTypes[i].GraveyardId);
+            entry = sDB2Manager.GetWorldSafeLoc(m_CapturingPointTypes[i].GraveyardId);
             if (!entry)
                 TC_LOG_ERROR("bg.battleground", "BattlegroundEY: Graveyard {} could not be found.", m_CapturingPointTypes[i].GraveyardId);
             else
             {
-                distance = (entry->Loc.GetPositionX() - plr_x) * (entry->Loc.GetPositionX() - plr_x)
-                    + (entry->Loc.GetPositionY() - plr_y) * (entry->Loc.GetPositionY() - plr_y)
-                    + (entry->Loc.GetPositionZ() - plr_z) * (entry->Loc.GetPositionZ() - plr_z);
+                distance = (entry->GetPositionX() - plr_x) * (entry->GetPositionX() - plr_x)
+                    + (entry->GetPositionY() - plr_y) * (entry->GetPositionY() - plr_y)
+                    + (entry->GetPositionZ() - plr_z) * (entry->GetPositionZ() - plr_z);
                 if (distance < nearestDistance)
                 {
                     nearestDistance = distance;
@@ -916,7 +916,7 @@ WorldSafeLocsEntry const* BattlegroundEY::GetClosestGraveyard(Player* player)
 
 WorldSafeLocsEntry const* BattlegroundEY::GetExploitTeleportLocation(Team team)
 {
-    return sObjectMgr->GetWorldSafeLoc(team == ALLIANCE ? EY_EXPLOIT_TELEPORT_LOCATION_ALLIANCE : EY_EXPLOIT_TELEPORT_LOCATION_HORDE);
+    return sDB2Manager.GetWorldSafeLoc(team == ALLIANCE ? EY_EXPLOIT_TELEPORT_LOCATION_ALLIANCE : EY_EXPLOIT_TELEPORT_LOCATION_HORDE);
 }
 
 uint32 BattlegroundEY::GetPrematureWinner()

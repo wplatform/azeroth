@@ -3229,10 +3229,10 @@ struct WorldSafeLocsEntry
     float Facing;
     uint16 MapID;
 
-    WorldLocation ToWorldLoc() {
-        WorldLocation loc(MapID, Loc.X, Loc.Y, Loc.Z, Facing);
-        return loc;
-    }
+    [[nodiscard]] float GetPositionX() const { return Loc.X; }
+    [[nodiscard]] float GetPositionY() const { return Loc.Y; }
+    [[nodiscard]] float GetPositionZ() const { return Loc.Z; }
+    [[nodiscard]] float GetOrientation() const { return Facing; }
 
 };
 

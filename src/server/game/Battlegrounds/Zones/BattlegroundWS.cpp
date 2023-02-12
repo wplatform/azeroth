@@ -726,15 +726,15 @@ bool BattlegroundWS::SetupBattleground()
         return false;
     }
 
-    WorldSafeLocsEntry const* sg = sObjectMgr->GetWorldSafeLoc(WS_GRAVEYARD_MAIN_ALLIANCE);
-    if (!sg || !AddSpiritGuide(WS_SPIRIT_MAIN_ALLIANCE, sg->Loc.GetPositionX(), sg->Loc.GetPositionY(), sg->Loc.GetPositionZ(), 3.124139f, TEAM_ALLIANCE))
+    WorldSafeLocsEntry const* sg = sDB2Manager.GetWorldSafeLoc(WS_GRAVEYARD_MAIN_ALLIANCE);
+    if (!sg || !AddSpiritGuide(WS_SPIRIT_MAIN_ALLIANCE, sg->GetPositionX(), sg->GetPositionY(), sg->GetPositionZ(), 3.124139f, TEAM_ALLIANCE))
     {
         TC_LOG_ERROR("sql.sql", "BatteGroundWS: Failed to spawn Alliance spirit guide! Battleground not created!");
         return false;
     }
 
-    sg = sObjectMgr->GetWorldSafeLoc(WS_GRAVEYARD_MAIN_HORDE);
-    if (!sg || !AddSpiritGuide(WS_SPIRIT_MAIN_HORDE, sg->Loc.GetPositionX(), sg->Loc.GetPositionY(), sg->Loc.GetPositionZ(), 3.193953f, TEAM_HORDE))
+    sg = sDB2Manager.GetWorldSafeLoc(WS_GRAVEYARD_MAIN_HORDE);
+    if (!sg || !AddSpiritGuide(WS_SPIRIT_MAIN_HORDE, sg->GetPositionX(), sg->GetPositionY(), sg->GetPositionZ(), 3.193953f, TEAM_HORDE))
     {
         TC_LOG_ERROR("sql.sql", "BatteGroundWS: Failed to spawn Horde spirit guide! Battleground not created!");
         return false;
@@ -834,22 +834,22 @@ WorldSafeLocsEntry const* BattlegroundWS::GetClosestGraveyard(Player* player)
     if (GetPlayerTeam(player->GetGUID()) == ALLIANCE)
     {
         if (GetStatus() == STATUS_IN_PROGRESS)
-            return sObjectMgr->GetWorldSafeLoc(WS_GRAVEYARD_MAIN_ALLIANCE);
+            return sDB2Manager.GetWorldSafeLoc(WS_GRAVEYARD_MAIN_ALLIANCE);
         else
-            return sObjectMgr->GetWorldSafeLoc(WS_GRAVEYARD_FLAGROOM_ALLIANCE);
+            return sDB2Manager.GetWorldSafeLoc(WS_GRAVEYARD_FLAGROOM_ALLIANCE);
     }
     else
     {
         if (GetStatus() == STATUS_IN_PROGRESS)
-            return sObjectMgr->GetWorldSafeLoc(WS_GRAVEYARD_MAIN_HORDE);
+            return sDB2Manager.GetWorldSafeLoc(WS_GRAVEYARD_MAIN_HORDE);
         else
-            return sObjectMgr->GetWorldSafeLoc(WS_GRAVEYARD_FLAGROOM_HORDE);
+            return sDB2Manager.GetWorldSafeLoc(WS_GRAVEYARD_FLAGROOM_HORDE);
     }
 }
 
 WorldSafeLocsEntry const* BattlegroundWS::GetExploitTeleportLocation(Team team)
 {
-    return sObjectMgr->GetWorldSafeLoc(team == ALLIANCE ? WS_EXPLOIT_TELEPORT_LOCATION_ALLIANCE : WS_EXPLOIT_TELEPORT_LOCATION_HORDE);
+    return sDB2Manager.GetWorldSafeLoc(team == ALLIANCE ? WS_EXPLOIT_TELEPORT_LOCATION_ALLIANCE : WS_EXPLOIT_TELEPORT_LOCATION_HORDE);
 }
 
 uint32 BattlegroundWS::GetPrematureWinner()

@@ -340,7 +340,6 @@ public:
     void Zone2MapCoordinates(uint32 areaId, float& x, float& y) const;
     void Map2ZoneCoordinates(uint32 areaId, float& x, float& y) const;
     WorldSafeLocsEntry const* GetWorldSafeLoc(uint32 id) const;
-    Trinity::IteratorPair<std::unordered_map<uint32, WorldSafeLocsEntry const*>::const_iterator> GetWorldSafeLocs() const;
     static void DeterminaAlternateMapPosition(uint32 mapId, float x, float y, float z, uint32* newMapId = nullptr, DBCPosition2D* newPos = nullptr);
 
 private:

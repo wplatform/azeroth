@@ -998,7 +998,7 @@ public:
         else
             return false;
 
-        WorldSafeLocsEntry const* graveyard = sObjectMgr->GetWorldSafeLoc(graveyardId);
+        WorldSafeLocsEntry const* graveyard = sDB2Manager.GetWorldSafeLoc(graveyardId);
 
         if (!graveyard)
         {

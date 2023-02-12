@@ -7095,8 +7095,8 @@ WorldSafeLocsEntry const* ObjectMgr::GetClosestGraveyard(WorldLocation const& lo
             }
 
             // at entrance map calculate distance (2D);
-            float dist2 = (entry->Loc.GetPositionX() - mapEntry->Corpse.X) * (entry->Loc.GetPositionX() - mapEntry->Corpse.X)
-                + (entry->Loc.GetPositionY() - mapEntry->Corpse.Y) * (entry->Loc.GetPositionY() - mapEntry->Corpse.Y);
+            float dist2 = (entry->GetPositionX() - mapEntry->Corpse.X) * (entry->GetPositionX() - mapEntry->Corpse.X)
+                + (entry->GetPositionY() - mapEntry->Corpse.Y) * (entry->GetPositionY() - mapEntry->Corpse.Y);
             if (foundEntr)
             {
                 if (dist2 < distEntr)
@@ -7115,9 +7115,9 @@ WorldSafeLocsEntry const* ObjectMgr::GetClosestGraveyard(WorldLocation const& lo
         // find now nearest graveyard at same map
         else
         {
-            float dist2 = (entry->Loc.GetPositionX() - x) * (entry->Loc.GetPositionX() - x)
-                + (entry->Loc.GetPositionY() - y) * (entry->Loc.GetPositionY() - y)
-                + (entry->Loc.GetPositionZ() - z) * (entry->Loc.GetPositionZ() - z);
+            float dist2 = (entry->GetPositionX() - x) * (entry->GetPositionX() - x)
+                + (entry->GetPositionY() - y) * (entry->GetPositionY() - y)
+                + (entry->GetPositionZ() - z) * (entry->GetPositionZ() - z);
             if (foundNear)
             {
                 if (dist2 < distNear)
@@ -7284,9 +7284,9 @@ void ObjectMgr::LoadAreaTriggerTeleports()
         AreaTriggerStruct at;
 
         at.target_mapId       = portLoc->Loc.GetMapId();
-        at.target_X           = portLoc->Loc.GetPositionX();
-        at.target_Y           = portLoc->Loc.GetPositionY();
-        at.target_Z           = portLoc->Loc.GetPositionZ();
+        at.target_X           = portLoc->GetPositionX();
+        at.target_Y           = portLoc->GetPositionY();
+        at.target_Z           = portLoc->GetPositionZ();
         at.target_Orientation = portLoc->Loc.GetOrientation();
 
         AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(Trigger_ID);

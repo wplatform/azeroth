@@ -19063,7 +19063,7 @@ bool Player::_LoadHomeBind(PreparedQueryResult result)
     {
         WorldSafeLocsEntry const* loc = sObjectMgr->GetDefaultGraveyard(GetTeam());
         if (!loc && GetRace() == RACE_PANDAREN_NEUTRAL)
-            loc = sObjectMgr->GetWorldSafeLoc(3295); // The Wandering Isle, Starting Area GY
+            loc = sDB2Manager.GetWorldSafeLoc(3295); // The Wandering Isle, Starting Area GY
 
         ASSERT(loc, "Missing fallback graveyard location for faction %u", uint32(GetTeamId()));
 
@@ -22590,7 +22590,7 @@ void Player::SetBattlegroundEntryPoint()
         if (GetMap()->IsDungeon())
         {
             if (WorldSafeLocsEntry const* entry = sObjectMgr->GetClosestGraveyard(*this, GetTeam(), this))
-                m_bgData.joinPos.WorldRelocate(entry->Loc.GetMapId(), entry->Loc.GetPositionX(), entry->Loc.GetPositionY(), entry->Loc.GetPositionZ());
+                m_bgData.joinPos.WorldRelocate(entry->Loc.GetMapId(), entry->GetPositionX(), entry->GetPositionY(), entry->GetPositionZ());
             else
                 TC_LOG_ERROR("entities.player", "Player::SetBattlegroundEntryPoint: Dungeon (MapID: {}) has no linked graveyard, setting home location as entry point.", GetMapId());
         }

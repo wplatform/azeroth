@@ -92,7 +92,7 @@ void AreaTriggerDataStore::LoadAreaTriggerTemplates()
 
             if (actionType == AREATRIGGER_ACTION_TELEPORT)
             {
-                if (!sObjectMgr->GetWorldSafeLoc(action.Param))
+                if (!sDB2Manager.GetWorldSafeLoc(action.Param))
                 {
                     TC_LOG_ERROR("sql.sql", "Table `areatrigger_template_actions` has invalid entry ({},{}) with TargetType=Teleport and Param ({}) not a valid world safe loc entry",
                         areaTriggerId.Id, uint32(areaTriggerId.IsServerSide), action.Param);

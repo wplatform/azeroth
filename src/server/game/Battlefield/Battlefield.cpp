@@ -591,7 +591,7 @@ WorldSafeLocsEntry const* Battlefield::GetClosestGraveyard(Player* player)
     }
 
     if (closestGY)
-        return sObjectMgr->GetWorldSafeLoc(closestGY->GetGraveyardId());
+        return sDB2Manager.GetWorldSafeLoc(closestGY->GetGraveyardId());
 
     return nullptr;
 }
@@ -664,8 +664,8 @@ void BfGraveyard::SetSpirit(Creature* spirit, TeamId team)
 
 float BfGraveyard::GetDistance(Player* player)
 {
-    WorldSafeLocsEntry const* safeLoc = sObjectMgr->GetWorldSafeLoc(m_GraveyardId);
-    return player->GetDistance2d(safeLoc->Loc.GetPositionX(), safeLoc->Loc.GetPositionY());
+    WorldSafeLocsEntry const* safeLoc = sDB2Manager.GetWorldSafeLoc(m_GraveyardId);
+    return player->GetDistance2d(safeLoc->GetPositionX(), safeLoc->GetPositionY());
 }
 
 void BfGraveyard::AddPlayer(ObjectGuid playerGuid)

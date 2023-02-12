@@ -1415,7 +1415,7 @@ public:
             float z = player->GetPositionZ();
             float distNearest = std::numeric_limits<float>::max();
 
-            for (auto&& kvp : sObjectMgr->GetWorldSafeLocs())
+            for (auto&& kvp : sDB2Manager.GetWorldSafeLocs())
             {
                 if (kvp.second.Loc.GetMapId() == player->GetMapId())
                 {
@@ -1432,7 +1432,7 @@ public:
         }
 
         if (nearestLoc)
-            handler->PSendSysMessage(LANG_COMMAND_NEARGRAVEYARD, nearestLoc->ID, nearestLoc->Loc.GetPositionX(), nearestLoc->Loc.GetPositionY(), nearestLoc->Loc.GetPositionZ());
+            handler->PSendSysMessage(LANG_COMMAND_NEARGRAVEYARD, nearestLoc->ID, nearestLoc->GetPositionX(), nearestLoc->GetPositionY(), nearestLoc->GetPositionZ());
         else
             handler->PSendSysMessage(LANG_COMMAND_NEARGRAVEYARD_NOTFOUND);
 

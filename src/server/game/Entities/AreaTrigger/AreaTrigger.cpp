@@ -742,7 +742,7 @@ void AreaTrigger::DoActions(Unit* unit)
                         break;
                     case AREATRIGGER_ACTION_TELEPORT:
                     {
-                        if (WorldSafeLocsEntry const* safeLoc = sObjectMgr->GetWorldSafeLoc(action.Param))
+                        if (WorldSafeLocsEntry const* safeLoc = sDB2Manager.GetWorldSafeLoc(action.Param))
                             if (Player* player = caster->ToPlayer())
                                 player->TeleportTo(safeLoc->Loc);
                         break;

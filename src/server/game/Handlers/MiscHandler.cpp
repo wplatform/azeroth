@@ -665,7 +665,7 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPackets::AreaTrigger::AreaTrigge
                 if (Map* map = sMapMgr->FindMap(at->target_mapId, targetInstanceId))
                     if (InstanceMap* instanceMap = map->ToInstanceMap())
                         if (InstanceScript* instanceScript = instanceMap->GetInstanceScript())
-                            entranceLocation = sObjectMgr->GetWorldSafeLoc(instanceScript->GetEntranceLocation());
+                            entranceLocation = sDB2Manager.GetWorldSafeLoc(instanceScript->GetEntranceLocation());
 
             // Finally check with the instancesave for an entrance location if we did not get a valid one from the instancescript
             if (!entranceLocation)
@@ -674,7 +674,7 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPackets::AreaTrigger::AreaTrigge
                 Difficulty difficulty = group ? group->GetDifficultyID(mapEntry) : player->GetDifficultyID(mapEntry);
                 ObjectGuid instanceOwnerGuid = group ? group->GetRecentInstanceOwner(at->target_mapId) : player->GetGUID();
                 if (InstanceLock const* instanceLock = sInstanceLockMgr.FindActiveInstanceLock(instanceOwnerGuid, { mapEntry, sDB2Manager.GetDownscaledMapDifficultyData(at->target_mapId, difficulty) }))
-                    entranceLocation = sObjectMgr->GetWorldSafeLoc(instanceLock->GetData()->EntranceWorldSafeLocId);
+                    entranceLocation = sDB2Manager.GetWorldSafeLoc(instanceLock->GetData()->EntranceWorldSafeLocId);
             }
         }
 
