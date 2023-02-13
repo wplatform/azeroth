@@ -36,7 +36,7 @@
 #endif
 
 DB2Storage<AchievementEntry>                    sAchievementStore("Achievement.db2", AchievementLoadInfo::Instance());
-DB2Storage<AdventureJournalEntry>               sAdventureJournalStore("AdventureJournal.db2", AdventureJournalLoadInfo::Instance());
+`DB2Storage<AdventureJournalEntry>               sAdventureJournalStore("AdventureJournal.db2", AdventureJournalLoadInfo::Instance());
 DB2Storage<AnimKitEntry>                        sAnimKitStore("AnimKit.db2", AnimKitLoadInfo::Instance());
 DB2Storage<AreaGroupMemberEntry>                sAreaGroupMemberStore("AreaGroupMember.db2", AreaGroupMemberLoadInfo::Instance());
 DB2Storage<AreaTableEntry>                      sAreaTableStore("AreaTable.db2", AreaTableLoadInfo::Instance());
@@ -150,6 +150,7 @@ DB2Storage<ItemLevelSelectorQualitySetEntry>    sItemLevelSelectorQualitySetStor
 DB2Storage<ItemLimitCategoryEntry>              sItemLimitCategoryStore("ItemLimitCategory.db2", ItemLimitCategoryLoadInfo::Instance());
 DB2Storage<ItemLimitCategoryConditionEntry>     sItemLimitCategoryConditionStore("ItemLimitCategoryCondition.db2", ItemLimitCategoryConditionLoadInfo::Instance());
 DB2Storage<ItemModifiedAppearanceEntry>         sItemModifiedAppearanceStore("ItemModifiedAppearance.db2", ItemModifiedAppearanceLoadInfo::Instance());
+DB2Storage<ItemNameDescriptionEntry>            sItemNameDescriptionStore("ItemNameDescription.db2", ItemNameDescriptionLoadInfo::Instance());
 DB2Storage<ItemPriceBaseEntry>                  sItemPriceBaseStore("ItemPriceBase.db2", ItemPriceBaseLoadInfo::Instance());
 DB2Storage<ItemRandomPropertiesEntry>           sItemRandomPropertiesStore("ItemRandomProperties.db2", ItemRandomPropertiesLoadInfo::Instance());
 DB2Storage<ItemRandomSuffixEntry>               sItemRandomSuffixStore("ItemRandomSuffix.db2", ItemRandomSuffixLoadInfo::Instance());
@@ -499,7 +500,7 @@ void DB2Manager::LoadStores(std::string const& dataPath, uint32 defaultLocale)
     LOAD_DB2(sArtifactTierStore);
     LOAD_DB2(sArtifactUnlockStore);
     LOAD_DB2(sAuctionHouseStore);
-    LOAD_DB2(sBankBagSlotPricesStore);
+    LOAD_DB2(sBankBagSlotPricesStore);GetUiMapPosition
     LOAD_DB2(sBannedAddonsStore);
     LOAD_DB2(sBarberShopStyleStore);
     LOAD_DB2(sBattlePetBreedQualityStore);
@@ -595,6 +596,7 @@ void DB2Manager::LoadStores(std::string const& dataPath, uint32 defaultLocale)
     LOAD_DB2(sItemLimitCategoryStore);
     LOAD_DB2(sItemLimitCategoryConditionStore);
     LOAD_DB2(sItemModifiedAppearanceStore);
+    LOAD_DB2(sItemNameDescriptionStore);
     LOAD_DB2(sItemPriceBaseStore);
     LOAD_DB2(sItemRandomPropertiesStore);
     LOAD_DB2(sItemRandomSuffixStore);
@@ -1087,33 +1089,43 @@ void DB2Manager::LoadStores(std::string const& dataPath, uint32 defaultLocale)
         sTaxiPathNodesByPath[entry->PathID][entry->NodeIndex] = entry;
 
     // Initialize global taxinodes mask
-    // reinitialize internal storage for globals after loading TaxiNodes.db2
-    sTaxiNodesMask = {};
-    sHordeTaxiNodesMask = {};
-    sAllianceTaxiNodesMask = {};
-    sOldContinentsNodesMask = {};
     // include existed nodes that have at least single not spell base (scripted) path
-    for (TaxiNodesEntry const* node : sTaxiNodesStore)
     {
-        if (!(node->Flags & (TAXI_NODE_FLAG_ALLIANCE | TAXI_NODE_FLAG_HORDE)))
-            continue;
+        if (sTaxiNodesStore.GetNumRows())
+        {
+            ASSERT(258 >= ((sTaxiNodesStore.GetNumRows() - 1) / 8) + 1,
+                   "TaxiMaskSize is not large enough to contain all taxi nodes! (current value %d, required %d)",
+                   258, (((sTaxiNodesStore.GetNumRows() - 1) / 8) + 1));
+        }
+        // Initialize global taxinodes mask
+        // reinitialize internal storage for globals after loading TaxiNodes.db2
+        sTaxiNodesMask = {};
+        sHordeTaxiNodesMask = {};
+        sAllianceTaxiNodesMask = {};
+        sOldContinentsNodesMask = {};
+        // include existed nodes that have at least single not spell base (scripted) path
+        for (TaxiNodesEntry const* node : sTaxiNodesStore)
+        {
+            if (!(node->Flags & (TAXI_NODE_FLAG_ALLIANCE | TAXI_NODE_FLAG_HORDE)))
+                continue;
 
-        // valid taxi network node
-        uint32 field = uint32((node->ID - 1) / (sizeof(TaxiMask::value_type) * 8));
-        TaxiMask::value_type submask = TaxiMask::value_type(1 << ((node->ID - 1) % (sizeof(TaxiMask::value_type) * 8)));
+            // valid taxi network node
+            uint32 field = uint32((node->ID - 1) / (sizeof(TaxiMask::value_type) * 8));
+            TaxiMask::value_type submask = TaxiMask::value_type(1 << ((node->ID - 1) % (sizeof(TaxiMask::value_type) * 8)));
 
-        sTaxiNodesMask[field] |= submask;
-        if (node->Flags & TAXI_NODE_FLAG_HORDE)
-            sHordeTaxiNodesMask[field] |= submask;
-        if (node->Flags & TAXI_NODE_FLAG_ALLIANCE)
-            sAllianceTaxiNodesMask[field] |= submask;
+            sTaxiNodesMask[field] |= submask;
+            if (node->Flags & TAXI_NODE_FLAG_HORDE)
+                sHordeTaxiNodesMask[field] |= submask;
+            if (node->Flags & TAXI_NODE_FLAG_ALLIANCE)
+                sAllianceTaxiNodesMask[field] |= submask;
 
-        int32 uiMapId = -1;
-        if (!GetUiMapPosition(node->Pos.X, node->Pos.Y, node->Pos.Z, node->ContinentID, 0, 0, 0, UI_MAP_SYSTEM_ADVENTURE, false, &uiMapId))
-            GetUiMapPosition(node->Pos.X, node->Pos.Y, node->Pos.Z, node->ContinentID, 0, 0, 0, UI_MAP_SYSTEM_TAXI, false, &uiMapId);
+            int32 uiMapId = -1;
+            if (!GetUiMapPosition(node->Pos.X, node->Pos.Y, node->Pos.Z, node->ContinentID, 0, 0, 0, UI_MAP_SYSTEM_ADVENTURE, false, &uiMapId))
+                GetUiMapPosition(node->Pos.X, node->Pos.Y, node->Pos.Z, node->ContinentID, 0, 0, 0, UI_MAP_SYSTEM_TAXI, false, &uiMapId);
 
-        if (uiMapId == 985 || uiMapId == 986)
-            sOldContinentsNodesMask[field] |= submask;
+            if (uiMapId == 985 || uiMapId == 986)
+                sOldContinentsNodesMask[field] |= submask;
+        }
     }
 
     for (ToyEntry const* toy : sToyStore)
@@ -2319,10 +2331,5 @@ bool DB2Manager::MountTypeXCapabilityEntryComparator::Compare(MountTypeXCapabili
 WorldSafeLocsEntry const* DB2Manager::GetWorldSafeLoc(uint32 id) const
 {
     return Trinity::Containers::MapGetValuePtr(_worldSafeLocContainer, id);
-}
-
-Trinity::IteratorPair<std::unordered_map<uint32, WorldSafeLocsEntry const*>::const_iterator> DB2Manager::GetWorldSafeLocs() const
-{
-    return std::make_pair(_worldSafeLocContainer.begin(), _worldSafeLocContainer.end());
 }
 

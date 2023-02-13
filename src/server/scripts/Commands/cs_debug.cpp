@@ -1415,19 +1415,19 @@ public:
             float z = player->GetPositionZ();
             float distNearest = std::numeric_limits<float>::max();
 
-            for (auto&& kvp : sDB2Manager.GetWorldSafeLocs())
-            {
-                if (kvp.second.Loc.GetMapId() == player->GetMapId())
+            for (const auto &safeLoc : sWorldSafeLocsStore) {
+                if (safeLoc->MapID == player->GetMapId())
                 {
-                    float dist = (kvp.second.Loc.GetPositionX() - x) * (kvp.second.Loc.GetPositionX() - x)
-                        + (kvp.second.Loc.GetPositionY() - y) * (kvp.second.Loc.GetPositionY() - y)
-                        + (kvp.second.Loc.GetPositionZ() - z) * (kvp.second.Loc.GetPositionZ() - z);
+                    float dist = (safeLoc->GetPositionX() - x) * (safeLoc->GetPositionX() - x)
+                                 + (safeLoc->GetPositionY() - y) * (safeLoc->GetPositionY() - y)
+                                 + (safeLoc->GetPositionZ() - z) * (safeLoc->GetPositionZ() - z);
                     if (dist < distNearest)
                     {
                         distNearest = dist;
-                        nearestLoc = &kvp.second;
+                        nearestLoc = safeLoc;
                     }
                 }
+
             }
         }
 

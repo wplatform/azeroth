@@ -19,8 +19,6 @@
 #include "ArenaTeamMgr.h"
 #include "AreaTriggerDataStore.h"
 #include "AreaTriggerTemplate.h"
-#include "AzeriteEmpoweredItem.h"
-#include "AzeriteItem.h"
 #include "Chat.h"
 #include "Containers.h"
 #include "CreatureAIFactory.h"
@@ -7154,11 +7152,6 @@ GraveyardData const* ObjectMgr::FindGraveyardData(uint32 id, uint32 zoneId) cons
             return &data;
     }
     return nullptr;
-}
-
-Trinity::IteratorPair<std::unordered_map<uint32, WorldSafeLocsEntry>::const_iterator> ObjectMgr::GetWorldSafeLocs() const
-{
-    return std::make_pair(_worldSafeLocs.begin(), _worldSafeLocs.end());
 }
 
 AreaTriggerStruct const* ObjectMgr::GetAreaTrigger(uint32 trigger) const

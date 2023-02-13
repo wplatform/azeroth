@@ -1756,6 +1756,13 @@ struct ItemXBonusTreeEntry
     int32 ItemID;
 };
 
+struct ItemNameDescriptionEntry
+{
+    uint32 ID;
+    LocalizedString Description;
+    int32 Color;
+};
+
 #define KEYCHAIN_SIZE   32
 
 struct KeychainEntry
@@ -2667,6 +2674,9 @@ struct SpellItemEnchantmentEntry
     int8 ScalingClass;
     int8 ScalingClassRestricted;
     uint32 TransmogPlayerConditionID;
+
+    EnumFlag<SpellItemEnchantmentFlags> GetFlags() const { return static_cast<SpellItemEnchantmentFlags>(Flags); }
+
 };
 
 struct SpellItemEnchantmentConditionEntry

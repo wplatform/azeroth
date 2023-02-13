@@ -402,16 +402,10 @@ enum InventoryType : uint8
     INVTYPE_THROWN                              = 25,
     INVTYPE_RANGEDRIGHT                         = 26,
     INVTYPE_QUIVER                              = 27,
-    INVTYPE_RELIC                               = 28,
-    INVTYPE_PROFESSION_TOOL                     = 29,
-    INVTYPE_PROFESSION_GEAR                     = 30,
-    INVTYPE_EQUIPABLE_SPELL_OFFENSIVE           = 31,
-    INVTYPE_EQUIPABLE_SPELL_UTILITY             = 32,
-    INVTYPE_EQUIPABLE_SPELL_DEFENSIVE           = 33,
-    INVTYPE_EQUIPABLE_SPELL_MOBILITY            = 34
+    INVTYPE_RELIC                               = 28
 };
 
-#define MAX_INVTYPE                               35
+#define MAX_INVTYPE                               29
 
 enum ItemClass : uint8
 {
@@ -433,11 +427,10 @@ enum ItemClass : uint8
     ITEM_CLASS_MISCELLANEOUS                    = 15,
     ITEM_CLASS_GLYPH                            = 16,
     ITEM_CLASS_BATTLE_PETS                      = 17,
-    ITEM_CLASS_WOW_TOKEN                        = 18,
-    ITEM_CLASS_PROFESSION                       = 19
+    ITEM_CLASS_WOW_TOKEN                        = 18
 };
 
-#define MAX_ITEM_CLASS                            20
+#define MAX_ITEM_CLASS                            19
 
 enum ItemSubclassConsumable
 {
@@ -467,11 +460,10 @@ enum ItemSubclassContainer
     ITEM_SUBCLASS_LEATHERWORKING_CONTAINER      = 7,
     ITEM_SUBCLASS_INSCRIPTION_CONTAINER         = 8,
     ITEM_SUBCLASS_TACKLE_CONTAINER              = 9,
-    ITEM_SUBCLASS_COOKING_CONTAINER             = 10,
-    ITEM_SUBCLASS_REAGENT_CONTAINER             = 11
+    ITEM_SUBCLASS_COOKING_CONTAINER             = 10
 };
 
-#define MAX_ITEM_SUBCLASS_CONTAINER               12
+#define MAX_ITEM_SUBCLASS_CONTAINER               11
 
 enum ItemSubclassWeapon
 {
@@ -543,11 +535,10 @@ enum ItemSubclassArmor
 enum ItemSubclassReagent
 {
     ITEM_SUBCLASS_REAGENT                       = 0,
-    ITEM_SUBCLASS_KEYSTONE                      = 1,
-    ITEM_SUBCLASS_CONTEXT_TOKEN                 = 2
+    ITEM_SUBCLASS_KEYSTONE                      = 1
 };
 
-#define MAX_ITEM_SUBCLASS_REAGENT                 3
+#define MAX_ITEM_SUBCLASS_REAGENT                 2
 
 enum ItemSubclassProjectile
 {
@@ -579,12 +570,10 @@ enum ItemSubclassTradeGoods
     ITEM_SUBCLASS_ENCHANTMENT                   = 14,
     ITEM_SUBCLASS_WEAPON_ENCHANTMENT            = 15,
     ITEM_SUBCLASS_INSCRIPTION                   = 16,
-    ITEM_SUBCLASS_EXPLOSIVES_DEVICES            = 17,
-    ITEM_SUBCLASS_OPTIONAL_REAGENT              = 18,
-    ITEM_SUBCLASS_FINISHING_REAGENT             = 19,
+    ITEM_SUBCLASS_EXPLOSIVES_DEVICES            = 17
 };
 
-#define MAX_ITEM_SUBCLASS_TRADE_GOODS             20
+#define MAX_ITEM_SUBCLASS_TRADE_GOODS             18
 
 enum ItemSubclassItemEnhancement
 {
@@ -601,11 +590,10 @@ enum ItemSubclassItemEnhancement
     ITEM_SUBCLASS_ITEM_ENHANCEMENT_FINGER               = 10,
     ITEM_SUBCLASS_ITEM_ENHANCEMENT_WEAPON               = 11,
     ITEM_SUBCLASS_ITEM_ENHANCEMENT_TWO_HANDED_WEAPON    = 12,
-    ITEM_SUBCLASS_ITEM_ENHANCEMENT_SHIELD_OFF_HAND      = 13,
-    ITEM_SUBCLASS_ITEM_ENHANCEMENT_MISC                 = 14
+    ITEM_SUBCLASS_ITEM_ENHANCEMENT_SHIELD_OFF_HAND      = 13
 };
 
-#define MAX_ITEM_SUBCLASS_ITEM_ENHANCEMENT                15
+#define MAX_ITEM_SUBCLASS_ITEM_ENHANCEMENT                14
 
 enum ItemSubclassRecipe
 {
@@ -674,10 +662,9 @@ enum ItemSubclassJunk
     ITEM_SUBCLASS_MISCELLANEOUS_HOLIDAY         = 3,
     ITEM_SUBCLASS_MISCELLANEOUS_OTHER           = 4,
     ITEM_SUBCLASS_MISCELLANEOUS_MOUNT           = 5,
-    ITEM_SUBCLASS_MISCELLANEOUS_MOUNT_EQUIPMENT = 6
 };
 
-#define MAX_ITEM_SUBCLASS_MISCELLANEOUS           7
+#define MAX_ITEM_SUBCLASS_MISCELLANEOUS           6
 
 enum ItemSubclassGlyph
 {
@@ -711,26 +698,6 @@ enum ItemSubclassWowToken
 
 #define MAX_ITEM_SUBCLASS_WOW_TOKEN               1
 
-enum ItemSubclassPorfession
-{
-    ITEM_SUBCLASS_PROFESSION_BLACKSMITHING      = 0,
-    ITEM_SUBCLASS_PROFESSION_LEATHERWORKING     = 1,
-    ITEM_SUBCLASS_PROFESSION_ALCHEMY            = 2,
-    ITEM_SUBCLASS_PROFESSION_HERBALISM          = 3,
-    ITEM_SUBCLASS_PROFESSION_COOKING            = 4,
-    ITEM_SUBCLASS_PROFESSION_MINING             = 5,
-    ITEM_SUBCLASS_PROFESSION_TAILORING          = 6,
-    ITEM_SUBCLASS_PROFESSION_ENGINEERING        = 7,
-    ITEM_SUBCLASS_PROFESSION_ENCHANTING         = 8,
-    ITEM_SUBCLASS_PROFESSION_FISHING            = 9,
-    ITEM_SUBCLASS_PROFESSION_SKINNING           = 10,
-    ITEM_SUBCLASS_PROFESSION_JEWELCRAFTING      = 11,
-    ITEM_SUBCLASS_PROFESSION_INSCRIPTION        = 12,
-    ITEM_SUBCLASS_PROFESSION_ARCHAEOLOGY        = 13
-};
-
-#define MAX_ITEM_SUBCLASS_PROFESSION              14
-
 const uint32 MaxItemSubclassValues[MAX_ITEM_CLASS] =
 {
     MAX_ITEM_SUBCLASS_CONSUMABLE,
@@ -751,8 +718,7 @@ const uint32 MaxItemSubclassValues[MAX_ITEM_CLASS] =
     MAX_ITEM_SUBCLASS_MISCELLANEOUS,
     MAX_ITEM_SUBCLASS_GLYPH,
     MAX_ITEM_SUBCLASS_BATTLE_PET,
-    MAX_ITEM_SUBCLASS_WOW_TOKEN,
-    MAX_ITEM_SUBCLASS_PROFESSION
+    MAX_ITEM_SUBCLASS_WOW_TOKEN
 };
 
 #define MAX_ITEM_SUBCLASS_TOTAL 21
@@ -775,7 +741,6 @@ struct TC_GAME_API ItemTemplate
     uint32 GetClass() const { return BasicData->ClassID; }
     uint32 GetSubClass() const { return BasicData->SubclassID; }
     uint32 GetQuality() const { return ExtendedData->OverallQualityID; }
-    uint32 GetOtherFactionItemId() const { return ExtendedData->FactionRelated; }
     float GetPriceRandomValue() const { return ExtendedData->PriceRandomValue; }
     float GetPriceVariance() const { return ExtendedData->PriceVariance; }
     uint32 GetBuyCount() const { return std::max<uint32>(ExtendedData->VendorStackCount, 1u); }
@@ -783,7 +748,7 @@ struct TC_GAME_API ItemTemplate
     uint32 GetSellPrice() const { return ExtendedData->SellPrice; }
     InventoryType GetInventoryType() const { return InventoryType(ExtendedData->InventoryType); }
     int32 GetAllowableClass() const { return ExtendedData->AllowableClass; }
-    Trinity::RaceMask<int64> GetAllowableRace() const { return ExtendedData->AllowableRace; }
+    Trinity::RaceMask<int64> GetAllowableRace() const {return {ExtendedData->AllowableRace}; }
     uint32 GetBaseItemLevel() const { return ExtendedData->ItemLevel; }
     int32 GetBaseRequiredLevel() const { return ExtendedData->RequiredLevel; }
     uint32 GetRequiredSkill() const { return ExtendedData->RequiredSkill; }
@@ -796,8 +761,6 @@ struct TC_GAME_API ItemTemplate
     int32 GetStatModifierBonusStat(uint32 index) const { ASSERT(index < MAX_ITEM_PROTO_STATS); return ExtendedData->StatModifierBonusStat[index]; }
     int32 GetStatPercentEditor(uint32 index) const { ASSERT(index < MAX_ITEM_PROTO_STATS); return ExtendedData->StatPercentEditor[index]; }
     float GetStatPercentageOfSocket(uint32 index) const { ASSERT(index < MAX_ITEM_PROTO_STATS); return ExtendedData->StatPercentageOfSocket[index]; }
-    uint32 GetScalingStatContentTuning() const { return ExtendedData->ContentTuningID; }
-    uint32 GetPlayerLevelToItemLevelCurveId() const { return ExtendedData->PlayerLevelToItemLevelCurveID; }
     uint32 GetDamageType() const { return ExtendedData->DamageDamageType; }
     uint32 GetDelay() const { return ExtendedData->ItemDelay; }
     float GetRangedModRange() const { return ExtendedData->ItemRange; }
@@ -807,7 +770,7 @@ struct TC_GAME_API ItemTemplate
     uint32 GetStartQuest() const { return ExtendedData->StartQuestID; }
     uint32 GetLockID() const { return ExtendedData->LockID; }
     uint32 GetItemSet() const { return ExtendedData->ItemSet; }
-    uint32 GetArea(uint32 index) const { ASSERT(index < MAX_ITEM_PROTO_ZONES); return ExtendedData->ZoneBound[index]; }
+    uint32 GetArea() const { return ExtendedData->ZoneBound; }
     uint32 GetMap() const { return ExtendedData->InstanceBound; }
     uint32 GetBagFamily() const { return ExtendedData->BagFamily; }
     uint32 GetTotemCategory() const { return ExtendedData->TotemCategoryID; }
@@ -821,6 +784,7 @@ struct TC_GAME_API ItemTemplate
     float  GetDmgVariance() const { return ExtendedData->DmgVariance; }
     uint8 GetArtifactID() const { return ExtendedData->ArtifactID; }
     uint8 GetRequiredExpansion() const { return ExtendedData->ExpansionID; }
+    uint32 GetScalingStatDistribution() const { return ExtendedData->ScalingStatDistributionID; }
 
     uint32 MaxDurability;
     std::vector<ItemEffectEntry const*> Effects;
