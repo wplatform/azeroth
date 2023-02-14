@@ -15,7 +15,6 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Unit.h"
 #include "AbstractFollower.h"
 #include "Battlefield.h"
 #include "BattlefieldMgr.h"
@@ -66,7 +65,6 @@
 #include "PhasingHandler.h"
 #include "Player.h"
 #include "PlayerAI.h"
-#include "QuestDef.h"
 #include "Spell.h"
 #include "ScheduledChangeAI.h"
 #include "SpellAuraEffects.h"
@@ -85,7 +83,6 @@
 #include "VehiclePackets.h"
 #include "World.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include <queue>
 #include <sstream>
 #include <cmath>
@@ -3275,16 +3272,7 @@ void Unit::_ApplyAura(AuraApplication* aurApp, uint32 effMask)
 
     // Update target aura state flag
     if (AuraStateType aState = aura->GetSpellInfo()->GetAuraState())
-    {
-        uint32 aStateMask = (1 << (aState - 1));
-        // force update so the new caster registers it
-        if ((aStateMask & PER_CASTER_AURA_STATE_MASK) && HasFlag(UNIT_FIELD_AURASTATE, aStateMask))
-
-            //TODO ForceUpdateFieldChange(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::AuraState));
-
-        else
-            ModifyAuraState(aState, true);
-    }
+        ModifyAuraState(aState, true);
 
     if (aurApp->GetRemoveMode())
         return;
@@ -3380,19 +3368,9 @@ void Unit::_UnapplyAura(AuraApplicationMap::iterator& i, AuraRemoveMode removeMo
             ToTotem()->setDeathState(JUST_DIED);
     }
 
-    // Remove aurastates only if needed and were not found
-    if (auraState)
-    {
-        if (!auraStateFound)
-            ModifyAuraState(auraState, false);
-        else
-        {
-            // update for casters, some shouldn't 'see' the aura state
-            uint32 aStateMask = (1 << (auraState - 1));
-            if ((aStateMask & PER_CASTER_AURA_STATE_MASK) != 0)
-                // TODO ForceUpdateFieldChange(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::AuraState));
-        }
-    }
+    // Remove aurastates only if were not found
+    if (!auraStateFound)
+        ModifyAuraState(auraState, false);
 
     aura->HandleAuraSpecificMods(aurApp, caster, false, false);
 
@@ -6411,7 +6389,6 @@ void Unit::SendHealSpellLog(HealInfo& healInfo, bool critical /*= false*/)
     spellHealLog.CasterGUID = healInfo.GetHealer()->GetGUID();
     spellHealLog.SpellID = healInfo.GetSpellInfo()->Id;
     spellHealLog.Health = healInfo.GetHeal();
-    spellHealLog.OriginalHeal = healInfo.GetOriginalHeal();
     spellHealLog.OverHeal = int32(healInfo.GetHeal()) - healInfo.GetEffectiveHeal();
     spellHealLog.Absorbed = healInfo.GetAbsorb();
     spellHealLog.Crit = critical;
@@ -13555,7 +13532,7 @@ void Unit::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target)
             {
                 uint32 appendValue = m_uint32Values[UNIT_FIELD_FLAGS];
                 if (target->IsGameMaster())
-                    appendValue &= ~UNIT_FLAG_NOT_SELECTABLE;
+                    appendValue &= ~UNIT_FLAG_UNINTERACTIBLE;
 
                 *data << uint32(appendValue);
             }
