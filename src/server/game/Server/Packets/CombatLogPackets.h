@@ -37,9 +37,8 @@ namespace WorldPackets
             ObjectGuid CasterGUID;
             ObjectGuid CastID;
             int32 SpellID = 0;
-            Spells::SpellCastVisual Visual;
+            int32 SpellXSpellVisualID = 0;
             int32 Damage = 0;
-            int32 OriginalDamage = 0;
             int32 Overkill = -1;
             uint8 SchoolMask = 0;
             int32 ShieldBlock = 0;
@@ -80,7 +79,7 @@ namespace WorldPackets
         class SpellHealLog final : public CombatLogServerPacket
         {
         public:
-            SpellHealLog() : CombatLogServerPacket(SMSG_SPELL_HEAL_LOG, 16 + 16 + 4 * 5 + 1) { }
+            SpellHealLog() : CombatLogServerPacket(SMSG_SPELL_HEAL_LOG, 16 + 16 + 4 * 4 + 1) { }
 
             WorldPacket const* Write() override;
 
@@ -88,7 +87,6 @@ namespace WorldPackets
             ObjectGuid TargetGUID;
             int32 SpellID       = 0;
             int32 Health        = 0;
-            int32 OriginalHeal  = 0;
             int32 OverHeal      = 0;
             int32 Absorbed      = 0;
             bool Crit           = false;

@@ -25,8 +25,6 @@
 
 #pragma pack(push, 1)
 
-struct LocalizedString;
-
 struct AchievementEntry
 {
     LocalizedString Title;
@@ -945,7 +943,7 @@ struct DurabilityQualityEntry
 struct EmotesEntry
 {
     uint32 ID;
-    int64 RaceMask;
+    Trinity::RaceMask<int64> RaceMask;
     char const* EmoteSlashCommand;
     uint32 EmoteFlags;
     uint32 SpellVisualKitID;
@@ -975,7 +973,7 @@ struct EmotesTextSoundEntry
 
 struct FactionEntry
 {
-    int64 ReputationRaceMask[4];
+    std::array<Trinity::RaceMask<int64>, 4> ReputationRaceMask;
     LocalizedString Name;
     LocalizedString Description;
     uint32 ID;
@@ -1615,7 +1613,7 @@ struct ItemRandomSuffixEntry
 
 struct ItemSearchNameEntry
 {
-    int64 AllowableRace;
+    Trinity::RaceMask<int64> AllowableRace;
     LocalizedString Display;
     uint32 ID;
     int32 Flags[3];
@@ -1655,7 +1653,7 @@ struct ItemSetSpellEntry
 struct ItemSparseEntry
 {
     uint32 ID;
-    int64 AllowableRace;
+    Trinity::RaceMask<int64> AllowableRace;
     LocalizedString Display;
     LocalizedString Display1;
     LocalizedString Display2;
@@ -2083,7 +2081,7 @@ struct PhaseXPhaseGroupEntry
 
 struct PlayerConditionEntry
 {
-    int64 RaceMask;
+    Trinity::RaceMask<int64> RaceMask;
     LocalizedString FailureDescription;
     uint32 ID;
     uint8 Flags;
@@ -2424,7 +2422,7 @@ struct SkillLineEntry
 
 struct SkillLineAbilityEntry
 {
-    int64 RaceMask;
+    Trinity::RaceMask<int64> RaceMask;
     uint32 ID;
     int32 Spell;
     int32 SupercedesSpell;
@@ -2443,7 +2441,7 @@ struct SkillLineAbilityEntry
 struct SkillRaceClassInfoEntry
 {
     uint32 ID;
-    int64 RaceMask;
+    Trinity::RaceMask<int64> RaceMask;
     int16 SkillID;
     uint16 Flags;
     int16 SkillTierID;
@@ -2836,6 +2834,8 @@ struct SpellShapeshiftFormEntry
     int32 AttackIconFileID;
     uint32 CreatureDisplayID[4];
     uint32 PresetSpellID[MAX_SHAPESHIFT_SPELLS];
+    EnumFlag<SpellShapeshiftFormFlags> GetFlags() const { return static_cast<SpellShapeshiftFormFlags>(Flags); }
+
 };
 
 struct SpellTargetRestrictionsEntry

@@ -530,7 +530,7 @@ void Pet::SavePetToDB(PetSaveMode mode)
         stmt->setUInt64(2, ownerLowGUID);
         stmt->setUInt32(3, GetNativeDisplayId());
         stmt->setUInt8(4, GetLevel());
-        stmt->setUInt32(5, m_unitData->PetExperience);
+        stmt->setUInt32(5, GetUInt32Value(UNIT_FIELD_PETEXPERIENCE));
         stmt->setUInt8(6, GetReactState());
         stmt->setInt16(7, owner->GetPetStable()->GetCurrentActivePetIndex().value_or(PET_SAVE_NOT_IN_SLOT));
         stmt->setString(8, m_name);
@@ -539,7 +539,7 @@ void Pet::SavePetToDB(PetSaveMode mode)
         stmt->setUInt32(11, curmana);
         stmt->setString(12, actionBar);
         stmt->setUInt32(13, GameTime::GetGameTime());
-        stmt->setUInt32(14, m_unitData->CreatedBySpell);
+        stmt->setUInt32(14, GetUInt32Value(UNIT_CREATED_BY_SPELL));
         stmt->setUInt8(15, getPetType());
         stmt->setUInt16(16, GetSpecialization());
         trans->Append(stmt);
@@ -560,7 +560,7 @@ void Pet::FillPetInfo(PetStable::PetInfo* petInfo) const
     petInfo->CreatureId = GetEntry();
     petInfo->DisplayId = GetNativeDisplayId();
     petInfo->Level = GetLevel();
-    petInfo->Experience = m_unitData->PetExperience;
+    petInfo->Experience = GetUInt32Value(UNIT_FIELD_PETEXPERIENCE);
     petInfo->ReactState = GetReactState();
     petInfo->Name = GetName();
     petInfo->WasRenamed = !HasPetFlag(UNIT_PET_FLAG_CAN_BE_RENAMED);
@@ -568,7 +568,7 @@ void Pet::FillPetInfo(PetStable::PetInfo* petInfo) const
     petInfo->Mana = GetPower(POWER_MANA);
     petInfo->ActionBar = GenerateActionBarData();
     petInfo->LastSaveTime = GameTime::GetGameTime();
-    petInfo->CreatedBySpellId = m_unitData->CreatedBySpell;
+    petInfo->CreatedBySpellId = GetUInt32Value(UNIT_CREATED_BY_SPELL);
     petInfo->Type = getPetType();
     petInfo->SpecializationId = GetSpecialization();
 }
@@ -744,8 +744,8 @@ void Pet::GivePetXP(uint32 xp)
     if (petlevel >= maxlevel)
        return;
 
-    uint32 nextLvlXP = m_unitData->PetNextLevelExperience;
-    uint32 curXP = m_unitData->PetExperience;
+    uint32 nextLvlXP = GetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP);
+    uint32 curXP = GetUInt32Value(UNIT_FIELD_PETEXPERIENCE);
     uint32 newXP = curXP + xp;
 
     // Check how much XP the pet should receive, and hand off have any left from previous levelups
@@ -757,7 +757,7 @@ void Pet::GivePetXP(uint32 xp)
 
         GivePetLevel(petlevel);
 
-        nextLvlXP = m_unitData->PetNextLevelExperience;
+        nextLvlXP = GetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP);
     }
     // Not affected by special conditions - give it new XP
     SetPetExperience(petlevel < maxlevel ? newXP : 0);
@@ -944,8 +944,8 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
         case SUMMON_PET:
         {
             // the damage bonus used for pets is either fire or shadow damage, whatever is higher
-            int32 fire = GetOwner()->ToPlayer()->m_activePlayerData->ModDamageDonePos[SPELL_SCHOOL_FIRE];
-            int32 shadow = GetOwner()->ToPlayer()->m_activePlayerData->ModDamageDonePos[SPELL_SCHOOL_SHADOW];
+            int32 fire = GetOwner()->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_FIRE);
+            int32 shadow = GetOwner()->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_SHADOW);
             int32 val = (fire > shadow) ? fire : shadow;
             if (val < 0)
                 val = 0;

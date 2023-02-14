@@ -34,6 +34,7 @@
 #include "UpdateFields.h"
 #include <list>
 #include <unordered_map>
+#include <memory>
 
 class AreaTrigger;
 class Conversation;
@@ -133,6 +134,8 @@ public:
 private:
     std::vector<uint32> const& _data;
 };
+
+float const DEFAULT_COLLISION_HEIGHT = 2.03128f; // Most common value in dbc
 
 class TC_GAME_API Object
 {

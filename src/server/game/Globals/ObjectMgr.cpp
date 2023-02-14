@@ -3080,12 +3080,6 @@ uint32 FillMaxDurability(uint32 itemClass, uint32 itemSubClass, uint32 inventory
         0.00f, // INVTYPE_RANGEDRIGHT
         0.00f, // INVTYPE_QUIVER
         0.00f, // INVTYPE_RELIC
-        0.00f, // INVTYPE_PROFESSION_TOOL
-        0.00f, // INVTYPE_PROFESSION_GEAR
-        0.00f, // INVTYPE_EQUIPABLE_SPELL_OFFENSIVE
-        0.00f, // INVTYPE_EQUIPABLE_SPELL_UTILITY
-        0.00f, // INVTYPE_EQUIPABLE_SPELL_DEFENSIVE
-        0.00f, // INVTYPE_EQUIPABLE_SPELL_MOBILITY
     };
 
     static float const weaponMultipliers[MAX_ITEM_SUBCLASS_WEAPON] =
@@ -3868,18 +3862,6 @@ void ObjectMgr::LoadPlayerInfo()
                     continue;
                 }
 
-                if (!sDB2Manager.GetChrModel(current_race, GENDER_MALE))
-                {
-                    TC_LOG_ERROR("sql.sql", "Missing male model for race {}, ignoring.", current_race);
-                    continue;
-                }
-
-                if (!sDB2Manager.GetChrModel(current_race, GENDER_FEMALE))
-                {
-                    TC_LOG_ERROR("sql.sql", "Missing female model for race {}, ignoring.", current_race);
-                    continue;
-                }
-
                 std::unique_ptr<PlayerInfo> info = std::make_unique<PlayerInfo>();
                 info->createPosition.Loc.WorldRelocate(mapId, positionX, positionY, positionZ, orientation);
 
@@ -4379,9 +4361,6 @@ void ObjectMgr::LoadPlayerInfo()
                 if (sWorld->getIntConfig(CONFIG_EXPANSION) < EXPANSION_LEGION && class_ == CLASS_DEMON_HUNTER)
                     continue;
 
-                if (sWorld->getIntConfig(CONFIG_EXPANSION) < EXPANSION_DRAGONFLIGHT && class_ == CLASS_EVOKER)
-                    continue;
-
                 // fatal error if no level 1 data
                 if (!playerInfo->get()->levelInfo || playerInfo->get()->levelInfo[0].stats[0] == 0)
                 {
@@ -4812,7 +4791,7 @@ void ObjectMgr::LoadQuests()
             }
         }
 
-        if (qinfo->_contentTuningID && !sContentTuningStore.LookupEntry(qinfo->_contentTuningID))
+        if (qinfo->MinLevel == -1 || qinfo->MinLevel > DEFAULT_MAX_LEVEL)
         {
             TC_LOG_ERROR("sql.sql", "Quest {} has `ContentTuningID` = {} but content tuning with this id does not exist.",
                 qinfo->GetQuestId(), qinfo->_contentTuningID);
@@ -6963,7 +6942,7 @@ void ObjectMgr::LoadGraveyardZones()
         uint32 zoneId = fields[1].GetUInt32();
         uint32 team   = fields[2].GetUInt16();
 
-        WorldSafeLocsEntry const* entry = GetWorldSafeLoc(safeLocId);
+        WorldSafeLocsEntry const* entry = sWorldSafeLocsStore.LookupEntry(safeLocId);
         if (!entry)
         {
             TC_LOG_ERROR("sql.sql", "Table `graveyard_zone` has a record for non-existing graveyard (WorldSafeLocsID: {}), skipped.", safeLocId);
@@ -6999,9 +6978,9 @@ WorldSafeLocsEntry const* ObjectMgr::GetDefaultGraveyard(uint32 team) const
     };
 
     if (team == HORDE)
-        return GetWorldSafeLoc(HORDE_GRAVEYARD);
+        return sWorldSafeLocsStore.LookupEntry(HORDE_GRAVEYARD);
     else if (team == ALLIANCE)
-        return GetWorldSafeLoc(ALLIANCE_GRAVEYARD);
+        return sWorldSafeLocsStore.LookupEntry(ALLIANCE_GRAVEYARD);
     else return nullptr;
 }
 
@@ -7062,7 +7041,7 @@ WorldSafeLocsEntry const* ObjectMgr::GetClosestGraveyard(WorldLocation const& lo
     {
         GraveyardData const& data = range.first->second;
 
-        WorldSafeLocsEntry const* entry = ASSERT_NOTNULL(GetWorldSafeLoc(data.safeLocId));
+        WorldSafeLocsEntry const* entry = ASSERT_NOTNULL(sWorldSafeLocsStore.LookupEntry(data.safeLocId));
 
         // skip enemy faction graveyard
         // team == 0 case can be at call from .neargrave
@@ -7074,17 +7053,17 @@ WorldSafeLocsEntry const* ObjectMgr::GetClosestGraveyard(WorldLocation const& lo
             if (!sConditionMgr->IsObjectMeetingNotGroupedConditions(CONDITION_SOURCE_TYPE_GRAVEYARD, data.safeLocId, conditionSource))
                 continue;
 
-            if (int16(entry->Loc.GetMapId()) == mapEntry->ParentMapID && !conditionObject->GetPhaseShift().HasVisibleMapId(entry->Loc.GetMapId()))
+            if (int16(entry->MapID) == mapEntry->ParentMapID && !conditionObject->GetPhaseShift().HasVisibleMapId(entry->MapID))
                 continue;
         }
 
         // find now nearest graveyard at other map
-        if (MapId != entry->Loc.GetMapId() && int16(entry->Loc.GetMapId()) != mapEntry->ParentMapID)
+        if (MapId != entry->MapID && int16(entry->MapID) != mapEntry->ParentMapID)
         {
             // if find graveyard at different map from where entrance placed (or no entrance data), use any first
             if (!mapEntry
                 || mapEntry->CorpseMapID < 0
-                || uint32(mapEntry->CorpseMapID) != entry->Loc.GetMapId()
+                || uint32(mapEntry->CorpseMapID) != entry->MapID
                 || (mapEntry->Corpse.X == 0 && mapEntry->Corpse.Y == 0)) // Check X and Y
             {
                 // not have any corrdinates for check distance anyway
@@ -7267,7 +7246,7 @@ void ObjectMgr::LoadAreaTriggerTeleports()
         uint32 Trigger_ID = fields[0].GetUInt32();
         uint32 PortLocID  = fields[1].GetUInt32();
 
-        WorldSafeLocsEntry const* portLoc = GetWorldSafeLoc(PortLocID);
+        WorldSafeLocsEntry const* portLoc = sWorldSafeLocsStore.LookupEntry(PortLocID);
         if (!portLoc)
         {
             TC_LOG_ERROR("sql.sql", "Area Trigger (ID: {}) has a non-existing Port Loc (ID: {}) in WorldSafeLocs.dbc, skipped", Trigger_ID, PortLocID);
@@ -7276,11 +7255,11 @@ void ObjectMgr::LoadAreaTriggerTeleports()
 
         AreaTriggerStruct at;
 
-        at.target_mapId       = portLoc->Loc.GetMapId();
+        at.target_mapId       = portLoc->MapID;
         at.target_X           = portLoc->GetPositionX();
         at.target_Y           = portLoc->GetPositionY();
         at.target_Z           = portLoc->GetPositionZ();
-        at.target_Orientation = portLoc->Loc.GetOrientation();
+        at.target_Orientation = portLoc->GetOrientation();
 
         AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(Trigger_ID);
         if (!atEntry)
@@ -10091,6 +10070,12 @@ CreatureBaseStats const* ObjectMgr::GetCreatureBaseStats(uint8 level, uint8 unit
     {
         DefaultCreatureBaseStats()
         {
+            BaseArmor = 1;
+            for (uint8 j = 0; j < MAX_EXPANSIONS; ++j)
+            {
+                BaseHealth[j] = 1;
+                BaseDamage[j] = 0.0f;
+            }
             BaseMana = 0;
             AttackPower = 0;
             RangedAttackPower = 0;
@@ -10125,6 +10110,16 @@ void ObjectMgr::LoadCreatureClassLevelStats()
 
         CreatureBaseStats stats;
 
+        for (uint8 i = 0; i < MAX_EXPANSIONS; ++i)
+        {
+            stats.BaseHealth[i] = GetGameTableColumnForClass(sNpcTotalHpGameTable[i].GetRow(Level), Class);
+            stats.BaseDamage[i] = GetGameTableColumnForClass(sNpcDamageByClassGameTable[i].GetRow(Level), Class);
+            if (stats.BaseDamage[i] < 0.0f)
+            {
+                TC_LOG_ERROR("sql.sql", "Creature base stats for class %u, level %u has invalid negative base damage[%u] - set to 0.0", Class, Level, i);
+                stats.BaseDamage[i] = 0.0f;
+            }
+        }
         stats.BaseMana = fields[2].GetUInt32();
 
         stats.AttackPower = fields[3].GetUInt16();

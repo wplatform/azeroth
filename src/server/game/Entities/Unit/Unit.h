@@ -535,13 +535,13 @@ struct CalcDamageInfo
 // Spell damage info structure based on structure sending in SMSG_SPELLNONMELEEDAMAGELOG opcode
 struct TC_GAME_API SpellNonMeleeDamage
 {
-    SpellNonMeleeDamage(Unit* _attacker, Unit* _target, SpellInfo const* _spellInfo, uint32 _spellXSpellVisualID, uint32 _schoolMask, ObjectGuid _castId = ObjectGuid::Empty);
+    SpellNonMeleeDamage(Unit* _attacker, Unit* _target, SpellInfo const* _spellInfo, SpellCastVisual spellVisual, uint32 _schoolMask, ObjectGuid _castId = ObjectGuid::Empty);
 
     Unit   *target;
     Unit   *attacker;
     ObjectGuid castId;
     SpellInfo const* Spell;
-    uint32 spellXSpellVisualID;
+    SpellCastVisual SpellVisual;
     uint32 damage;
     uint32 originalDamage;
     uint32 schoolMask;
@@ -763,7 +763,7 @@ class TC_GAME_API Unit : public WorldObject
         struct VisibleAuraSlotCompare { bool operator()(AuraApplication* left, AuraApplication* right) const; };
         typedef std::set<AuraApplication*, VisibleAuraSlotCompare> VisibleAuraContainer;
 
-        ~Unit() override;
+        virtual ~Unit();
 
         bool IsAIEnabled() const { return (i_AI != nullptr); }
         void AIUpdateTick(uint32 diff);
@@ -959,7 +959,7 @@ class TC_GAME_API Unit : public WorldObject
         void SetEmoteState(Emote emote) { SetUInt32Value(UNIT_NPC_EMOTESTATE, emote); }
 
         SheathState GetSheath() const { return SheathState(GetByteValue(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_SHEATH_STATE)); }
-        void SetSheath(SheathState sheathed) { SetByteValue(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_SHEATH_STATE, sheathed); }
+        void SetSheath(SheathState sheathed);
 
         // faction template id
         uint32 GetFaction() const override { return GetUInt32Value(UNIT_FIELD_FACTIONTEMPLATE); }
@@ -1618,7 +1618,7 @@ class TC_GAME_API Unit : public WorldObject
         virtual void SetDisplayId(uint32 modelId, float displayScale = 1.f);
         uint32 GetNativeDisplayId() const { return GetUInt32Value(UNIT_FIELD_NATIVEDISPLAYID); }
         void RestoreDisplayId(bool ignorePositiveAurasPreventingMounting = false);
-        void SetNativeDisplayId(uint32 displayId) { SetUInt32Value(UNIT_FIELD_NATIVEDISPLAYID, displayId); }
+        void SetNativeDisplayId(uint32 displayId) { SetUInt32Value(UNIT_FIELD_NATIVEDISPLAYID, displayId);}
         void SetTransformSpell(uint32 spellid) { m_transformSpell = spellid;}
         uint32 GetTransformSpell() const { return m_transformSpell;}
 

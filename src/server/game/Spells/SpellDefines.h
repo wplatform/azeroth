@@ -478,6 +478,11 @@ struct TC_GAME_API CastSpellExtraArgs
     CastSpellExtraArgs& operator=(CastSpellExtraArgs&&) = delete;
 };
 
+struct SpellCastVisual
+{
+    uint32 SpellXSpellVisualID = 0;
+    uint32 ScriptVisualID = 0;
+};
 
 class ProcFlagsInit : public FlagsArray<int32, 2>
 {

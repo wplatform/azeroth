@@ -536,8 +536,8 @@ bool Creature::InitEntry(uint32 entry, CreatureData const* data /*= nullptr*/)
         return false;
     }
 
-    SetDisplayId(model.CreatureDisplayID, model.DisplayScale);
-    SetNativeDisplayId(model.CreatureDisplayID, model.DisplayScale);
+    SetDisplayId(model.CreatureDisplayID);
+    SetNativeDisplayId(model.CreatureDisplayID);
 
     // Load creature equipment
     if (!data)
@@ -565,7 +565,7 @@ bool Creature::InitEntry(uint32 entry, CreatureData const* data /*= nullptr*/)
     SetSpeedRate(MOVE_FLIGHT, 1.0f); // using 1.0 rate
 
     // Will set UNIT_FIELD_BOUNDINGRADIUS, UNIT_FIELD_COMBATREACH and UNIT_FIELD_DISPLAYSCALE
-    SetObjectScale(GetNativeObjectScale());
+    SetObjectScale(model.DisplayScale);
 
     SetHoverHeight(cinfo->HoverHeight);
 
@@ -618,8 +618,7 @@ bool Creature::UpdateEntry(uint32 entry, CreatureData const* data /*= nullptr*/,
 
     ReplaceAllDynamicFlags(dynamicFlags);
 
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::StateAnimID), sDB2Manager.GetEmptyAnimStateID());
-
+    //SetUInt32Value(UNIT_FIELD_STATE_ANIM_ID, sDB2Manager.GetEmptyAnimStateID());
     SetCanDualWield(cInfo->flags_extra & CREATURE_FLAG_EXTRA_USE_OFFHAND_ATTACK);
 
     SetBaseAttackTime(BASE_ATTACK,   cInfo->BaseAttackTime);
@@ -1397,11 +1396,11 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
     CreatureData& data = sObjectMgr->NewOrExistCreatureData(m_spawnId);
 
     uint32 displayId = GetNativeDisplayId();
-    uint64 npcflag = (uint64(m_unitData->NpcFlags[1]) << 32) | m_unitData->NpcFlags[0];
-    uint32 unitFlags = m_unitData->Flags;
-    uint32 unitFlags2 = m_unitData->Flags2;
-    uint32 unitFlags3 = m_unitData->Flags3;
-    uint32 dynamicflags = m_objectData->DynamicFlags;
+    uint64 npcflag = GetUInt64Value(UNIT_NPC_FLAGS);
+    uint32 unitFlags = GetUInt32Value(UNIT_FIELD_FLAGS);
+    uint32 unitFlags2 = GetUInt32Value(UNIT_FIELD_FLAGS_2);
+    uint32 unitFlags3 = GetUInt32Value(UNIT_FIELD_FLAGS_3);
+    uint32 dynamicflags = GetUInt32Value(OBJECT_DYNAMIC_FLAGS);
 
     // check if it's a custom model and if not, use 0 for displayId
     CreatureTemplate const* cinfo = GetCreatureTemplate();
@@ -2214,11 +2213,12 @@ void Creature::Respawn(bool force)
 
             setDeathState(JUST_RESPAWNED);
 
-            CreatureModel display(GetNativeDisplayId(), GetNativeDisplayScale(), 1.0f);
+            CreatureModel display(GetNativeDisplayId(), GetObjectScale(), 1.0f);
             if (sObjectMgr->GetCreatureModelRandomGender(&display, GetCreatureTemplate()))
             {
-                SetDisplayId(display.CreatureDisplayID, display.DisplayScale);
-                SetNativeDisplayId(display.CreatureDisplayID, display.DisplayScale);
+                SetObjectScale(display.DisplayScale);
+                SetDisplayId(display.CreatureDisplayID);
+                SetNativeDisplayId(display.CreatureDisplayID);
             }
 
             GetMotionMaster()->InitializeDefault();
@@ -2766,7 +2766,7 @@ void Creature::UpdateMovementFlags()
     float ground = GetFloorZ();
 
     bool canHover = CanHover();
-    bool isInAir = (G3D::fuzzyGt(GetPositionZ(), ground + (canHover ? *m_unitData->HoverHeight : 0.0f) + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE)); // Can be underground too, prevent the falling
+    bool isInAir = (G3D::fuzzyGt(GetPositionZ(), ground + (canHover ? GetHoverHeight() : 0.0f) + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE)); // Can be underground too, prevent the falling
 
     if (GetMovementTemplate().IsFlightAllowed() && (isInAir || !GetMovementTemplate().IsGroundAllowed()) && !IsFalling())
     {
@@ -2863,33 +2863,24 @@ void Creature::AllLootRemovedFromCorpse()
 
 bool Creature::HasScalableLevels() const
 {
-    return m_unitData->ContentTuningID != 0;
+    CreatureLevelScaling const* scaling = GetCreatureTemplate()->GetLevelScaling(GetMap()->GetDifficultyID());
+    return scaling->ContentTuningID != 0;
 }
 
 void Creature::ApplyLevelScaling()
 {
     CreatureLevelScaling const* scaling = GetCreatureTemplate()->GetLevelScaling(GetMap()->GetDifficultyID());
-
-    if (Optional<ContentTuningLevels> levels = sDB2Manager.GetContentTuningData(scaling->ContentTuningID, 0))
-    {
-        SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ScalingLevelMin), levels->MinLevel);
-        SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ScalingLevelMax), levels->MaxLevel);
-    }
-
     int32 mindelta = std::min(scaling->DeltaLevelMax, scaling->DeltaLevelMin);
     int32 maxdelta = std::max(scaling->DeltaLevelMax, scaling->DeltaLevelMin);
     int32 delta = mindelta == maxdelta ? mindelta : irand(mindelta, maxdelta);
-
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ScalingLevelDelta), delta);
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ContentTuningID), scaling->ContentTuningID);
+    SetInt32Value(UNIT_FIELD_SCALING_LEVEL_DELTA, delta);
 }
 
 uint64 Creature::GetMaxHealthByLevel(uint8 level) const
 {
     CreatureTemplate const* cInfo = GetCreatureTemplate();
-    CreatureLevelScaling const* scaling = cInfo->GetLevelScaling(GetMap()->GetDifficultyID());
-    float baseHealth = sDB2Manager.EvaluateExpectedStat(ExpectedStatType::CreatureHealth, level, cInfo->GetHealthScalingExpansion(), scaling->ContentTuningID, Classes(cInfo->unit_class));
-    return baseHealth * cInfo->ModHealth * cInfo->ModHealthExtra;
+    CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(level, cInfo->unit_class);
+    return stats->GenerateHealth(cInfo);
 }
 
 float Creature::GetHealthMultiplierForTarget(WorldObject const* target) const
@@ -2907,8 +2898,8 @@ float Creature::GetHealthMultiplierForTarget(WorldObject const* target) const
 float Creature::GetBaseDamageForLevel(uint8 level) const
 {
     CreatureTemplate const* cInfo = GetCreatureTemplate();
-    CreatureLevelScaling const* scaling = cInfo->GetLevelScaling(GetMap()->GetDifficultyID());
-    return sDB2Manager.EvaluateExpectedStat(ExpectedStatType::CreatureAutoAttackDps, level, cInfo->GetHealthScalingExpansion(), scaling->ContentTuningID, Classes(cInfo->unit_class));
+    CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(level, cInfo->unit_class);
+    return stats->GenerateBaseDamage(cInfo);
 }
 
 float Creature::GetDamageMultiplierForTarget(WorldObject const* target) const
@@ -2924,9 +2915,8 @@ float Creature::GetDamageMultiplierForTarget(WorldObject const* target) const
 float Creature::GetBaseArmorForLevel(uint8 level) const
 {
     CreatureTemplate const* cInfo = GetCreatureTemplate();
-    CreatureLevelScaling const* scaling = cInfo->GetLevelScaling(GetMap()->GetDifficultyID());
-    float baseArmor = sDB2Manager.EvaluateExpectedStat(ExpectedStatType::CreatureArmor, level, cInfo->GetHealthScalingExpansion(), scaling->ContentTuningID, Classes(cInfo->unit_class));
-    return baseArmor * cInfo->ModArmor;
+    CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(level, cInfo->unit_class);
+    return stats->GenerateArmor(cInfo);
 }
 
 float Creature::GetArmorMultiplierForTarget(WorldObject const* target) const
@@ -2953,28 +2943,16 @@ uint8 Creature::GetLevelForTarget(WorldObject const* target) const
         // between UNIT_FIELD_SCALING_LEVEL_MIN and UNIT_FIELD_SCALING_LEVEL_MAX
         if (HasScalableLevels())
         {
-            int32 scalingLevelMin = m_unitData->ScalingLevelMin;
-            int32 scalingLevelMax = m_unitData->ScalingLevelMax;
-            int32 scalingLevelDelta = m_unitData->ScalingLevelDelta;
-            int32 scalingFactionGroup = m_unitData->ScalingFactionGroup;
-            int32 targetLevel = unitTarget->m_unitData->EffectiveLevel;
-            if (!targetLevel)
-                targetLevel = unitTarget->GetLevel();
+            CreatureLevelScaling const* scaling = GetCreatureTemplate()->GetLevelScaling(GetMap()->GetDifficultyID());
+            int32 mindelta = std::min(scaling->DeltaLevelMax, scaling->DeltaLevelMin);
+            int32 maxdelta = std::max(scaling->DeltaLevelMax, scaling->DeltaLevelMin);
+            int32 delta = mindelta == maxdelta ? mindelta : irand(mindelta, maxdelta);
+            uint8 targetLevelWithDelta = unitTarget->GetLevel() + delta;
 
-            int32 targetLevelDelta = 0;
+            if (target->IsPlayer())
+                targetLevelWithDelta += target->GetUInt32Value(PLAYER_FIELD_SCALING_PLAYER_LEVEL_DELTA);
 
-            if (Player const* playerTarget = target->ToPlayer())
-            {
-                if (scalingFactionGroup && sFactionTemplateStore.AssertEntry(sChrRacesStore.AssertEntry(playerTarget->GetRace())->FactionID)->FactionGroup != scalingFactionGroup)
-                    scalingLevelMin = scalingLevelMax;
-
-                int32 maxCreatureScalingLevel = playerTarget->m_activePlayerData->MaxCreatureScalingLevel;
-                targetLevelDelta = std::min(maxCreatureScalingLevel > 0 ? maxCreatureScalingLevel - targetLevel : 0, *playerTarget->m_activePlayerData->ScalingPlayerLevelDelta);
-            }
-
-            int32 levelWithDelta = targetLevel + targetLevelDelta;
-            int32 level = RoundToInterval(levelWithDelta, scalingLevelMin, scalingLevelMax) + scalingLevelDelta;
-            return RoundToInterval(level, 1, MAX_LEVEL + 3);
+            return RoundToInterval<uint8>(targetLevelWithDelta, GetUInt32Value(UNIT_FIELD_SCALING_LEVEL_MIN), GetUInt32Value(UNIT_FIELD_SCALING_LEVEL_MAX));
         }
     }
 
@@ -3220,7 +3198,7 @@ void Creature::SetObjectScale(float scale)
     if (CreatureModelInfo const* minfo = sObjectMgr->GetCreatureModelInfo(GetDisplayId()))
     {
         SetBoundingRadius((IsPet() ? 1.0f : minfo->bounding_radius) * scale);
-        SetCombatReach((IsPet() ? DEFAULT_PLAYER_COMBAT_REACH : minfo->combat_reach) * scale);
+        SetCombatReach((IsPet() ? UNIT_FIELD_COMBATREACH : minfo->combat_reach) * scale);
     }
 }
 
@@ -3231,7 +3209,7 @@ void Creature::SetDisplayId(uint32 modelId, float displayScale /*= 1.f*/)
     if (CreatureModelInfo const* minfo = sObjectMgr->GetCreatureModelInfo(modelId))
     {
         SetBoundingRadius((IsPet() ? 1.0f : minfo->bounding_radius) * GetObjectScale());
-        SetCombatReach((IsPet() ? DEFAULT_PLAYER_COMBAT_REACH : minfo->combat_reach) * GetObjectScale());
+        SetCombatReach((IsPet() ? UNIT_FIELD_COMBATREACH : minfo->combat_reach) * GetObjectScale());
     }
 }
 
@@ -3246,7 +3224,7 @@ void Creature::SetTarget(ObjectGuid const& guid)
     if (HasSpellFocus())
         _spellFocusInfo.Target = guid;
     else
-        SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Target), guid);
+        SetGuidValue(UNIT_FIELD_TARGET, guid);
 }
 
 void Creature::SetSpellFocus(Spell const* focusSpell, WorldObject const* target)
@@ -3293,7 +3271,7 @@ void Creature::SetSpellFocus(Spell const* focusSpell, WorldObject const* target)
     // set target, then force send update packet to players if it changed to provide appropriate facing
     ObjectGuid newTarget = (target && !noTurnDuringCast && !turnDisabled) ? target->GetGUID() : ObjectGuid::Empty;
     if (GetTarget() != newTarget)
-        SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Target), newTarget);
+        SetGuidValue(UNIT_FIELD_TARGET, newTarget);
 
     // If we are not allowed to turn during cast but have a focus target, face the target
     if (!turnDisabled && noTurnDuringCast && target)
@@ -3352,8 +3330,7 @@ void Creature::ReacquireSpellFocusTarget()
         return;
     }
 
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::Target), _spellFocusInfo.Target);
-
+    SetGuidValue(UNIT_FIELD_TARGET, _spellFocusInfo.Target);
     if (!HasUnitFlag2(UNIT_FLAG2_CANNOT_TURN))
     {
         if (!_spellFocusInfo.Target.IsEmpty())

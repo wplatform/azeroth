@@ -36,7 +36,7 @@
 #endif
 
 DB2Storage<AchievementEntry>                    sAchievementStore("Achievement.db2", AchievementLoadInfo::Instance());
-`DB2Storage<AdventureJournalEntry>               sAdventureJournalStore("AdventureJournal.db2", AdventureJournalLoadInfo::Instance());
+DB2Storage<AdventureJournalEntry>               sAdventureJournalStore("AdventureJournal.db2", AdventureJournalLoadInfo::Instance());
 DB2Storage<AnimKitEntry>                        sAnimKitStore("AnimKit.db2", AnimKitLoadInfo::Instance());
 DB2Storage<AreaGroupMemberEntry>                sAreaGroupMemberStore("AreaGroupMember.db2", AreaGroupMemberLoadInfo::Instance());
 DB2Storage<AreaTableEntry>                      sAreaTableStore("AreaTable.db2", AreaTableLoadInfo::Instance());
@@ -500,7 +500,7 @@ void DB2Manager::LoadStores(std::string const& dataPath, uint32 defaultLocale)
     LOAD_DB2(sArtifactTierStore);
     LOAD_DB2(sArtifactUnlockStore);
     LOAD_DB2(sAuctionHouseStore);
-    LOAD_DB2(sBankBagSlotPricesStore);GetUiMapPosition
+    LOAD_DB2(sBankBagSlotPricesStore);
     LOAD_DB2(sBannedAddonsStore);
     LOAD_DB2(sBarberShopStyleStore);
     LOAD_DB2(sBattlePetBreedQualityStore);
