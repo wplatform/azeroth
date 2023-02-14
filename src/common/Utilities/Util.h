@@ -52,9 +52,7 @@ namespace Trinity
 
 TC_COMMON_API Optional<int64> MoneyStringToMoney(std::string const& moneyString);
 
-#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
 TC_COMMON_API struct tm* localtime_r(time_t const* time, struct tm *result);
-#endif
 TC_COMMON_API time_t LocalTimeToUTCTime(time_t time);
 TC_COMMON_API time_t GetLocalHourTimestamp(time_t time, uint8 hour, bool onlyAfterTime = true);
 TC_COMMON_API tm TimeBreakdown(time_t t);
@@ -63,13 +61,6 @@ TC_COMMON_API std::string secsToTimeString(uint64 timeInSecs, TimeFormat timeFor
 TC_COMMON_API uint32 TimeStringToSecs(std::string const& timestring);
 TC_COMMON_API std::string TimeToTimestampStr(time_t t);
 TC_COMMON_API std::string TimeToHumanReadable(time_t t);
-
-inline void ApplyPercentModFloatVar(float& var, float val, bool apply)
-{
-    if (val == -100.0f)     // prevent set var to zero
-        val = -99.99f;
-    var *= (apply ? (100.0f + val) / 100.0f : 100.0f / (100.0f + val));
-}
 
 // Percentage calculation
 template <class T, class U>

@@ -17,7 +17,7 @@
 
 #include "RealmList.h"
 #include "BattlenetRpcErrorCodes.h"
-#include "BigNumber.h"
+#include "CryptoRandom.h"
 #include "DatabaseEnv.h"
 #include "DeadlineTimer.h"
 #include "Errors.h"
@@ -380,12 +380,11 @@ uint32 RealmList::JoinRealm(uint32 realmAddress, uint32 build, boost::asio::ip::
         if (compress(compressed.data() + 4, &compressedLength, reinterpret_cast<uint8 const*>(json.c_str()), uLong(json.length() + 1)) != Z_OK)
             return ERROR_UTIL_SERVER_FAILED_TO_SERIALIZE_RESPONSE;
 
-        BigNumber serverSecret;
-        serverSecret.SetRand(8 * 32);
+        std::array<uint8, 32> serverSecret = Trinity::Crypto::GetRandomBytes<32>();
 
         std::array<uint8, 64> keyData;
         memcpy(&keyData[0], clientSecret.data(), 32);
-        memcpy(&keyData[32], serverSecret.AsByteArray(32).get(), 32);
+        memcpy(&keyData[32], serverSecret.data(), 32);
 
         LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_BNET_GAME_ACCOUNT_LOGIN_INFO);
         stmt->setBinary(0, keyData);
@@ -405,7 +404,7 @@ uint32 RealmList::JoinRealm(uint32 realmAddress, uint32 build, boost::asio::ip::
 
         attribute = response->add_attribute();
         attribute->set_name("Param_JoinSecret");
-        attribute->mutable_value()->set_blob_value(serverSecret.AsByteArray(32).get(), 32);
+        attribute->mutable_value()->set_blob_value(serverSecret.data(), 32);
         return ERROR_OK;
     }
 

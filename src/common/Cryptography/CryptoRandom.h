@@ -15,29 +15,32 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _WORLDPACKETCRYPT_H
-#define _WORLDPACKETCRYPT_H
+#ifndef TRINITY_CRYPTORANDOM_H
+#define TRINITY_CRYPTORANDOM_H
 
-#include "AES.h"
+#include "Define.h"
+#include <array>
 
-class TC_COMMON_API WorldPacketCrypt
+namespace Trinity
 {
-public:
-    WorldPacketCrypt();
+namespace Crypto
+{
+    void TC_COMMON_API GetRandomBytes(uint8* buf, size_t len);
 
-    void Init(Trinity::Crypto::AES::Key const& key);
-    bool PeekDecryptRecv(uint8* data, size_t length);
-    bool DecryptRecv(uint8* data, size_t length, Trinity::Crypto::AES::Tag& tag);
-    bool EncryptSend(uint8* data, size_t length, Trinity::Crypto::AES::Tag& tag);
+    template <typename Container>
+    void GetRandomBytes(Container& c)
+    {
+        GetRandomBytes(std::data(c), std::size(c));
+    }
 
-    bool IsInitialized() const { return _initialized; }
+    template <size_t S>
+    std::array<uint8, S> GetRandomBytes()
+    {
+        std::array<uint8, S> arr;
+        GetRandomBytes(arr);
+        return arr;
+    }
+}
+}
 
-protected:
-    Trinity::Crypto::AES _clientDecrypt;
-    Trinity::Crypto::AES _serverEncrypt;
-    uint64 _clientCounter;
-    uint64 _serverCounter;
-    bool _initialized;
-};
-
-#endif // _WORLDPACKETCRYPT_H
+#endif

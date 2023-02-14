@@ -15,29 +15,12 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _WORLDPACKETCRYPT_H
-#define _WORLDPACKETCRYPT_H
+#include "CryptoRandom.h"
+#include "Errors.h"
+#include <openssl/rand.h>
 
-#include "AES.h"
-
-class TC_COMMON_API WorldPacketCrypt
+void Trinity::Crypto::GetRandomBytes(uint8* buf, size_t len)
 {
-public:
-    WorldPacketCrypt();
-
-    void Init(Trinity::Crypto::AES::Key const& key);
-    bool PeekDecryptRecv(uint8* data, size_t length);
-    bool DecryptRecv(uint8* data, size_t length, Trinity::Crypto::AES::Tag& tag);
-    bool EncryptSend(uint8* data, size_t length, Trinity::Crypto::AES::Tag& tag);
-
-    bool IsInitialized() const { return _initialized; }
-
-protected:
-    Trinity::Crypto::AES _clientDecrypt;
-    Trinity::Crypto::AES _serverEncrypt;
-    uint64 _clientCounter;
-    uint64 _serverCounter;
-    bool _initialized;
-};
-
-#endif // _WORLDPACKETCRYPT_H
+    int result = RAND_bytes(buf, len);
+    ASSERT(result == 1, "Not enough randomness in OpenSSL's entropy pool. What in the world are you running on?");
+}

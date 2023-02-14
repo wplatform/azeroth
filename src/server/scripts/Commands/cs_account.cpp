@@ -36,7 +36,6 @@ EndScriptData */
 #include "Log.h"
 #include "Player.h"
 #include "ScriptMgr.h"
-#include "SecretMgr.h"
 #include "TOTP.h"
 #include "World.h"
 #include "WorldSession.h"
@@ -59,7 +58,6 @@ public:
             { "gmlevel",            HandleAccountSetSecLevelCommand,    LANG_COMMAND_ACC_SET_SECLEVEL_HELP,     rbac::RBAC_PERM_COMMAND_ACCOUNT_SET_SECLEVEL,       Console::Yes },  // temp for a transition period
             { "seclevel",           HandleAccountSetSecLevelCommand,    LANG_COMMAND_ACC_SET_SECLEVEL_HELP,     rbac::RBAC_PERM_COMMAND_ACCOUNT_SET_SECLEVEL,       Console::Yes },
             { "password",           HandleAccountSetPasswordCommand,    LANG_COMMAND_ACC_SET_PASSWORD_HELP,     rbac::RBAC_PERM_COMMAND_ACCOUNT_SET_PASSWORD,       Console::Yes },
-            { "2fa",                HandleAccountSet2FACommand,         LANG_COMMAND_ACC_SET_2FA_HELP,          rbac::RBAC_PERM_COMMAND_ACCOUNT_SET_2FA,            Console::Yes },
         };
         static ChatCommandTable accountOnlinelistCommandTable =
         {
@@ -71,8 +69,6 @@ public:
         };
         static ChatCommandTable accountCommandTable =
         {
-            { "2fa setup",          HandleAccount2FASetupCommand,       LANG_COMMAND_ACC_2FA_SETUP_HELP,        rbac::RBAC_PERM_COMMAND_ACCOUNT_2FA_SETUP,          Console::No  },
-            { "2fa remove",         HandleAccount2FARemoveCommand,      LANG_COMMAND_ACC_2FA_REMOVE_HELP,       rbac::RBAC_PERM_COMMAND_ACCOUNT_2FA_REMOVE,         Console::No  },
             { "addon",              HandleAccountAddonCommand,          LANG_COMMAND_ACC_ADDON_HELP,            rbac::RBAC_PERM_COMMAND_ACCOUNT_ADDON,              Console::No  },
             { "create",             HandleAccountCreateCommand,         LANG_COMMAND_ACC_CREATE_HELP,           rbac::RBAC_PERM_COMMAND_ACCOUNT_CREATE,             Console::Yes },
             { "delete",             HandleAccountDeleteCommand,         LANG_COMMAND_ACC_DELETE_HELP,           rbac::RBAC_PERM_COMMAND_ACCOUNT_DELETE,             Console::Yes },
@@ -91,137 +87,6 @@ public:
         return commandTable;
     }
 
-    static bool HandleAccount2FASetupCommand(ChatHandler* handler, Optional<uint32> token)
-    {
-        auto const& masterKey = sSecretMgr->GetSecret(SECRET_TOTP_MASTER_KEY);
-        if (!masterKey.IsAvailable())
-        {
-            handler->SendSysMessage(LANG_2FA_COMMANDS_NOT_SETUP);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        uint32 const accountId = handler->GetSession()->GetAccountId();
-
-        { // check if 2FA already enabled
-            LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_TOTP_SECRET);
-            stmt->setUInt32(0, accountId);
-            PreparedQueryResult result = LoginDatabase.Query(stmt);
-
-            if (!result)
-            {
-                TC_LOG_ERROR("misc", "Account {} not found in login database when processing .account 2fa setup command.", accountId);
-                handler->SendSysMessage(LANG_UNKNOWN_ERROR);
-                handler->SetSentErrorMessage(true);
-                return false;
-            }
-
-            if (!result->Fetch()->IsNull())
-            {
-                handler->SendSysMessage(LANG_2FA_ALREADY_SETUP);
-                handler->SetSentErrorMessage(true);
-                return false;
-            }
-        }
-
-        // store random suggested secrets
-        static std::unordered_map<uint32, Trinity::Crypto::TOTP::Secret> suggestions;
-        auto pair = suggestions.emplace(std::piecewise_construct, std::make_tuple(accountId), std::make_tuple(Trinity::Crypto::TOTP::RECOMMENDED_SECRET_LENGTH)); // std::vector 1-argument size_t constructor invokes resize
-        if (pair.second) // no suggestion yet, generate random secret
-            Trinity::Crypto::GetRandomBytes(pair.first->second);
-
-        if (!pair.second && token) // suggestion already existed and token specified - validate
-        {
-            if (Trinity::Crypto::TOTP::ValidateToken(pair.first->second, *token))
-            {
-                if (masterKey)
-                    Trinity::Crypto::AEEncryptWithRandomIV<Trinity::Crypto::AES>(pair.first->second, *masterKey);
-
-                LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_ACCOUNT_TOTP_SECRET);
-                stmt->setBinary(0, pair.first->second);
-                stmt->setUInt32(1, accountId);
-                LoginDatabase.Execute(stmt);
-                suggestions.erase(pair.first);
-                handler->SendSysMessage(LANG_2FA_SETUP_COMPLETE);
-                return true;
-            }
-            else
-                handler->SendSysMessage(LANG_2FA_INVALID_TOKEN);
-        }
-
-        // new suggestion, or no token specified, output TOTP parameters
-        handler->PSendSysMessage(LANG_2FA_SECRET_SUGGESTION, Trinity::Encoding::Base32::Encode(pair.first->second).c_str());
-        handler->SetSentErrorMessage(true);
-        return false;
-    }
-
-    static bool HandleAccount2FARemoveCommand(ChatHandler* handler, Optional<uint32> token)
-    {
-        auto const& masterKey = sSecretMgr->GetSecret(SECRET_TOTP_MASTER_KEY);
-        if (!masterKey.IsAvailable())
-        {
-            handler->SendSysMessage(LANG_2FA_COMMANDS_NOT_SETUP);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        uint32 const accountId = handler->GetSession()->GetAccountId();
-        Trinity::Crypto::TOTP::Secret secret;
-        { // get current TOTP secret
-            LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_TOTP_SECRET);
-            stmt->setUInt32(0, accountId);
-            PreparedQueryResult result = LoginDatabase.Query(stmt);
-
-            if (!result)
-            {
-                TC_LOG_ERROR("misc", "Account {} not found in login database when processing .account 2fa setup command.", accountId);
-                handler->SendSysMessage(LANG_UNKNOWN_ERROR);
-                handler->SetSentErrorMessage(true);
-                return false;
-            }
-
-            Field* field = result->Fetch();
-            if (field->IsNull())
-            { // 2FA not enabled
-                handler->SendSysMessage(LANG_2FA_NOT_SETUP);
-                handler->SetSentErrorMessage(true);
-                return false;
-            }
-
-            secret = field->GetBinary();
-        }
-
-        if (token)
-        {
-            if (masterKey)
-            {
-                bool success = Trinity::Crypto::AEDecrypt<Trinity::Crypto::AES>(secret, *masterKey);
-                if (!success)
-                {
-                    TC_LOG_ERROR("misc", "Account {} has invalid ciphertext in TOTP token.", accountId);
-                    handler->SendSysMessage(LANG_UNKNOWN_ERROR);
-                    handler->SetSentErrorMessage(true);
-                    return false;
-                }
-            }
-
-            if (Trinity::Crypto::TOTP::ValidateToken(secret, *token))
-            {
-                LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_ACCOUNT_TOTP_SECRET);
-                stmt->setNull(0);
-                stmt->setUInt32(1, accountId);
-                LoginDatabase.Execute(stmt);
-                handler->SendSysMessage(LANG_2FA_REMOVE_COMPLETE);
-                return true;
-            }
-            else
-                handler->SendSysMessage(LANG_2FA_INVALID_TOKEN);
-        }
-
-        handler->SendSysMessage(LANG_2FA_REMOVE_NEED_TOKEN);
-        handler->SetSentErrorMessage(true);
-        return false;
-    }
 
     static bool HandleAccountAddonCommand(ChatHandler* handler, uint8 expansion)
     {
@@ -846,68 +711,6 @@ public:
         return true;
     }
 
-    static bool HandleAccountSet2FACommand(ChatHandler* handler, std::string accountName, std::string secret)
-    {
-        if (!Utf8ToUpperOnlyLatin(accountName))
-        {
-            handler->PSendSysMessage(LANG_ACCOUNT_NOT_EXIST, accountName.c_str());
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        uint32 targetAccountId = AccountMgr::GetId(accountName);
-        if (!targetAccountId)
-        {
-            handler->PSendSysMessage(LANG_ACCOUNT_NOT_EXIST, accountName.c_str());
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        if (handler->HasLowerSecurityAccount(nullptr, targetAccountId, true))
-            return false;
-
-        if (secret == "off")
-        {
-            LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_ACCOUNT_TOTP_SECRET);
-            stmt->setNull(0);
-            stmt->setUInt32(1, targetAccountId);
-            LoginDatabase.Execute(stmt);
-            handler->PSendSysMessage(LANG_2FA_REMOVE_COMPLETE);
-            return true;
-        }
-
-        auto const& masterKey = sSecretMgr->GetSecret(SECRET_TOTP_MASTER_KEY);
-        if (!masterKey.IsAvailable())
-        {
-            handler->SendSysMessage(LANG_2FA_COMMANDS_NOT_SETUP);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        Optional<std::vector<uint8>> decoded = Trinity::Encoding::Base32::Decode(secret);
-        if (!decoded)
-        {
-            handler->SendSysMessage(LANG_2FA_SECRET_INVALID);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-        if (128 < (decoded->size() + Trinity::Crypto::AES::IV_SIZE_BYTES + Trinity::Crypto::AES::TAG_SIZE_BYTES))
-        {
-            handler->SendSysMessage(LANG_2FA_SECRET_TOO_LONG);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        if (masterKey)
-            Trinity::Crypto::AEEncryptWithRandomIV<Trinity::Crypto::AES>(*decoded, *masterKey);
-
-        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_ACCOUNT_TOTP_SECRET);
-        stmt->setBinary(0, *decoded);
-        stmt->setUInt32(1, targetAccountId);
-        LoginDatabase.Execute(stmt);
-        handler->PSendSysMessage(LANG_2FA_SECRET_SET_COMPLETE, accountName.c_str());
-        return true;
-    }
 
     /// Set normal email for account
     static bool HandleAccountSetEmailCommand(ChatHandler* handler, std::string accountName, std::string const& email, std::string const& confirmEmail)

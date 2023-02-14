@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,8 +18,10 @@
 #include "Session.h"
 #include "BattlenetRpcErrorCodes.h"
 #include "ByteConverter.h"
+#include "CryptoRandom.h"
 #include "DatabaseEnv.h"
 #include "Errors.h"
+#include "IPLocation.h"
 #include "QueryCallback.h"
 #include "LoginRESTService.h"
 #include "ProtobufJSON.h"
@@ -52,7 +54,7 @@ void Battlenet::Session::AccountInfo::LoadResult(PreparedQueryResult result)
 
 void Battlenet::Session::GameAccountInfo::LoadResult(Field* fields)
 {
-    // a.id, a.username, ab.unbandate, ab.unbandate = ab.bandate, aa.gmlevel
+    // a.id, a.username, ab.unbandate, ab.unbandate = ab.bandate, aa.SecurityLevel
     Id = fields[0].GetUInt32();
     Name = fields[1].GetString();
     UnbanDate = fields[2].GetUInt32();
@@ -92,7 +94,6 @@ void Battlenet::Session::Start()
 
     LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_IP_INFO);
     stmt->setString(0, ip_address);
-    stmt->setUInt32(1, inet_addr(ip_address.c_str()));
 
     _queryProcessor.AddCallback(LoginDatabase.AsyncQuery(stmt).WithPreparedCallback(std::bind(&Battlenet::Session::CheckIpCallback, this, std::placeholders::_1)));
 }
@@ -107,9 +108,6 @@ void Battlenet::Session::CheckIpCallback(PreparedQueryResult result)
             Field* fields = result->Fetch();
             if (fields[0].GetUInt64() != 0)
                 banned = true;
-
-            if (!fields[1].GetString().empty())
-                _ipCountry = fields[1].GetString();
 
         } while (result->NextRow());
 
@@ -152,14 +150,14 @@ void Battlenet::Session::SendResponse(uint32 token, pb::Message const* response)
     uint16 headerSize = header.ByteSize();
     EndianConvertReverse(headerSize);
 
-    MessageBuffer packet;
+    MessageBuffer packet(sizeof(headerSize) + header.GetCachedSize() + response->GetCachedSize());
     packet.Write(&headerSize, sizeof(headerSize));
     uint8* ptr = packet.GetWritePointer();
-    packet.WriteCompleted(header.ByteSize());
-    header.SerializeToArray(ptr, header.ByteSize());
+    packet.WriteCompleted(header.GetCachedSize());
+    header.SerializePartialToArray(ptr, header.GetCachedSize());
     ptr = packet.GetWritePointer();
-    packet.WriteCompleted(response->ByteSize());
-    response->SerializeToArray(ptr, response->ByteSize());
+    packet.WriteCompleted(response->GetCachedSize());
+    response->SerializeToArray(ptr, response->GetCachedSize());
 
     AsyncWrite(&packet);
 }
@@ -174,11 +172,11 @@ void Battlenet::Session::SendResponse(uint32 token, uint32 status)
     uint16 headerSize = header.ByteSize();
     EndianConvertReverse(headerSize);
 
-    MessageBuffer packet;
+    MessageBuffer packet(sizeof(headerSize) + header.GetCachedSize());
     packet.Write(&headerSize, sizeof(headerSize));
     uint8* ptr = packet.GetWritePointer();
-    packet.WriteCompleted(header.ByteSize());
-    header.SerializeToArray(ptr, header.ByteSize());
+    packet.WriteCompleted(header.GetCachedSize());
+    header.SerializeToArray(ptr, header.GetCachedSize());
 
     AsyncWrite(&packet);
 }
@@ -195,14 +193,14 @@ void Battlenet::Session::SendRequest(uint32 serviceHash, uint32 methodId, pb::Me
     uint16 headerSize = header.ByteSize();
     EndianConvertReverse(headerSize);
 
-    MessageBuffer packet;
+    MessageBuffer packet(sizeof(headerSize) + header.GetCachedSize() + request->GetCachedSize());
     packet.Write(&headerSize, sizeof(headerSize));
     uint8* ptr = packet.GetWritePointer();
-    packet.WriteCompleted(header.ByteSize());
-    header.SerializeToArray(ptr, header.ByteSize());
+    packet.WriteCompleted(header.GetCachedSize());
+    header.SerializeToArray(ptr, header.GetCachedSize());
     ptr = packet.GetWritePointer();
-    packet.WriteCompleted(request->ByteSize());
-    request->SerializeToArray(ptr, request->ByteSize());
+    packet.WriteCompleted(request->GetCachedSize());
+    request->SerializeToArray(ptr, request->GetCachedSize());
 
     AsyncWrite(&packet);
 }
@@ -221,7 +219,7 @@ uint32 Battlenet::Session::HandleLogon(authentication::v1::LogonRequest const* l
         return ERROR_BAD_PLATFORM;
     }
 
-    if (GetLocaleByName(logonRequest->locale()) == LOCALE_enUS && logonRequest->locale() != "enUS")
+    if (!IsValidLocale(GetLocaleByName(logonRequest->locale())))
     {
         TC_LOG_DEBUG("session", "[Battlenet::LogonRequest] {} attempted to log in with unsupported locale (using {})!", GetClientInfo(), logonRequest->locale());
         return ERROR_BAD_LOCALE;
@@ -238,7 +236,7 @@ uint32 Battlenet::Session::HandleLogon(authentication::v1::LogonRequest const* l
 
     challenge::v1::ChallengeExternalRequest externalChallenge;
     externalChallenge.set_payload_type("web_auth_url");
-    externalChallenge.set_payload(Trinity::StringFormat("https://%s:%u/bnetserver/login/", endpoint.address().to_string().c_str(), endpoint.port()));
+    externalChallenge.set_payload(Trinity::StringFormat("https://{}:{}/bnetserver/login/", endpoint.address().to_string(), endpoint.port()));
     Service<challenge::v1::ChallengeListener>(this).OnExternalChallenge(&externalChallenge);
     return ERROR_OK;
 }
@@ -339,6 +337,9 @@ uint32 Battlenet::Session::VerifyWebCredentials(std::string const& webCredential
         }
         else
         {
+            if (IpLocationRecord const* location = sIPLocation->GetLocationRecord(ip_address))
+                _ipCountry = location->CountryCode;
+
             TC_LOG_DEBUG("session", "[Session::HandleVerifyWebCredentials] Account '{}' is not locked to ip", _accountInfo->Login);
             if (_accountInfo->LockCountry.empty() || _accountInfo->LockCountry == "00")
                 TC_LOG_DEBUG("session", "[Session::HandleVerifyWebCredentials] Account '{}' is not locked to country", _accountInfo->Login);
@@ -386,9 +387,8 @@ uint32 Battlenet::Session::VerifyWebCredentials(std::string const& webCredential
         if (!_ipCountry.empty())
             logonResult.set_geoip_country(_ipCountry);
 
-        BigNumber k;
-        k.SetRand(8 * 64);
-        logonResult.set_session_key(k.AsByteArray(64).get(), 64);
+        std::array<uint8, 64> k = Trinity::Crypto::GetRandomBytes<64>();
+        logonResult.set_session_key(k.data(), 64);
 
         _authed = true;
 
@@ -465,13 +465,25 @@ uint32 Battlenet::Session::HandleProcessClientRequest(game_utilities::v1::Client
 
     Attribute const* command = nullptr;
     std::unordered_map<std::string, Variant const*> params;
+    auto removeSuffix = [](std::string const& string) -> std::string
+    {
+        size_t pos = string.rfind('_');
+        if (pos != std::string::npos)
+            return string.substr(0, pos);
+
+        return string;
+    };
 
     for (int32 i = 0; i < request->attribute_size(); ++i)
     {
         Attribute const& attr = request->attribute(i);
-        params[attr.name()] = &attr.value();
         if (strstr(attr.name().c_str(), "Command_") == attr.name().c_str())
+        {
             command = &attr;
+            params[removeSuffix(attr.name())] = &attr.value();
+        }
+        else
+            params[attr.name()] = &attr.value();
     }
 
     if (!command)
@@ -480,17 +492,17 @@ uint32 Battlenet::Session::HandleProcessClientRequest(game_utilities::v1::Client
         return ERROR_RPC_MALFORMED_REQUEST;
     }
 
-    auto itr = ClientRequestHandlers.find(command->name());
+    auto itr = ClientRequestHandlers.find(removeSuffix(command->name()));
     if (itr == ClientRequestHandlers.end())
     {
-        TC_LOG_ERROR("session.rpc", "{} sent ClientRequest with unknown command {}.", GetClientInfo(), command->name());
+        TC_LOG_ERROR("session.rpc", "{} sent ClientRequest with unknown command {}.", GetClientInfo(), removeSuffix(command->name()));
         return ERROR_RPC_NOT_IMPLEMENTED;
     }
 
     return (this->*itr->second)(params, response);
 }
 
-inline Variant const* GetParam(std::unordered_map<std::string, Variant const*> const& params, char const* paramName)
+static Variant const* GetParam(std::unordered_map<std::string, Variant const*> const& params, char const* paramName)
 {
     auto itr = params.find(paramName);
     return itr != params.end() ? itr->second : nullptr;

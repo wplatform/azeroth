@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -15,25 +15,24 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PacketCrypt.h"
+#ifndef TRINITY_BASE32_H
+#define TRINITY_BASE32_H
 
-PacketCrypt::PacketCrypt(uint32 rc4InitSize)
-    : _clientDecrypt(rc4InitSize), _serverEncrypt(rc4InitSize), _initialized(false)
+#include "Define.h"
+#include "Optional.h"
+#include <string>
+#include <vector>
+
+namespace Trinity
 {
+namespace Encoding
+{
+struct TC_COMMON_API Base32
+{
+    static std::string Encode(std::vector<uint8> const& data);
+    static Optional<std::vector<uint8>> Decode(std::string const& data);
+};
+}
 }
 
-void PacketCrypt::DecryptRecv(uint8* data, size_t len)
-{
-    if (!_initialized)
-        return;
-
-    _clientDecrypt.UpdateData(len, data);
-}
-
-void PacketCrypt::EncryptSend(uint8* data, size_t len)
-{
-    if (!_initialized)
-        return;
-
-    _serverEncrypt.UpdateData(len, data);
-}
+#endif

@@ -15,29 +15,24 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _WORLDPACKETCRYPT_H
-#define _WORLDPACKETCRYPT_H
+#ifndef TRINITY_BASE64_H
+#define TRINITY_BASE64_H
 
-#include "AES.h"
+#include "Define.h"
+#include "Optional.h"
+#include <string>
+#include <vector>
 
-class TC_COMMON_API WorldPacketCrypt
+namespace Trinity
 {
-public:
-    WorldPacketCrypt();
-
-    void Init(Trinity::Crypto::AES::Key const& key);
-    bool PeekDecryptRecv(uint8* data, size_t length);
-    bool DecryptRecv(uint8* data, size_t length, Trinity::Crypto::AES::Tag& tag);
-    bool EncryptSend(uint8* data, size_t length, Trinity::Crypto::AES::Tag& tag);
-
-    bool IsInitialized() const { return _initialized; }
-
-protected:
-    Trinity::Crypto::AES _clientDecrypt;
-    Trinity::Crypto::AES _serverEncrypt;
-    uint64 _clientCounter;
-    uint64 _serverCounter;
-    bool _initialized;
+namespace Encoding
+{
+struct TC_COMMON_API Base64
+{
+    static std::string Encode(std::vector<uint8> const& data);
+    static Optional<std::vector<uint8>> Decode(std::string const& data);
 };
+}
+}
 
-#endif // _WORLDPACKETCRYPT_H
+#endif

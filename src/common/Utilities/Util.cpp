@@ -832,8 +832,8 @@ TC_COMMON_API Optional<std::size_t> RemoveCRLF(std::string & str)
 
 std::string Trinity::Impl::ByteArrayToHexStr(uint8 const* bytes, size_t arrayLen, bool reverse /* = false */)
 {
-    uint32 init = 0;
-    uint32 end = arrayLen;
+    int32 init = 0;
+    int32 end = arrayLen;
     int8 op = 1;
 
     if (reverse)
@@ -844,7 +844,7 @@ std::string Trinity::Impl::ByteArrayToHexStr(uint8 const* bytes, size_t arrayLen
     }
 
     std::ostringstream ss;
-    for (uint32 i = init; i != end; i += op)
+    for (int32 i = init; i != end; i += op)
     {
         char buffer[4];
         sprintf(buffer, "%02X", bytes[i]);

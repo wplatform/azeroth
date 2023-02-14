@@ -15,8 +15,8 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _AUTH_SARC4_H
-#define _AUTH_SARC4_H
+#ifndef Trinity_AES_h__
+#define Trinity_AES_h__
 
 #include "Define.h"
 #include <array>
@@ -24,25 +24,29 @@
 
 namespace Trinity::Crypto
 {
-    class TC_COMMON_API ARC4
+    class TC_COMMON_API AES
     {
-        public:
-            ARC4();
-            ~ARC4();
+    public:
+        static constexpr size_t IV_SIZE_BYTES = 12;
+        static constexpr size_t KEY_SIZE_BYTES = 16;
+        static constexpr size_t TAG_SIZE_BYTES = 12;
 
-            void Init(uint8 const* seed, size_t len);
-            template <typename Container>
-            void Init(Container const& c) { Init(std::data(c), std::size(c)); }
+        using IV = std::array<uint8, IV_SIZE_BYTES>;
+        using Key = std::array<uint8, KEY_SIZE_BYTES>;
+        using Tag = uint8[TAG_SIZE_BYTES];
 
-            void UpdateData(uint8* data, size_t len);
-            template <typename Container>
-            void UpdateData(Container& c) { UpdateData(std::data(c), std::size(c)); }
-        private:
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-            EVP_CIPHER* _cipher;
-#endif
-            EVP_CIPHER_CTX* _ctx;
+        AES(bool encrypting);
+        ~AES();
+
+        void Init(Key const& key);
+
+        bool Process(IV const& iv, uint8* data, size_t length, Tag& tag);
+        bool ProcessNoIntegrityCheck(IV const& iv, uint8* data, size_t partialLength);
+
+    private:
+        EVP_CIPHER_CTX* _ctx;
+        bool _encrypting;
     };
 }
 
-#endif
+#endif // Trinity_AES_h__

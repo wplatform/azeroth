@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -15,29 +15,23 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PACKETCRYPT_H
-#define _PACKETCRYPT_H
+#ifndef TRINITY_TOTP_H
+#define TRINITY_TOTP_H
 
-#include "Cryptography/ARC4.h"
+#include "Define.h"
+#include <ctime>
+#include <vector>
 
-class BigNumber;
-
-class TC_COMMON_API PacketCrypt
+namespace Trinity::Crypto
 {
-    public:
-        PacketCrypt(uint32 rc4InitSize);
-        virtual ~PacketCrypt() { }
+    struct TC_COMMON_API TOTP
+    {
+        static constexpr size_t RECOMMENDED_SECRET_LENGTH = 20;
+        using Secret = std::vector<uint8>;
 
-        virtual void Init(BigNumber* K) = 0;
-        void DecryptRecv(uint8* data, size_t length);
-        void EncryptSend(uint8* data, size_t length);
+        static uint32 GenerateToken(Secret const& key, time_t timestamp);
+        static bool ValidateToken(Secret const& key, uint32 token);
+    };
+}
 
-        bool IsInitialized() const { return _initialized; }
-
-    protected:
-        ARC4 _clientDecrypt;
-        ARC4 _serverEncrypt;
-        bool _initialized;
-};
-
-#endif // _PACKETCRYPT_H
+#endif

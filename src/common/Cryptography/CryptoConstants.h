@@ -15,29 +15,22 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _WORLDPACKETCRYPT_H
-#define _WORLDPACKETCRYPT_H
+#ifndef TRINITY_CRYPTO_CONSTANTS_H
+#define TRINITY_CRYPTO_CONSTANTS_H
 
-#include "AES.h"
+#include "Define.h"
 
-class TC_COMMON_API WorldPacketCrypt
+namespace Trinity
 {
-public:
-    WorldPacketCrypt();
+namespace Crypto
+{
+    struct Constants
+    {
+        static constexpr size_t MD5_DIGEST_LENGTH_BYTES = 16;
+        static constexpr size_t SHA1_DIGEST_LENGTH_BYTES = 20;
+        static constexpr size_t SHA256_DIGEST_LENGTH_BYTES = 32;
+    };
+}
+}
 
-    void Init(Trinity::Crypto::AES::Key const& key);
-    bool PeekDecryptRecv(uint8* data, size_t length);
-    bool DecryptRecv(uint8* data, size_t length, Trinity::Crypto::AES::Tag& tag);
-    bool EncryptSend(uint8* data, size_t length, Trinity::Crypto::AES::Tag& tag);
-
-    bool IsInitialized() const { return _initialized; }
-
-protected:
-    Trinity::Crypto::AES _clientDecrypt;
-    Trinity::Crypto::AES _serverEncrypt;
-    uint64 _clientCounter;
-    uint64 _serverCounter;
-    bool _initialized;
-};
-
-#endif // _WORLDPACKETCRYPT_H
+#endif
