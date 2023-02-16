@@ -16,17 +16,20 @@
  */
 
 #include "GameTables.h"
+#include "ItemTemplate.h"
 #include "Timer.h"
 #include "Log.h"
 #include "Util.h"
 #include <boost/filesystem/path.hpp>
 #include <fstream>
+#include <sstream>
 
 GameTable<GtArmorMitigationByLvlEntry>          sArmorMitigationByLvlGameTable;
 GameTable<GtArtifactKnowledgeMultiplierEntry>   sArtifactKnowledgeMultiplierGameTable;
 GameTable<GtArtifactLevelXPEntry>               sArtifactLevelXPGameTable;
 GameTable<GtBarberShopCostBaseEntry>            sBarberShopCostBaseGameTable;
 GameTable<GtBaseMPEntry>                        sBaseMPGameTable;
+GameTable<GtBattlePetXPEntry>                   sBattlePetXPGameTable;
 GameTable<GtCombatRatingsEntry>                 sCombatRatingsGameTable;
 GameTable<GtCombatRatingsMultByILvl>            sCombatRatingsMultByILvlGameTable;
 GameTable<GtHonorLevelEntry>                    sHonorLevelGameTable;
@@ -44,18 +47,18 @@ inline uint32 LoadGameTable(std::vector<std::string>& errors, GameTable<T>& stor
     std::ifstream stream(path.string());
     if (!stream)
     {
-        errors.push_back(Trinity::StringFormat("GameTable file %s cannot be opened.", path.string().c_str()));
+        errors.push_back(Trinity::StringFormat("GameTable file {} cannot be opened.", path.string()));
         return 0;
     }
 
     std::string headers;
     if (!std::getline(stream, headers))
     {
-        errors.push_back(Trinity::StringFormat("GameTable file %s is empty.", path.string().c_str()));
+        errors.push_back(Trinity::StringFormat("GameTable file {} is empty.", path.string()));
         return 0;
     }
 
-    Tokenizer columnDefs(headers, '\t', 0, false);
+    std::vector<std::string_view> columnDefs = Trinity::Tokenize(headers, '\t', false);
 
     ASSERT(columnDefs.size() - 1 == sizeof(T) / sizeof(float),
         "GameTable '%s' has different count of columns " SZFMTD " than expected by size of C++ structure (" SZFMTD ").",
@@ -67,13 +70,13 @@ inline uint32 LoadGameTable(std::vector<std::string>& errors, GameTable<T>& stor
     std::string line;
     while (std::getline(stream, line))
     {
-        Tokenizer values(line, '\t', uint32(columnDefs.size()));
-        if (!values.size())
+        std::vector<std::string_view> values = Trinity::Tokenize(line, '\t', true);
+        if (values.empty())
             break;
 
         // make end point just after last nonempty token
         auto end = values.begin() + values.size() - 1;
-        while (!strlen(*end) && end != values.begin())
+        while (end->empty() && end != values.begin())
             --end;
 
         if (values.begin() == end)
@@ -91,7 +94,7 @@ inline uint32 LoadGameTable(std::vector<std::string>& errors, GameTable<T>& stor
         data.emplace_back();
         float* row = reinterpret_cast<float*>(&data.back());
         for (auto itr = values.begin() + 1; itr != end; ++itr)
-            *row++ = strtof(*itr, nullptr);
+            *row++ = strtof(itr->data(), nullptr);
     }
 
     storage.SetData(std::move(data));
@@ -115,6 +118,7 @@ void LoadGameTables(std::string const& dataPath)
     LOAD_GT(sArtifactLevelXPGameTable, "ArtifactLevelXP.txt");
     LOAD_GT(sBarberShopCostBaseGameTable, "BarberShopCostBase.txt");
     LOAD_GT(sBaseMPGameTable, "BaseMp.txt");
+    LOAD_GT(sBattlePetXPGameTable, "BattlePetXP.txt");
     LOAD_GT(sCombatRatingsGameTable, "CombatRatings.txt");
     LOAD_GT(sCombatRatingsMultByILvlGameTable, "CombatRatingsMultByILvl.txt");
     LOAD_GT(sItemSocketCostPerLevelGameTable, "ItemSocketCostPerLevel.txt");
@@ -150,5 +154,36 @@ void LoadGameTables(std::string const& dataPath)
         WPFatal(false, "Some required *.txt GameTable files (" SZFMTD ") not found or not compatible:\n%s", bad_gt_files.size(), str.str().c_str());
     }
 
-    TC_LOG_INFO("server.loading", ">> Initialized %d GameTables in %u ms", gameTableCount, GetMSTimeDiffToNow(oldMSTime));
+    TC_LOG_INFO("server.loading", ">> Initialized {} GameTables in {} ms", gameTableCount, GetMSTimeDiffToNow(oldMSTime));
 }
+
+
+template<class T>
+float GetIlvlStatMultiplier(T const* row, InventoryType invType)
+{
+    switch (invType)
+    {
+        case INVTYPE_NECK:
+        case INVTYPE_FINGER:
+            return row->JewelryMultiplier;
+            break;
+        case INVTYPE_TRINKET:
+            return row->TrinketMultiplier;
+            break;
+        case INVTYPE_WEAPON:
+        case INVTYPE_SHIELD:
+        case INVTYPE_RANGED:
+        case INVTYPE_2HWEAPON:
+        case INVTYPE_WEAPONMAINHAND:
+        case INVTYPE_WEAPONOFFHAND:
+        case INVTYPE_HOLDABLE:
+        case INVTYPE_RANGEDRIGHT:
+            return row->WeaponMultiplier;
+            break;
+        default:
+            return row->ArmorMultiplier;
+            break;
+    }
+}
+
+template float GetIlvlStatMultiplier(GtCombatRatingsMultByILvl const* row, InventoryType invType);

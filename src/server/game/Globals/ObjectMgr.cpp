@@ -3932,27 +3932,24 @@ void ObjectMgr::LoadPlayerInfo()
     TC_LOG_INFO("server.loading", "Loading Player Create Items Data...");
     {
         std::unordered_map<uint32, std::vector<ItemTemplate const*>> itemsByCharacterLoadout;
-        for (CharacterLoadoutItemEntry const* characterLoadoutItem : sCharacterLoadoutItemStore)
-            if (ItemTemplate const* itemTemplate = GetItemTemplate(characterLoadoutItem->ItemID))
-                itemsByCharacterLoadout[characterLoadoutItem->CharacterLoadoutID].push_back(itemTemplate);
+        for (CharStartOutfitEntry const* characterLoadoutItem : sCharStartOutfitStore)
+            for (const auto &itemId : characterLoadoutItem->ItemID)
+                if (ItemTemplate const* itemTemplate = GetItemTemplate(itemId))
+                    itemsByCharacterLoadout[characterLoadoutItem->ID].push_back(itemTemplate);
 
-        for (CharacterLoadoutEntry const* characterLoadout : sCharacterLoadoutStore)
+        for (CharStartOutfitEntry const* characterLoadout : sCharStartOutfitStore)
         {
-            if (!characterLoadout->IsForNewCharacter())
-                continue;
-
             std::vector<ItemTemplate const*> const* items = Trinity::Containers::MapGetValuePtr(itemsByCharacterLoadout, characterLoadout->ID);
             if (!items)
                 continue;
-
             for (uint32 raceIndex = RACE_HUMAN; raceIndex < MAX_RACES; ++raceIndex)
             {
-                if (!characterLoadout->RaceMask.HasRace(raceIndex))
+                if (!characterLoadout->RaceID == raceIndex)
                     continue;
 
-                if (auto const& playerInfo = Trinity::Containers::MapGetValuePtr(_playerInfo, { Races(raceIndex), Classes(characterLoadout->ChrClassID) }))
+                if (auto const& playerInfo = Trinity::Containers::MapGetValuePtr(_playerInfo, { Races(raceIndex), Classes(characterLoadout->ClassID) }))
                 {
-                    playerInfo->get()->itemContext = ItemContext(characterLoadout->ItemContext);
+                    playerInfo->get()->itemContext = ItemContext::NONE;
 
                     for (ItemTemplate const* itemTemplate : *items)
                     {
@@ -3967,7 +3964,7 @@ void ObjectMgr::LoadPlayerInfo()
                                 switch (itemTemplate->Effects[0]->SpellCategoryID)
                                 {
                                     case SPELL_CATEGORY_FOOD:                                // food
-                                        count = characterLoadout->ChrClassID == CLASS_DEATH_KNIGHT ? 10 : 4;
+                                        count = characterLoadout->ClassID == CLASS_DEATH_KNIGHT ? 10 : 4;
                                         break;
                                     case SPELL_CATEGORY_DRINK:                                // drink
                                         count = 2;

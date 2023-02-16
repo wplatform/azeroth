@@ -176,6 +176,74 @@ enum ArtifactPowerFlag : uint8
 
 #define BATTLE_PET_SPECIES_MAX_ID 2164
 
+enum class BattlePetSpeciesFlags : int32
+{
+    NoRename                 = 0x00001,
+    WellKnown                = 0x00002,
+    NotAccountWide           = 0x00004,
+    Capturable               = 0x00008,
+    NotTradable              = 0x00010,
+    HideFromJournal          = 0x00020,
+    LegacyAccountUnique      = 0x00040,
+    CantBattle               = 0x00080,
+    HordeOnly                = 0x00100,
+    AllianceOnly             = 0x00200,
+    Boss                     = 0x00400,
+    RandomDisplay            = 0x00800,
+    NoLicenseRequired        = 0x01000,
+    AddsAllowedWithBoss      = 0x02000,
+    HideUntilLearned         = 0x04000,
+    MatchPlayerHighPetLevel  = 0x08000,
+    NoWildPetAddsAllowed     = 0x10000,
+};
+
+DEFINE_ENUM_FLAG(BattlePetSpeciesFlags);
+
+enum class BattlemasterListFlags : uint32
+{
+    InternalOnly                = 0x01,
+    RatedOnly                   = 0x02, // Only set for rated battlegrounds
+    ObsoleteDoNotList           = 0x04,
+    ShowInWarGames              = 0x08,
+    ShowInPvpBattlegroundList   = 0x10,
+    IsBrawl                     = 0x20,
+    IsFactional                 = 0x40,
+    IsEpic                      = 0x80
+};
+
+DEFINE_ENUM_FLAG(BattlemasterListFlags);
+
+enum class ChrRacesFlag : int32
+{
+    NPCOnly                                     = 0x000001,
+    DoNotComponentFeet                          = 0x000002,
+    CanMount                                    = 0x000004,
+    HasBald                                     = 0x000008,
+    BindToStartingArea                          = 0x000010,
+    AlternateForm                               = 0x000020,
+    CanMountSelf                                = 0x000040,
+    ForceToHDModelIfAvailable                   = 0x000080,
+    ExaltedWithAllVendors                       = 0x000100,
+    NotSelectable                               = 0x000200,
+    ReputationBonus                             = 0x000400,
+    UseLoincloth                                = 0x000800,
+    RestBonus                                   = 0x001000,
+    NoStartKits                                 = 0x002000,
+    NoStartingWeapon                            = 0x004000,
+    DontRedeemAccountLicenses                   = 0x008000,
+    SkinVariationIsHairColor                    = 0x010000,
+    UsePandarenRingForComponentingTexture       = 0x020000,
+    IgnoreForAssetManifestComponentInfoParsing  = 0x040000,
+    IsAlliedRace                                = 0x080000,
+    VoidVendorDiscount                          = 0x100000,
+    DAMMComponentNoMaleGeneration               = 0x200000,
+    DAMMComponentNoFemaleGeneration             = 0x400000,
+    NoAssociatedFactionReputationInRaceChange   = 0x800000,
+    InternalOnly                                = 0x100000,
+};
+
+DEFINE_ENUM_FLAG(ChrRacesFlag);
+
 enum ChrSpecializationFlag
 {
     CHR_SPECIALIZATION_FLAG_CASTER                  = 0x01,
@@ -1393,6 +1461,75 @@ enum class PlayerConditionLfgStatus : uint8
     VoteKickCount           = 6,
     BootCount               = 7,
     GearDiff                = 8
+};
+
+enum class PlayerInteractionType : int32
+{
+    None                        = 0,
+    TradePartner                = 1,
+    Item                        = 2,
+    Gossip                      = 3,
+    QuestGiver                  = 4,
+    Merchant                    = 5,
+    TaxiNode                    = 6,
+    Trainer                     = 7,
+    Banker                      = 8,
+    AlliedRaceDetailsGiver      = 9,
+    GuildBanker                 = 10,
+    Registrar                   = 11,
+    Vendor                      = 12,
+    PetitionVendor              = 13,
+    TabardVendor                = 14,
+    TalentMaster                = 15,
+    SpecializationMaster        = 16,
+    MailInfo                    = 17,
+    SpiritHealer                = 18,
+    AreaSpiritHealer            = 19,
+    Binder                      = 20,
+    Auctioneer                  = 21,
+    StableMaster                = 22,
+    BattleMaster                = 23,
+    Transmogrifier              = 24,
+    LFGDungeon                  = 25,
+    VoidStorageBanker           = 26,
+    BlackMarketAuctioneer       = 27,
+    AdventureMap                = 28,
+    WorldMap                    = 29,
+    GarrArchitect               = 30,
+    GarrTradeskill              = 31,
+    GarrMission                 = 32,
+    ShipmentCrafter             = 33,
+    GarrRecruitment             = 34,
+    GarrTalent                  = 35,
+    Trophy                      = 36,
+    PlayerChoice                = 37,
+    ArtifactForge               = 38,
+    ObliterumForge              = 39,
+    ScrappingMachine            = 40,
+    ContributionCollector       = 41,
+    AzeriteRespec               = 42,
+    IslandQueue                 = 43,
+    ItemInteraction             = 44,
+    ChromieTime                 = 45,
+    CovenantPreview             = 46,
+    AnimaDiversion              = 47,
+    LegendaryCrafting           = 48,
+    WeeklyRewards               = 49,
+    Soulbind                    = 50,
+    CovenantSanctum             = 51,
+    NewPlayerGuide              = 52,
+    ItemUpgrade                 = 53,
+    AdventureJournal            = 54,
+    Renown                      = 55,
+    AzeriteForge                = 56,
+    PerksProgramVendor          = 57,
+    ProfessionsCraftingOrder    = 58,
+    Professions                 = 59,
+    ProfessionsCustomerOrder    = 60,
+    TraitSystem                 = 61,
+    BarbersChoice               = 62,
+    JailersTowerBuffs           = 63,
+    MajorFactionRenown          = 64
 };
 
 enum PrestigeLevelInfoFlags : uint8

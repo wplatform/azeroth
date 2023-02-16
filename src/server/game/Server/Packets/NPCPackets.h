@@ -24,9 +24,11 @@
 #include "Position.h"
 #include <array>
 
+enum class GossipOptionFlags : int32;
 enum class GossipOptionNpc : uint8;
 enum class GossipOptionStatus : uint8;
 enum class GossipOptionRewardType : uint8;
+enum class PlayerInteractionType : int32;
 
 namespace WorldPackets
 {
@@ -64,13 +66,13 @@ namespace WorldPackets
         struct ClientGossipOptions
         {
             int32 ClientOption  = 0;
-            GossipOptionNpc OptionNPC = GossipOptionNpc(0);
+            GossipOptionNpc OptionNPC = {};
             uint8 OptionFlags   = 0;
             int32 OptionCost    = 0;
             uint32 OptionLanguage = 0;
-            GossipOptionStatus Status = GossipOptionStatus(0);
-            std::string Text;
-            std::string Confirm;
+            GossipOptionStatus Status = {};
+            std::string_view Text;
+            std::string_view Confirm;
             TreasureLootList Treasure;
             Optional<int32> SpellID;
         };
@@ -110,7 +112,7 @@ namespace WorldPackets
             void Read() override;
 
             ObjectGuid GossipUnit;
-            int32 GossipIndex = 0;
+            int32 GossipOptionID = 0;
             int32 GossipID = 0;
             std::string PromotionCode;
         };

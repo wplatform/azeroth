@@ -27,17 +27,11 @@ namespace WorldPackets
 {
     namespace Talent
     {
-        struct PvPTalent
-        {
-            uint16 PvPTalentID = 0;
-            uint8 Slot = 0;
-        };
-
         struct TalentGroupInfo
         {
             uint32 SpecID = 0;
             std::vector<uint16> TalentIDs;
-            std::vector<PvPTalent> PvPTalents;
+            std::vector<uint16> PvPTalentIDs;
         };
 
         struct TalentInfoUpdate
@@ -92,7 +86,7 @@ namespace WorldPackets
         class LearnTalentFailed final : public ServerPacket
         {
         public:
-            LearnTalentFailed() : ServerPacket(SMSG_LEARN_TALENT_FAILED, 1 + 4 + 4 + 2 * MAX_TALENT_TIERS) { }
+            LearnTalentFailed() : ServerPacket(SMSG_LEARN_TALENTS_FAILED, 1 + 4 + 4 + 2 * MAX_TALENT_TIERS) { }
 
             WorldPacket const* Write() override;
 
@@ -127,19 +121,19 @@ namespace WorldPackets
 
             void Read() override;
 
-            Array<PvPTalent, 4> Talents;
+            Array<uint16, 6> Talents;
         };
 
         class LearnPvpTalentFailed final : public ServerPacket
         {
         public:
-            LearnPvpTalentFailed() : ServerPacket(SMSG_LEARN_PVP_TALENT_FAILED, 1 + 4 + 4 + (2 + 1) * MAX_PVP_TALENT_SLOTS) { }
+            LearnPvpTalentFailed() : ServerPacket(SMSG_LEARN_PVP_TALENTS_FAILED, 1 + 4 + 4 + 2 * MAX_PVP_TALENT_TIERS) { }
 
             WorldPacket const* Write() override;
 
             uint32 Reason = 0;
             int32 SpellID = 0;
-            std::vector<PvPTalent> Talents;
+            std::vector<uint16> Talents;
         };
     }
 }

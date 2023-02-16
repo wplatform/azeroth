@@ -72,6 +72,8 @@ class TC_GAME_API Corpse : public WorldObject, public GridObject<Corpse>
         ObjectGuid GetOwnerGUID() const override { return GetGuidValue(CORPSE_FIELD_OWNER); }
         void SetOwnerGUID(ObjectGuid owner) { SetGuidValue(CORPSE_FIELD_OWNER, owner); }
         void SetDisplayId(uint32 displayId) { SetUInt32Value(CORPSE_FIELD_DISPLAY_ID, displayId); }
+        uint32 GetFaction() const override { return GetUInt32Value(CORPSE_FIELD_FACTIONTEMPLATE); }
+
 
         time_t const& GetGhostTime() const { return m_time; }
         void ResetGhostTime();
