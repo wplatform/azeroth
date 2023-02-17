@@ -89,7 +89,7 @@ namespace WorldPackets
         class ChatAddonMessage final : public ClientPacket
         {
         public:
-            ChatAddonMessage(WorldPacket&& packet) : ClientPacket(CMSG_CHAT_ADDON_MESSAGE, std::move(packet)) { }
+            ChatAddonMessage(WorldPacket&& packet) : ClientPacket(CMSG_CHAT_ADDON_MESSAGE_WHISPER, std::move(packet)) { }
 
             void Read() override;
 
@@ -100,7 +100,7 @@ namespace WorldPackets
         class ChatAddonMessageTargeted final : public ClientPacket
         {
         public:
-            ChatAddonMessageTargeted(WorldPacket&& packet) : ClientPacket(CMSG_CHAT_ADDON_MESSAGE_TARGETED, std::move(packet))
+            ChatAddonMessageTargeted(WorldPacket&& packet) : ClientPacket(CMSG_CHAT_ADDON_MESSAGE_CHANNEL, std::move(packet))
             {
                 ChannelGUID.emplace();
             }

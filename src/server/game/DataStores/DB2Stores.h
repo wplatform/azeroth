@@ -141,6 +141,7 @@ TC_GAME_API extern DB2Storage<ItemUpgradeEntry>                     sItemUpgrade
 TC_GAME_API extern DB2Storage<LanguageWordsEntry>                   sLanguageWordsStore;
 TC_GAME_API extern DB2Storage<LanguagesEntry>                       sLanguagesStore;
 TC_GAME_API extern DB2Storage<LFGDungeonsEntry>                     sLFGDungeonsStore;
+TC_GAME_API extern DB2Storage<LightEntry>                           sLightStore;
 TC_GAME_API extern DB2Storage<LiquidTypeEntry>                      sLiquidTypeStore;
 TC_GAME_API extern DB2Storage<LockEntry>                            sLockStore;
 TC_GAME_API extern DB2Storage<MailTemplateEntry>                    sMailTemplateStore;
@@ -190,6 +191,7 @@ TC_GAME_API extern DB2Storage<SpellItemEnchantmentConditionEntry>   sSpellItemEn
 TC_GAME_API extern DB2Storage<SpellLearnSpellEntry>                 sSpellLearnSpellStore;
 TC_GAME_API extern DB2Storage<SpellLevelsEntry>                     sSpellLevelsStore;
 TC_GAME_API extern DB2Storage<SpellMiscEntry>                       sSpellMiscStore;
+TC_GAME_API extern DB2Storage<SpellNameEntry>                       sSpellNameStore;
 TC_GAME_API extern DB2Storage<SpellPowerEntry>                      sSpellPowerStore;
 TC_GAME_API extern DB2Storage<SpellProcsPerMinuteEntry>             sSpellProcsPerMinuteStore;
 TC_GAME_API extern DB2Storage<SpellRadiusEntry>                     sSpellRadiusStore;
@@ -346,6 +348,7 @@ public:
     std::vector<SpellProcsPerMinuteModEntry const*> GetSpellProcsPerMinuteMods(uint32 spellprocsPerMinuteId) const;
     std::vector<SpellVisualMissileEntry const*> const* GetSpellVisualMissiles(int32 spellVisualMissileSetId) const;
     std::vector<TalentEntry const*> const& GetTalentsByPosition(uint32 class_, uint32 tier, uint32 column) const;
+    TaxiPathEntry const* GetTaxiPath(uint32 from, uint32 to) const;
     static bool IsTotemCategoryCompatibleWith(uint32 itemTotemCategoryId, uint32 requiredTotemCategoryId);
     bool IsToyItem(uint32 toy) const;
     std::vector<TransmogSetEntry const*> const* GetTransmogSetsForItemModifiedAppearance(uint32 itemModifiedAppearanceId) const;

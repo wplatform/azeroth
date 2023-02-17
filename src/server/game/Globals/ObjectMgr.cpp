@@ -3412,13 +3412,8 @@ void ObjectMgr::LoadItemTemplates()
         for (auto& specs : itemTemplate.Specializations)
             if (specs.count() == 0)
                 specs.set();
-    }
 
-    // Load item effects (spells)
-    for (ItemXItemEffectEntry const* effectEntry : sItemXItemEffectStore)
-        if (ItemTemplate* item = Trinity::Containers::MapGetValuePtr(_itemTemplateStore, effectEntry->ItemID))
-            if (ItemEffectEntry const* effect = sItemEffectStore.LookupEntry(effectEntry->ItemEffectID))
-                item->Effects.push_back(effect);
+    }
 
     TC_LOG_INFO("server.loading", ">> Loaded {} item templates in {} ms", _itemTemplateStore.size(), GetMSTimeDiffToNow(oldMSTime));
 }
@@ -4786,12 +4781,6 @@ void ObjectMgr::LoadQuests()
                     // no changes, quest ignore this data
                 }
             }
-        }
-
-        if (qinfo->MinLevel == -1 || qinfo->MinLevel > DEFAULT_MAX_LEVEL)
-        {
-            TC_LOG_ERROR("sql.sql", "Quest {} has `ContentTuningID` = {} but content tuning with this id does not exist.",
-                qinfo->GetQuestId(), qinfo->_contentTuningID);
         }
 
         // client quest log visual (area case)
@@ -6548,8 +6537,6 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
                 for (MailItemInfoVec::iterator itr2 = m->items.begin(); itr2 != m->items.end(); ++itr2)
                 {
                     Item::DeleteFromDB(nonTransactional, itr2->item_guid);
-                    AzeriteItem::DeleteFromDB(nonTransactional, itr2->item_guid);
-                    AzeriteEmpoweredItem::DeleteFromDB(nonTransactional, itr2->item_guid);
                 }
 
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_MAIL_ITEM_BY_ID);
@@ -7657,7 +7644,7 @@ void ObjectMgr::LoadGameObjectTemplate()
         go.name = db2go->Name[sWorld->GetDefaultDbcLocale()];
         go.size = db2go->Scale;
         memset(go.raw.data, 0, sizeof(go.raw.data));
-        std::copy(db2go->PropValue.begin(), db2go->PropValue.end(), std::begin(go.raw.data));
+        std::copy(std::begin(db2go->PropValue), std::end(db2go->PropValue), std::begin(go.raw.data));
         go.ContentTuningId = 0;
         go.ScriptId = 0;
     }
@@ -9463,7 +9450,7 @@ void ObjectMgr::LoadCreatureTrainers()
                 Trinity::IteratorPair<GossipMenuItemsContainer::const_iterator> gossipMenuItems = GetGossipMenuItemsMapBounds(gossipMenuId);
                 auto gossipOptionItr = std::find_if(gossipMenuItems.begin(), gossipMenuItems.end(), [gossipOptionId](std::pair<uint32 const, GossipMenuItems> const& entry)
                 {
-                    return entry.second.OrderIndex == gossipOptionId;
+                    return entry.second.OptionID == gossipOptionId;
                 });
                 if (gossipOptionItr == gossipMenuItems.end())
                 {
@@ -9628,10 +9615,8 @@ void ObjectMgr::LoadGossipMenuItems()
     _gossipMenuItemsStore.clear();
 
     QueryResult result = WorldDatabase.Query(
-        //      0       1               2         3          4           5                      6         7      8            9             10
-        "SELECT MenuID, GossipOptionID, OptionID, OptionNpc, OptionText, OptionBroadcastTextID, Language, Flags, ActionMenuID, ActionPoiID, GossipNpcOptionID, "
-        //11       12        13       14                  15       16
-        "BoxCoded, BoxMoney, BoxText, BoxBroadcastTextID, SpellID, OverrideIconID "
+        //      0       1         2          3           4                      5         6             7            8         9         10       11
+        "SELECT MenuID, OptionID, OptionNpc, OptionText, OptionBroadcastTextID, Language, ActionMenuID, ActionPoiID, BoxCoded, BoxMoney, BoxText, BoxBroadcastTextID "
         "FROM gossip_menu_option ORDER BY MenuID, OptionID");
 
     if (!result)
@@ -9640,10 +9625,6 @@ void ObjectMgr::LoadGossipMenuItems()
         return;
     }
 
-    std::unordered_map<int32, int32> optionToNpcOption;
-    for (GossipNPCOptionEntry const* npcOption : sGossipNPCOptionStore)
-        optionToNpcOption[npcOption->GossipOptionID] = npcOption->ID;
-
     do
     {
         Field* fields = result->Fetch();
@@ -9651,31 +9632,21 @@ void ObjectMgr::LoadGossipMenuItems()
         GossipMenuItems gMenuItem;
 
         gMenuItem.MenuID                = fields[0].GetUInt32();
-        gMenuItem.GossipOptionID        = fields[1].GetInt32();
-        gMenuItem.OrderIndex            = fields[2].GetUInt32();
-        gMenuItem.OptionNpc             = GossipOptionNpc(fields[3].GetUInt8());
-        gMenuItem.OptionText            = fields[4].GetString();
-        gMenuItem.OptionBroadcastTextID = fields[5].GetUInt32();
-        gMenuItem.Language              = fields[6].GetUInt32();
-        gMenuItem.Flags                 = GossipOptionFlags(fields[7].GetInt32());
-        gMenuItem.ActionMenuID          = fields[8].GetUInt32();
-        gMenuItem.ActionPoiID           = fields[9].GetUInt32();
-        if (!fields[10].IsNull())
-            gMenuItem.GossipNpcOptionID = fields[10].GetInt32();
-
-        gMenuItem.BoxCoded              = fields[11].GetBool();
-        gMenuItem.BoxMoney              = fields[12].GetUInt32();
-        gMenuItem.BoxText               = fields[13].GetString();
-        gMenuItem.BoxBroadcastTextID    = fields[14].GetUInt32();
-        if (!fields[15].IsNull())
-            gMenuItem.SpellID           = fields[15].GetInt32();
-
-        if (!fields[16].IsNull())
-            gMenuItem.OverrideIconID    = fields[16].GetInt32();
+        gMenuItem.OptionID              = fields[1].GetUInt32();
+        gMenuItem.OptionNpc             = GossipOptionNpc(fields[2].GetUInt8());
+        gMenuItem.OptionText            = fields[3].GetString();
+        gMenuItem.OptionBroadcastTextID = fields[4].GetUInt32();
+        gMenuItem.Language              = fields[5].GetUInt32();
+        gMenuItem.ActionMenuID          = fields[6].GetUInt32();
+        gMenuItem.ActionPoiID           = fields[7].GetUInt32();
+        gMenuItem.BoxCoded              = fields[8].GetBool();
+        gMenuItem.BoxMoney              = fields[9].GetUInt32();
+        gMenuItem.BoxText               = fields[10].GetString();
+        gMenuItem.BoxBroadcastTextID    = fields[11].GetUInt32();
 
         if (gMenuItem.OptionNpc >= GossipOptionNpc::Count)
         {
-            TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} has unknown NPC option id {}. Replacing with GossipOptionNpc::None", gMenuItem.MenuID, gMenuItem.OrderIndex, AsUnderlyingType(gMenuItem.OptionNpc));
+            TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} has unknown NPC option id {}. Replacing with GossipOptionNpc::None", gMenuItem.MenuID, gMenuItem.OptionID, AsUnderlyingType(gMenuItem.OptionNpc));
             gMenuItem.OptionNpc = GossipOptionNpc::None;
         }
 
@@ -9683,20 +9654,20 @@ void ObjectMgr::LoadGossipMenuItems()
         {
             if (!sBroadcastTextStore.LookupEntry(gMenuItem.OptionBroadcastTextID))
             {
-                TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} has non-existing or incompatible OptionBroadcastTextID {}, ignoring.", gMenuItem.MenuID, gMenuItem.OrderIndex, gMenuItem.OptionBroadcastTextID);
+                TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} has non-existing or incompatible OptionBroadcastTextID {}, ignoring.", gMenuItem.MenuID, gMenuItem.OptionID, gMenuItem.OptionBroadcastTextID);
                 gMenuItem.OptionBroadcastTextID = 0;
             }
         }
 
         if (gMenuItem.Language && !sLanguagesStore.LookupEntry(gMenuItem.Language))
         {
-            TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} use non-existing Language {}, ignoring", gMenuItem.MenuID, gMenuItem.OrderIndex, gMenuItem.Language);
+            TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} use non-existing Language {}, ignoring", gMenuItem.MenuID, gMenuItem.OptionID, gMenuItem.Language);
             gMenuItem.Language = 0;
         }
 
         if (gMenuItem.ActionMenuID && gMenuItem.OptionNpc != GossipOptionNpc::None)
         {
-            TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} can not use ActionMenuID for GossipOptionNpc different from GossipOptionNpc::None, ignoring", gMenuItem.MenuID, gMenuItem.OrderIndex);
+            TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} can not use ActionMenuID for GossipOptionNpc different from GossipOptionNpc::None, ignoring", gMenuItem.MenuID, gMenuItem.OptionID);
             gMenuItem.ActionMenuID = 0;
         }
 
@@ -9704,44 +9675,22 @@ void ObjectMgr::LoadGossipMenuItems()
         {
             if (gMenuItem.OptionNpc != GossipOptionNpc::None)
             {
-                TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} can not use ActionPoiID for GossipOptionNpc different from GossipOptionNpc::None, ignoring", gMenuItem.MenuID, gMenuItem.OrderIndex);
+                TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} can not use ActionPoiID for GossipOptionNpc different from GossipOptionNpc::None, ignoring", gMenuItem.MenuID, gMenuItem.OptionID);
                 gMenuItem.ActionPoiID = 0;
             }
             else if (!GetPointOfInterest(gMenuItem.ActionPoiID))
             {
-                TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} use non-existing ActionPoiID {}, ignoring", gMenuItem.MenuID, gMenuItem.OrderIndex, gMenuItem.ActionPoiID);
+                TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} use non-existing ActionPoiID {}, ignoring", gMenuItem.MenuID, gMenuItem.OptionID, gMenuItem.ActionPoiID);
                 gMenuItem.ActionPoiID = 0;
             }
         }
-
-        if (gMenuItem.GossipNpcOptionID)
-        {
-            if (!sGossipNPCOptionStore.LookupEntry(*gMenuItem.GossipNpcOptionID))
-            {
-                TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} use non-existing GossipNPCOption {}, ignoring",
-                    gMenuItem.MenuID, gMenuItem.OrderIndex, *gMenuItem.GossipNpcOptionID);
-                gMenuItem.GossipNpcOptionID.reset();
-            }
-        }
-        else if (int32 const* npcOptionId = Trinity::Containers::MapGetValuePtr(optionToNpcOption, gMenuItem.GossipOptionID))
-            gMenuItem.GossipNpcOptionID = *npcOptionId;
 
         if (gMenuItem.BoxBroadcastTextID)
         {
             if (!sBroadcastTextStore.LookupEntry(gMenuItem.BoxBroadcastTextID))
             {
-                TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} has non-existing or incompatible BoxBroadcastTextID {}, ignoring.", gMenuItem.MenuID, gMenuItem.OrderIndex, gMenuItem.BoxBroadcastTextID);
+                TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} has non-existing or incompatible BoxBroadcastTextID {}, ignoring.", gMenuItem.MenuID, gMenuItem.OptionID, gMenuItem.BoxBroadcastTextID);
                 gMenuItem.BoxBroadcastTextID = 0;
-            }
-        }
-
-        if (gMenuItem.SpellID)
-        {
-            if (!sSpellMgr->GetSpellInfo(*gMenuItem.SpellID, DIFFICULTY_NONE))
-            {
-                TC_LOG_ERROR("sql.sql", "Table `gossip_menu_option` for menu {}, id {} use non-existing Spell {}, ignoring",
-                    gMenuItem.MenuID, gMenuItem.OrderIndex, *gMenuItem.SpellID);
-                gMenuItem.SpellID.reset();
             }
         }
 
@@ -10391,11 +10340,6 @@ void ObjectMgr::LoadTerrainWorldMaps()
             continue;
         }
 
-        if (!sDB2Manager.IsUiMapPhase(uiMapPhaseId))
-        {
-            TC_LOG_ERROR("sql.sql", "Phase {} defined in `terrain_worldmap` is not a valid terrain swap phase, skipped.", uiMapPhaseId);
-            continue;
-        }
 
         TerrainSwapInfo* terrainSwapInfo = &_terrainSwapInfoById[mapId];
         terrainSwapInfo->Id = mapId;

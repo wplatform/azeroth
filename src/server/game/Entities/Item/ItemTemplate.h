@@ -734,6 +734,7 @@ struct TC_GAME_API ItemTemplate
     uint32 GetClass() const { return BasicData->ClassID; }
     uint32 GetSubClass() const { return BasicData->SubclassID; }
     uint32 GetQuality() const { return ExtendedData->OverallQualityID; }
+    uint32 GetOtherFactionItemId() const { return 0;/*ExtendedData->FactionRelated*/}
     float GetPriceRandomValue() const { return ExtendedData->PriceRandomValue; }
     float GetPriceVariance() const { return ExtendedData->PriceVariance; }
     uint32 GetBuyCount() const { return std::max<uint32>(ExtendedData->VendorStackCount, 1u); }
@@ -741,7 +742,7 @@ struct TC_GAME_API ItemTemplate
     uint32 GetSellPrice() const { return ExtendedData->SellPrice; }
     InventoryType GetInventoryType() const { return InventoryType(ExtendedData->InventoryType); }
     int32 GetAllowableClass() const { return ExtendedData->AllowableClass; }
-    Trinity::RaceMask<int64> GetAllowableRace() const {return {ExtendedData->AllowableRace}; }
+    Trinity::RaceMask<int64> GetAllowableRace() const { return ExtendedData->AllowableRace; }
     uint32 GetBaseItemLevel() const { return ExtendedData->ItemLevel; }
     int32 GetBaseRequiredLevel() const { return ExtendedData->RequiredLevel; }
     uint32 GetRequiredSkill() const { return ExtendedData->RequiredSkill; }

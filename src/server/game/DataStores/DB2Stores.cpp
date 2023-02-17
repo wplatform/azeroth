@@ -285,7 +285,6 @@ TaxiMask                                        sTaxiNodesMask;
 TaxiMask                                        sOldContinentsNodesMask;
 TaxiMask                                        sHordeTaxiNodesMask;
 TaxiMask                                        sAllianceTaxiNodesMask;
-TaxiPathSetBySource                             sTaxiPathSetBySource;
 TaxiPathNodesByPath                             sTaxiPathNodesByPath;
 
 DEFINE_DB2_SET_COMPARATOR(ChrClassesXPowerTypesEntry)
@@ -402,6 +401,7 @@ namespace
     SpellProcsPerMinuteModContainer _spellProcsPerMinuteMods;
     std::unordered_map<int32, std::vector<SpellVisualMissileEntry const*>> _spellVisualMissilesBySet;
     TalentsByPosition _talentsByPosition;
+    std::unordered_map<std::pair<uint32, uint32>, TaxiPathEntry const*> _taxiPaths;
     ToyItemIdsContainer _toys;
     std::unordered_map<uint32, std::vector<TransmogSetEntry const*>> _transmogSetsByItemModifiedAppearance;
     std::unordered_map<uint32, std::vector<TransmogSetItemEntry const*>> _transmogSetItemsByTransmogSet;
@@ -1096,7 +1096,7 @@ void DB2Manager::LoadStores(std::string const& dataPath, uint32 defaultLocale)
     }
 
     for (TaxiPathEntry const* entry : sTaxiPathStore)
-        sTaxiPathSetBySource[entry->FromTaxiNode][entry->ToTaxiNode] = TaxiPathBySourceAndDestination(entry->ID, entry->Cost);
+        _taxiPaths[{ entry->FromTaxiNode, entry->ToTaxiNode }] = entry;
 
     uint32 pathCount = sTaxiPathStore.GetNumRows();
 
@@ -2207,6 +2207,11 @@ std::vector<SpellVisualMissileEntry const*> const* DB2Manager::GetSpellVisualMis
 std::vector<TalentEntry const*> const& DB2Manager::GetTalentsByPosition(uint32 class_, uint32 tier, uint32 column) const
 {
     return _talentsByPosition[class_][tier][column];
+}
+
+TaxiPathEntry const* DB2Manager::GetTaxiPath(uint32 from, uint32 to) const
+{
+    return Trinity::Containers::MapGetValuePtr(_taxiPaths, { from, to });
 }
 
 bool DB2Manager::IsTotemCategoryCompatibleWith(uint32 itemTotemCategoryId, uint32 requiredTotemCategoryId)

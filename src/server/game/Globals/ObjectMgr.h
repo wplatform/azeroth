@@ -748,22 +748,17 @@ struct PointOfInterest
 struct GossipMenuItems
 {
     uint32              MenuID;
-    int32               GossipOptionID;
-    uint32              OrderIndex;
+    uint32              OptionID;
     GossipOptionNpc     OptionNpc;
     std::string         OptionText;
     uint32              OptionBroadcastTextID;
     uint32              Language;
-    GossipOptionFlags   Flags;
     uint32              ActionMenuID;
     uint32              ActionPoiID;
-    Optional<int32>     GossipNpcOptionID;
     bool                BoxCoded;
     uint32              BoxMoney;
     std::string         BoxText;
     uint32              BoxBroadcastTextID;
-    Optional<int32>     SpellID;
-    Optional<int32>     OverrideIconID;
     ConditionContainer  Conditions;
 };
 
