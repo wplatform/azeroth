@@ -122,7 +122,7 @@ namespace WorldPackets
         class GameObjectUILink final : public ServerPacket
         {
         public:
-            GameObjectUILink() : ServerPacket(SMSG_GAME_OBJECT_UI_LINK, 16 + 4) { }
+            GameObjectUILink() : ServerPacket(SMSG_GAME_OBJECT_UI_ACTION, 16 + 4) { }
 
             WorldPacket const* Write() override;
 
@@ -146,7 +146,7 @@ namespace WorldPackets
         class GameObjectSetStateLocal final : public ServerPacket
         {
         public:
-            GameObjectSetStateLocal() : ServerPacket(SMSG_GAME_OBJECT_SET_STATE_LOCAL, 16 + 1) { }
+            GameObjectSetStateLocal() : ServerPacket(SMSG_GAME_OBJECT_SET_STATE, 16 + 1) { }
 
             WorldPacket const* Write() override;
 

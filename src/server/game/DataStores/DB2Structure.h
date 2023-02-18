@@ -828,6 +828,8 @@ struct CriteriaEntry
     uint8 FailEvent;
     uint8 Flags;
     int8 EligibilityWorldStateValue;
+
+    EnumFlag<CriteriaFlags> GetFlags() const { return static_cast<CriteriaFlags>(Flags); }
 };
 
 struct CriteriaTreeEntry
@@ -840,6 +842,8 @@ struct CriteriaTreeEntry
     uint32 CriteriaID;
     uint32 Parent;
     int32 OrderIndex;
+    EnumFlag<CriteriaTreeFlags> GetFlags() const { return static_cast<CriteriaTreeFlags>(Flags); }
+
 };
 
 struct CurrencyTypesEntry
@@ -2122,6 +2126,8 @@ struct PhaseEntry
 {
     uint32 ID;
     uint16 Flags;
+
+    EnumFlag<PhaseEntryFlags> GetFlags() const { return static_cast<PhaseEntryFlags>(Flags); }
 };
 
 struct PhaseXPhaseGroupEntry

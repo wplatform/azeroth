@@ -81,15 +81,6 @@ private:
 
 union GameObjectValue
 {
-    //11 GAMEOBJECT_TYPE_TRANSPORT
-    struct
-    {
-        uint32 PathProgress;
-        TransportAnimation const* AnimationInfo;
-        uint32 CurrentSeg;
-        std::vector<uint32>* StopFrames;
-        uint32 StateUpdateTimer;
-    } Transport;
     //25 GAMEOBJECT_TYPE_FISHINGHOLE
     struct
     {
@@ -106,6 +97,13 @@ union GameObjectValue
         uint32 Health;
         uint32 MaxHealth;
     } Building;
+    //42 GAMEOBJECT_TYPE_CAPTURE_POINT
+    struct
+    {
+        TeamId LastTeamCapture;
+        WorldPackets::Battleground::BattlegroundCapturePointState State;
+        uint32 AssaultTimer;
+    } CapturePoint;
 };
 
 // For containers:  [GO_NOT_READY]->GO_READY (close)->GO_ACTIVATED (open) ->GO_JUST_DEACTIVATED->GO_READY        -> ...
@@ -159,7 +157,7 @@ class TC_GAME_API GameObject : public WorldObject, public GridObject<GameObject>
         void SetLocalRotation(float qx, float qy, float qz, float qw);
         void SetParentRotation(QuaternionData const& rotation);      // transforms(rotates) transport's path
         QuaternionData const& GetLocalRotation() const { return m_localRotation; }
-        int64 GetPackedWorldRotation() const { return m_packedRotation; }
+        int64 GetPackedLocalRotation() const { return m_packedRotation; }
 
         QuaternionData GetWorldRotation() const;
 

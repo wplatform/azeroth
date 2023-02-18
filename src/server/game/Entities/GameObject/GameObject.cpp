@@ -49,6 +49,7 @@
 #include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "Transport.h"
+#include "UpdateFieldFlags.h"
 #include "World.h"
 #include <G3D/Box.h>
 #include <G3D/CoordinateFrame.h>
@@ -198,9 +199,9 @@ public:
             else
                 stopTargetTime = _stopFrames[_owner.GetGoState() - GO_STATE_TRANSPORT_STOPPED];
 
-            if (now < uint32(*_owner.m_gameObjectData->Level))
+            if (now < uint32(_owner.GetUInt32Value(GAMEOBJECT_LEVEL)))
             {
-                int32 timeToStop = _owner.m_gameObjectData->Level - _stateChangeTime;
+                int32 timeToStop = _owner.GetUInt32Value(GAMEOBJECT_LEVEL) - _stateChangeTime;
                 float stopSourcePathPct = float(_stateChangeProgress) / float(period);
                 float stopTargetPathPct = float(stopTargetTime) / float(period);
                 float timeSinceStopProgressPct = float(now - _stateChangeTime) / float(timeToStop);
@@ -295,8 +296,9 @@ public:
         TransportAnimationEntry const* newAnimation = _animationInfo->GetNextAnimNode(newProgress);
         if (oldAnimation && newAnimation)
         {
-            G3D::Matrix3 pathRotation = G3D::Quat(_owner.m_gameObjectData->ParentRotation->x, _owner.m_gameObjectData->ParentRotation->y,
-                _owner.m_gameObjectData->ParentRotation->z, _owner.m_gameObjectData->ParentRotation->w).toRotationMatrix();
+
+            G3D::Matrix3 pathRotation = G3D::Quat(_owner.GetFloatValue(GAMEOBJECT_PARENTROTATION + 0), _owner.GetFloatValue(GAMEOBJECT_PARENTROTATION + 1),
+                _owner.GetFloatValue(GAMEOBJECT_PARENTROTATION + 2), _owner.GetFloatValue(GAMEOBJECT_PARENTROTATION + 3)).toRotationMatrix();
 
             G3D::Vector3 prev(oldAnimation->Pos.X, oldAnimation->Pos.Y, oldAnimation->Pos.Z);
             G3D::Vector3 next(newAnimation->Pos.X, newAnimation->Pos.Y, newAnimation->Pos.Z);
@@ -497,9 +499,10 @@ GameObject::GameObject() : WorldObject(false), MapObject(),
     m_objectType |= TYPEMASK_GAMEOBJECT;
     m_objectTypeId = TYPEID_GAMEOBJECT;
 
-    m_updateFlag.Stationary = true;
-    m_updateFlag.Rotation = true;
+    m_updateFlag = (UPDATEFLAG_STATIONARY_POSITION | UPDATEFLAG_ROTATION);
 
+    m_valuesCount = GAMEOBJECT_END;
+    _dynamicValuesCount = GAMEOBJECT_DYNAMIC_END;
     m_respawnTime = 0;
     m_respawnDelayTime = 300;
     m_despawnDelay = 0;
@@ -676,7 +679,7 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
     else
     {
         guid = ObjectGuid::Create<HighGuid::Transport>(map->GenerateLowGuid<HighGuid::Transport>());
-        m_updateFlag.ServerTime = true;
+        m_updateFlag |= UPDATEFLAG_TRANSPORT;
     }
 
     Object::_Create(guid);
@@ -712,7 +715,7 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
     {
         if (m_goTemplateAddon->WorldEffectID)
         {
-            m_updateFlag.GameObject = true;
+            m_updateFlag |= UPDATEFLAG_GAMEOBJECT;
             SetWorldEffectID(m_goTemplateAddon->WorldEffectID);
         }
 
@@ -734,7 +737,7 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
     SetGoState(goState);
     SetGoArtKit(artKit);
 
-    SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::SpawnTrackingStateAnimID), sDB2Manager.GetEmptyAnimStateID());
+    //SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::SpawnTrackingStateAnimID), sDB2Manager.GetEmptyAnimStateID());
 
     switch (goInfo->type)
     {
@@ -751,7 +754,7 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
             // yes, even after the updatefield rewrite this garbage hack is still in client
             QuaternionData reinterpretId;
             memcpy(&reinterpretId.x, &m_goInfo->destructibleBuilding.DestructibleModelRec, sizeof(float));
-            SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::ParentRotation), reinterpretId);
+            SetUInt32Value(GAMEOBJECT_PARENTROTATION, m_goInfo->destructibleBuilding.DestructibleModelRec);
             break;
         }
         case GAMEOBJECT_TYPE_TRANSPORT:
@@ -788,7 +791,7 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
             SetFlag(GameObjectFlags((m_goInfo->phaseableMO.AreaNameSet & 0xF) << 8));
             break;
         case GAMEOBJECT_TYPE_CAPTURE_POINT:
-            SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::SpellVisualID), m_goInfo->capturePoint.SpellVisual1);
+            SetUInt32Value(GAMEOBJECT_SPELL_VISUAL_ID, m_goInfo->capturePoint.SpellVisual1);
             m_goValue.CapturePoint.AssaultTimer = 0;
             m_goValue.CapturePoint.LastTeamCapture = TEAM_NEUTRAL;
             m_goValue.CapturePoint.State = WorldPackets::Battleground::BattlegroundCapturePointState::Neutral;
@@ -809,7 +812,7 @@ bool GameObject::Create(uint32 entry, Map* map, Position const& pos, QuaternionD
 
         if (gameObjectAddon->WorldEffectID)
         {
-            m_updateFlag.GameObject = true;
+            m_updateFlag |= UPDATEFLAG_GAMEOBJECT;
             SetWorldEffectID(gameObjectAddon->WorldEffectID);
         }
 
@@ -925,12 +928,8 @@ void GameObject::Update(uint32 diff)
                 }
                 else if (needsStateUpdate)
                 {
-                    UF::ObjectData::Base objMask;
-                    UF::GameObjectData::Base goMask;
-                    goMask.MarkChanged(&UF::GameObjectData::State);
-
                     UpdateData udata(GetMapId());
-                    BuildValuesUpdateForPlayerWithMask(&udata, objMask.GetChangesMask(), goMask.GetChangesMask(), seer);
+                    //BuildValuesUpdateForPlayerWithMask(&udata, objMask.GetChangesMask(), goMask.GetChangesMask(), seer);
                     WorldPacket packet;
                     udata.BuildPacket(&packet);
                     seer->SendDirectMessage(&packet);
@@ -1856,10 +1855,6 @@ uint8 GameObject::GetLevelForTarget(WorldObject const* target) const
 
     if (GetGoType() == GAMEOBJECT_TYPE_TRAP)
     {
-        if (Player const* player = target->ToPlayer())
-            if (Optional<ContentTuningLevels> userLevels = sDB2Manager.GetContentTuningData(GetGOInfo()->ContentTuningId, player->m_playerData->CtrOptions->ContentTuningConditionMask))
-                return uint8(std::clamp<int16>(player->GetLevel(), userLevels->MinLevel, userLevels->MaxLevel));
-
         if (Unit const* targetUnit = target->ToUnit())
             return targetUnit->GetLevel();
     }
@@ -2138,7 +2133,7 @@ void GameObject::ActivateObject(GameObjectActions action, int32 param, WorldObje
 
 void GameObject::SetGoArtKit(uint32 kit)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::ArtKit), kit);
+    SetByteValue(GAMEOBJECT_BYTES_1, 2, kit);
     GameObjectData* data = const_cast<GameObjectData*>(sObjectMgr->GetGameObjectData(m_spawnId));
     if (data)
         data->artKit = kit;
@@ -2458,6 +2453,7 @@ void GameObject::Use(Unit* user)
             if (uint32 trapEntry = info->goober.linkedTrap)
                 TriggeringLinkedGameObject(trapEntry, user);
 
+
             if (info->goober.AllowMultiInteract && player)
             {
                 if (info->IsDespawnAtAction())
@@ -2733,6 +2729,7 @@ void GameObject::Use(Unit* user)
                 return;
 
             //required lvl checks!
+            /*
             if (Optional<ContentTuningLevels> userLevels = sDB2Manager.GetContentTuningData(info->ContentTuningId, player->m_playerData->CtrOptions->ContentTuningConditionMask))
                 if (player->GetLevel() < userLevels->MaxLevel)
                     return;
@@ -2740,7 +2737,7 @@ void GameObject::Use(Unit* user)
             if (Optional<ContentTuningLevels> targetLevels = sDB2Manager.GetContentTuningData(info->ContentTuningId, targetPlayer->m_playerData->CtrOptions->ContentTuningConditionMask))
                 if (targetPlayer->GetLevel() < targetLevels->MaxLevel)
                     return;
-
+            */
             if (info->entry == 194097)
                 spellId = 61994;                            // Ritual of Summoning
             else
@@ -2912,18 +2909,6 @@ void GameObject::Use(Unit* user)
                     player->SendDirectMessage(openArtifactForge.Write());
                     break;
                 }
-                case 2: // Heart Forge
-                {
-                    Item const* item = player->GetItemByEntry(ITEM_ID_HEART_OF_AZEROTH, ItemSearchLocation::Everywhere);
-                    if (!item)
-                        return;
-
-                    WorldPackets::GameObject::GameObjectInteraction openHeartForge;
-                    openHeartForge.ObjectGUID = GetGUID();
-                    openHeartForge.InteractionType = PlayerInteractionType::AzeriteForge;
-                    player->SendDirectMessage(openHeartForge.Write());
-                    break;
-                }
                 default:
                     break;
             }
@@ -2935,26 +2920,10 @@ void GameObject::Use(Unit* user)
             if (!player)
                 return;
 
-            WorldPackets::GameObject::GameObjectInteraction gameObjectUILink;
-            gameObjectUILink.ObjectGUID = GetGUID();
-            switch (GetGOInfo()->UILink.UILinkType)
-            {
-                case 0:
-                    gameObjectUILink.InteractionType = PlayerInteractionType::AdventureJournal;
-                    break;
-                case 1:
-                    gameObjectUILink.InteractionType = PlayerInteractionType::ObliterumForge;
-                    break;
-                case 2:
-                    gameObjectUILink.InteractionType = PlayerInteractionType::ScrappingMachine;
-                    break;
-                case 3:
-                    gameObjectUILink.InteractionType = PlayerInteractionType::ItemInteraction;
-                    break;
-                default:
-                    break;
-            }
-            player->SendDirectMessage(gameObjectUILink.Write());
+            WorldPackets::GameObject::GameObjectUILink gameObjectUIAction;
+            gameObjectUIAction.ObjectGUID = GetGUID();
+            gameObjectUIAction.UILink = GetGOInfo()->UILink.UILinkType;
+            player->SendDirectMessage(gameObjectUIAction.Write());
             return;
         }
         case GAMEOBJECT_TYPE_GATHERING_NODE:                //50
@@ -3117,7 +3086,10 @@ void GameObject::SetLocalRotation(float qx, float qy, float qz, float qw)
 
 void GameObject::SetParentRotation(QuaternionData const& rotation)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::ParentRotation), rotation);
+    SetFloatValue(GAMEOBJECT_PARENTROTATION + 0, rotation.x);
+    SetFloatValue(GAMEOBJECT_PARENTROTATION + 1, rotation.y);
+    SetFloatValue(GAMEOBJECT_PARENTROTATION + 2, rotation.z);
+    SetFloatValue(GAMEOBJECT_PARENTROTATION + 3, rotation.w);
 }
 
 void GameObject::SetLocalRotationAngles(float z_rot, float y_rot, float x_rot)
@@ -3357,16 +3329,13 @@ void GameObject::OnLootRelease(Player* looter)
         case GAMEOBJECT_TYPE_GATHERING_NODE:
         {
             SetGoStateFor(GO_STATE_ACTIVE, looter);
-
-            UF::ObjectData::Base objMask;
-            UF::GameObjectData::Base goMask;
-            objMask.MarkChanged(&UF::ObjectData::DynamicFlags);
-
+            /*
             UpdateData udata(GetMapId());
             BuildValuesUpdateForPlayerWithMask(&udata, objMask.GetChangesMask(), goMask.GetChangesMask(), looter);
             WorldPacket packet;
             udata.BuildPacket(&packet);
             looter->SendDirectMessage(&packet);
+             */
             break;
         }
         default:
@@ -3377,7 +3346,7 @@ void GameObject::OnLootRelease(Player* looter)
 void GameObject::SetGoState(GOState state)
 {
     GOState oldState = GetGoState();
-    SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::State), state);
+    SetByteValue(GAMEOBJECT_BYTES_1, 0, state);
     if (AI())
         AI()->OnStateChanged(state);
 
@@ -3422,7 +3391,7 @@ void GameObject::SetGoStateFor(GOState state, Player const* viewer)
 
 void GameObject::SetDisplayId(uint32 displayid)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::DisplayID), displayid);
+    SetUInt32Value(GAMEOBJECT_DISPLAYID, displayid);
     UpdateModel();
 }
 
@@ -3451,7 +3420,7 @@ uint8 GameObject::GetNameSetId() const
         case GAMEOBJECT_TYPE_GARRISON_BUILDING:
         case GAMEOBJECT_TYPE_GARRISON_PLOT:
         case GAMEOBJECT_TYPE_PHASEABLE_MO:
-            return ((*m_gameObjectData->Flags) >> 8) & 0xF;
+            return (GetUInt32Value(GAMEOBJECT_FLAGS) >> 8) & 0xF;
         default:
             break;
     }
@@ -3517,75 +3486,7 @@ GameObject* GameObject::GetLinkedTrap()
     return ObjectAccessor::GetGameObject(*this, m_linkedTrap);
 }
 
-void GameObject::BuildValuesCreate(ByteBuffer* data, Player const* target) const
-{
-    UF::UpdateFieldFlag flags = GetUpdateFieldFlagsFor(target);
-    std::size_t sizePos = data->wpos();
-    *data << uint32(0);
-    *data << uint8(flags);
-    m_objectData->WriteCreate(*data, flags, this, target);
-    m_gameObjectData->WriteCreate(*data, flags, this, target);
-    data->put<uint32>(sizePos, data->wpos() - sizePos - 4);
-}
 
-void GameObject::BuildValuesUpdate(ByteBuffer* data, Player const* target) const
-{
-    UF::UpdateFieldFlag flags = GetUpdateFieldFlagsFor(target);
-    std::size_t sizePos = data->wpos();
-    *data << uint32(0);
-    *data << uint32(m_values.GetChangedObjectTypeMask());
-
-    if (m_values.HasChanged(TYPEID_OBJECT))
-        m_objectData->WriteUpdate(*data, flags, this, target);
-
-    if (m_values.HasChanged(TYPEID_GAMEOBJECT))
-        m_gameObjectData->WriteUpdate(*data, flags, this, target);
-
-    data->put<uint32>(sizePos, data->wpos() - sizePos - 4);
-}
-
-void GameObject::BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::Mask const& requestedObjectMask,
-    UF::GameObjectData::Mask const& requestedGameObjectMask, Player const* target) const
-{
-    UpdateMask<NUM_CLIENT_OBJECT_TYPES> valuesMask;
-    if (requestedObjectMask.IsAnySet())
-        valuesMask.Set(TYPEID_OBJECT);
-
-    if (requestedGameObjectMask.IsAnySet())
-        valuesMask.Set(TYPEID_GAMEOBJECT);
-
-    ByteBuffer& buffer = PrepareValuesUpdateBuffer(data);
-    std::size_t sizePos = buffer.wpos();
-    buffer << uint32(0);
-    buffer << uint32(valuesMask.GetBlock(0));
-
-    if (valuesMask[TYPEID_OBJECT])
-        m_objectData->WriteUpdate(buffer, requestedObjectMask, true, this, target);
-
-    if (valuesMask[TYPEID_GAMEOBJECT])
-        m_gameObjectData->WriteUpdate(buffer, requestedGameObjectMask, true, this, target);
-
-    buffer.put<uint32>(sizePos, buffer.wpos() - sizePos - 4);
-
-    data->AddUpdateBlock();
-}
-
-void GameObject::ValuesUpdateForPlayerWithMaskSender::operator()(Player const* player) const
-{
-    UpdateData udata(Owner->GetMapId());
-    WorldPacket packet;
-
-    Owner->BuildValuesUpdateForPlayerWithMask(&udata, ObjectMask.GetChangesMask(), GameObjectMask.GetChangesMask(), player);
-
-    udata.BuildPacket(&packet);
-    player->SendDirectMessage(&packet);
-}
-
-void GameObject::ClearUpdateMask(bool remove)
-{
-    m_values.ClearChangesMask(&GameObject::m_gameObjectData);
-    Object::ClearUpdateMask(remove);
-}
 
 std::vector<uint32> const* GameObject::GetPauseTimes() const
 {
@@ -3597,20 +3498,42 @@ std::vector<uint32> const* GameObject::GetPauseTimes() const
 
 void GameObject::SetPathProgressForClient(float progress)
 {
-    DoWithSuppressingObjectUpdates([&]()
+    uint32 dynamicFlags = GetDynamicFlags();
+    dynamicFlags &= 0xFFFF; // remove high bits
+    dynamicFlags |= uint32(progress * 65535.0f) << 16;
+    ReplaceAllDynamicFlags(dynamicFlags);
+}
+
+void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target) const
+{
+    if (!target)
+        return;
+
+    bool forcedFlags = GetGoType() == GAMEOBJECT_TYPE_CHEST && GetGOInfo()->chest.usegrouplootrules && HasLootRecipient();
+    bool targetIsGM = target->IsGameMaster();
+
+    std::size_t blockCount = UpdateMask::GetBlockCount(m_valuesCount);
+
+    uint32* flags = GameObjectUpdateFieldFlags;
+    uint32 visibleFlag = UF_FLAG_PUBLIC;
+    if (GetOwnerGUID() == target->GetGUID())
+        visibleFlag |= UF_FLAG_OWNER;
+
+    *data << uint8(blockCount);
+    std::size_t maskPos = data->wpos();
+    data->resize(data->size() + blockCount * sizeof(UpdateMask::BlockType));
+
+    for (uint16 index = 0; index < m_valuesCount; ++index)
     {
-        UF::ObjectData::Base dynflagMask;
-        dynflagMask.MarkChanged(&UF::ObjectData::DynamicFlags);
-        bool marked = (m_objectData->GetChangesMask() & dynflagMask.GetChangesMask()).IsAnySet();
+        if (_fieldNotifyFlags & flags[index] ||
+            ((updateType == UPDATETYPE_VALUES ? _changesMask[index] : m_uint32Values[index]) && (flags[index] & visibleFlag)) ||
+            (index == GAMEOBJECT_FLAGS && forcedFlags))
+        {
+            UpdateMask::SetUpdateBit(data->contents() + maskPos, index);
 
-        uint32 dynamicFlags = GetDynamicFlags();
-        dynamicFlags &= 0xFFFF; // remove high bits
-        dynamicFlags |= uint32(progress * 65535.0f) << 16;
-        ReplaceAllDynamicFlags(dynamicFlags);
-
-        if (!marked)
-            const_cast<UF::ObjectData&>(*m_objectData).ClearChanged(&UF::ObjectData::DynamicFlags);
-    });
+            *data << m_uint32Values[index];                // other cases
+        }
+    }
 }
 
 void GameObject::GetRespawnPosition(float &x, float &y, float &z, float* ori /* = nullptr*/) const
@@ -3732,8 +3655,8 @@ void GameObject::SetAnimKitId(uint16 animKitId, bool oneshot)
 
 void GameObject::SetSpellVisualId(int32 spellVisualId, ObjectGuid activatorGuid)
 {
-    SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::SpellVisualID), spellVisualId);
 
+    SetUInt32Value(GAMEOBJECT_SPELL_VISUAL_ID, spellVisualId);
     WorldPackets::GameObject::GameObjectPlaySpellVisual packet;
     packet.ObjectGUID = GetGUID();
     packet.ActivatorGUID = activatorGuid;
@@ -3943,7 +3866,7 @@ private:
 
 void GameObject::UpdateDynamicFlagsForNearbyPlayers()
 {
-    m_values.ModifyValue(&Object::m_objectData).ModifyValue(&UF::ObjectData::DynamicFlags);
+    //m_values.ModifyValue(&Object::m_objectData).ModifyValue(&UF::ObjectData::DynamicFlags);
     AddToObjectUpdateIfNeeded();
 }
 

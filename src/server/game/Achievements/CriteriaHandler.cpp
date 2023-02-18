@@ -17,7 +17,6 @@
 
 #include "CriteriaHandler.h"
 #include "ArenaTeamMgr.h"
-#include "AzeriteItem.h"
 #include "Battleground.h"
 #include "BattlePetMgr.h"
 #include "CollectionMgr.h"
@@ -551,10 +550,6 @@ void CriteriaHandler::UpdateCriteria(CriteriaType type, uint64 miscValue1 /*= 0*
             case CriteriaType::PrestigeLevelIncrease:
             case CriteriaType::LearnAnyTransmogInSlot:
             case CriteriaType::CollectTransmogSetFromGroup:
-            case CriteriaType::CompleteAnyReplayQuest:
-            case CriteriaType::BuyItemsFromVendors:
-            case CriteriaType::SellItemsToVendors:
-            case CriteriaType::EnterTopLevelArea:
                 SetCriteriaProgress(criteria, 1, referencePlayer, PROGRESS_ACCUMULATE);
                 break;
             // std case: increment at miscValue1
@@ -571,7 +566,6 @@ void CriteriaHandler::UpdateCriteria(CriteriaType type, uint64 miscValue1 /*= 0*
             case CriteriaType::CompletedLFGDungeonWithStrangers:
             case CriteriaType::DamageDealt:
             case CriteriaType::HealingDone:
-            case CriteriaType::EarnArtifactXPForAzeriteItem:
                 SetCriteriaProgress(criteria, miscValue1, referencePlayer, PROGRESS_ACCUMULATE);
                 break;
             case CriteriaType::KillCreature:
@@ -589,7 +583,6 @@ void CriteriaHandler::UpdateCriteria(CriteriaType type, uint64 miscValue1 /*= 0*
             case CriteriaType::HighestDamageTaken:
             case CriteriaType::HighestHealCast:
             case CriteriaType::HighestHealReceived:
-            case CriteriaType::AzeriteLevelReached:
                 SetCriteriaProgress(criteria, miscValue1, referencePlayer, PROGRESS_HIGHEST);
                 break;
             case CriteriaType::ReachLevel:
@@ -716,7 +709,7 @@ void CriteriaHandler::UpdateCriteria(CriteriaType type, uint64 miscValue1 /*= 0*
                 SetCriteriaProgress(criteria, referencePlayer->GetReputationMgr().GetVisibleFactionCount(), referencePlayer);
                 break;
             case CriteriaType::HonorableKills:
-                SetCriteriaProgress(criteria, referencePlayer->m_activePlayerData->LifetimeHonorableKills, referencePlayer);
+                SetCriteriaProgress(criteria, referencePlayer->GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS), referencePlayer);
                 break;
             case CriteriaType::MostMoneyOwned:
                 SetCriteriaProgress(criteria, referencePlayer->GetMoney(), referencePlayer, PROGRESS_HIGHEST);
@@ -838,10 +831,6 @@ void CriteriaHandler::UpdateCriteria(CriteriaType type, uint64 miscValue1 /*= 0*
             case CriteriaType::ParagonLevelIncreaseWithFaction:
             case CriteriaType::PlayerHasEarnedHonor:
             case CriteriaType::ChooseRelicTalent:
-            case CriteriaType::AccountHonorLevelReached:
-            case CriteriaType::MythicPlusCompleted:
-            case CriteriaType::SocketAnySoulbindConduit:
-            case CriteriaType::ObtainAnyItemWithCurrencyValue:
             case CriteriaType::EarnExpansionLevel:
             case CriteriaType::LearnTransmog:
             default:
@@ -1209,13 +1198,6 @@ bool CriteriaHandler::IsCompletedCriteria(Criteria const* criteria, uint64 requi
         case CriteriaType::ParagonLevelIncreaseWithFaction:
         case CriteriaType::PlayerHasEarnedHonor:
         case CriteriaType::ChooseRelicTalent:
-        case CriteriaType::AccountHonorLevelReached:
-        case CriteriaType::EarnArtifactXPForAzeriteItem:
-        case CriteriaType::AzeriteLevelReached:
-        case CriteriaType::CompleteAnyReplayQuest:
-        case CriteriaType::BuyItemsFromVendors:
-        case CriteriaType::SellItemsToVendors:
-        case CriteriaType::EnterTopLevelArea:
             return progress->Counter >= requiredAmount;
         case CriteriaType::EarnAchievement:
         case CriteriaType::CompleteQuest:
@@ -1384,9 +1366,6 @@ bool CriteriaHandler::RequirementsSatisfied(Criteria const* criteria, uint64 mis
         case CriteriaType::WinDuel:
         case CriteriaType::WinAnyRankedArena:
         case CriteriaType::AuctionsWon:
-        case CriteriaType::CompleteAnyReplayQuest:
-        case CriteriaType::BuyItemsFromVendors:
-        case CriteriaType::SellItemsToVendors:
             if (!miscValue1)
                 return false;
             break;
@@ -1458,7 +1437,7 @@ bool CriteriaHandler::RequirementsSatisfied(Criteria const* criteria, uint64 mis
                 return false;
             break;
         case CriteriaType::DieFromEnviromentalDamage:
-            if (!miscValue1 || miscValue2 != uint32(criteria->Entry->Asset.EnviromentalDamageType))
+            if (!miscValue1 || miscValue2 != uint32(criteria->Entry->Asset.DamageType))
                 return false;
             break;
         case CriteriaType::CompleteQuest:
@@ -1532,7 +1511,7 @@ bool CriteriaHandler::RequirementsSatisfied(Criteria const* criteria, uint64 mis
                     continue;
 
                 uint64 mask = uint64(1) << (area->AreaBit % PLAYER_EXPLORED_ZONES_BITS);
-                if (referencePlayer->m_activePlayerData->ExploredZones[playerIndexOffset] & mask)
+                if (referencePlayer->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + playerIndexOffset) & mask)
                 {
                     matchFound = true;
                     break;
@@ -1602,12 +1581,11 @@ bool CriteriaHandler::RequirementsSatisfied(Criteria const* criteria, uint64 mis
             if (!miscValue1 || miscValue1 != uint32(criteria->Entry->Asset.RaceID))
                 return false;
             break;
-        case CriteriaType::TrackedWorldStateUIModified:
-            if (!miscValue1 || miscValue1 != uint32(criteria->Entry->Asset.WorldStateUIID))
+        case CriteriaType::TrackedWorldStateUIModified://CRITERIA_TYPE_BG_OBJECTIVE_CAPTURE
+            if (!miscValue1 || miscValue1 != uint32(criteria->Entry->Asset.ObjectiveId))
                 return false;
             break;
         case CriteriaType::PVPKillInArea:
-        case CriteriaType::EnterTopLevelArea:
             if (!miscValue1 || miscValue1 != uint32(criteria->Entry->Asset.AreaID))
                 return false;
             break;
@@ -1628,7 +1606,7 @@ bool CriteriaHandler::RequirementsSatisfied(Criteria const* criteria, uint64 mis
                 return false;
             break;
         case CriteriaType::RecruitGarrisonFollower:
-            if (miscValue1 != uint32(criteria->Entry->Asset.GarrFollowerID))
+            if (miscValue1 != uint32(criteria->Entry->Asset.GarrBuildingID))
                 return false;
             break;
         case CriteriaType::CollectTransmogSetFromGroup:
@@ -2053,7 +2031,7 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
             if (referencePlayer->GetReputationMgr().GetReputation(1272) < int32(reqValue))
                 return false;
             break;
-        case ModifierTreeType::BattlePetAchievementPointsEqualOrGreaterThan: // 76
+        case ModifierTreeType::WinDuel: // 76
         {
             auto getRootAchievementCategory = [](AchievementEntry const* achievement)
             {
@@ -3041,830 +3019,6 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
             if (referencePlayer->GetSession()->GetAccountExpansion() < reqValue)
                 return false;
             break;
-        case ModifierTreeType::PlayerLastWeek2v2Rating: // 213 NYI
-        case ModifierTreeType::PlayerLastWeek3v3Rating: // 214 NYI
-        case ModifierTreeType::PlayerLastWeekRBGRating: // 215 NYI
-            return false;
-        case ModifierTreeType::GroupMemberCountFromConnectedRealmEqualOrGreaterThan: // 216
-        {
-            uint32 memberCount = 0;
-            if (Group const* group = referencePlayer->GetGroup())
-                for (GroupReference const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
-                    if (itr->GetSource() != referencePlayer && *referencePlayer->m_playerData->VirtualPlayerRealm == *itr->GetSource()->m_playerData->VirtualPlayerRealm)
-                        ++memberCount;
-            if (memberCount < reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::ArtifactTraitUnlockedCountEqualOrGreaterThan: // 217
-        {
-            Item const* artifact = referencePlayer->GetItemByEntry(secondaryAsset, ItemSearchLocation::Everywhere);
-            if (!artifact)
-                return false;
-            if (artifact->GetTotalUnlockedArtifactPowers() < reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::ParagonReputationLevelEqualOrGreaterThan: // 218
-            if (referencePlayer->GetReputationMgr().GetParagonLevel(miscValue1) < int32(reqValue))
-                return false;
-            return false;
-        case ModifierTreeType::GarrisonShipmentIsReady: // 219 NYI
-            return false;
-        case ModifierTreeType::PlayerIsInPvpBrawl: // 220
-        {
-            BattlemasterListEntry const* bg = sBattlemasterListStore.LookupEntry(referencePlayer->GetBattlegroundTypeId());
-            if (!bg || !(bg->GetFlags().HasFlag(BattlemasterListFlags::IsBrawl)))
-                return false;
-            break;
-        }
-        case ModifierTreeType::ParagonReputationLevelWithFactionEqualOrGreaterThan: // 221
-        {
-            FactionEntry const* faction = sFactionStore.LookupEntry(secondaryAsset);
-            if (!faction)
-                return false;
-            if (referencePlayer->GetReputationMgr().GetParagonLevel(faction->ParagonFactionID) < int32(reqValue))
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasItemWithBonusListFromTreeAndQuality: // 222
-        {
-            std::set<uint32> bonusListIDs = sDB2Manager.GetAllItemBonusTreeBonuses(reqValue);
-            if (bonusListIDs.empty())
-                return false;
-
-            bool bagScanReachedEnd = referencePlayer->ForEachItem(ItemSearchLocation::Everywhere, [&bonusListIDs](Item const* item)
-            {
-                bool hasBonus = std::any_of(item->GetBonusListIDs().begin(), item->GetBonusListIDs().end(), [&bonusListIDs](int32 bonusListID)
-                {
-                    return bonusListIDs.find(bonusListID) != bonusListIDs.end();
-                });
-                return hasBonus ? ItemSearchCallbackResult::Stop : ItemSearchCallbackResult::Continue;
-            });
-            if (bagScanReachedEnd)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasEmptyInventorySlotCountEqualOrGreaterThan: // 223
-            if (referencePlayer->GetFreeInventorySlotCount(ItemSearchLocation::Inventory) < reqValue)
-                return false;
-            break;
-        case ModifierTreeType::PlayerHasItemInHistoryOfProgressiveEvent: // 224 NYI
-            return false;
-        case ModifierTreeType::PlayerHasArtifactPowerRankCountPurchasedEqualOrGreaterThan: // 225
-        {
-            Aura const* artifactAura = referencePlayer->GetAura(ARTIFACTS_ALL_WEAPONS_GENERAL_WEAPON_EQUIPPED_PASSIVE);
-            if (!artifactAura)
-                return false;
-            Item const* artifact = referencePlayer->GetItemByGuid(artifactAura->GetCastItemGUID());
-            if (!artifact)
-                return false;
-            UF::ArtifactPower const* artifactPower = artifact->GetArtifactPower(secondaryAsset);
-            if (!artifactPower)
-                return false;
-            if (artifactPower->PurchasedRank < reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasBoosted: // 226
-            if (referencePlayer->HasLevelBoosted())
-                return false;
-            break;
-        case ModifierTreeType::PlayerHasRaceChanged: // 227
-            if (referencePlayer->HasRaceChanged())
-                return false;
-            break;
-        case ModifierTreeType::PlayerHasBeenGrantedLevelsFromRaF: // 228
-            if (referencePlayer->HasBeenGrantedLevelsFromRaF())
-                return false;
-            break;
-        case ModifierTreeType::IsTournamentRealm: // 229
-            return false;
-        case ModifierTreeType::PlayerCanAccessAlliedRaces: // 230
-            if (!referencePlayer->GetSession()->CanAccessAlliedRaces())
-                return false;
-            break;
-        case ModifierTreeType::GroupMemberCountWithAchievementEqualOrLessThan: // 231
-        {
-            if (Group const* group = referencePlayer->GetGroup())
-            {
-                uint32 membersWithAchievement = 0;
-                for (GroupReference const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
-                    if (itr->GetSource()->HasAchieved(secondaryAsset))
-                        ++membersWithAchievement;
-
-                if (membersWithAchievement > reqValue)
-                    return false;
-            }
-            // true if no group
-            break;
-        }
-        case ModifierTreeType::PlayerMainhandWeaponType: // 232
-        {
-            UF::VisibleItem const& visibleItem = referencePlayer->m_playerData->VisibleItems[EQUIPMENT_SLOT_MAINHAND];
-            uint32 itemSubclass = ITEM_SUBCLASS_WEAPON_FIST_WEAPON;
-            if (ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(visibleItem.ItemID))
-            {
-                if (itemTemplate->GetClass() == ITEM_CLASS_WEAPON)
-                {
-                    itemSubclass = itemTemplate->GetSubClass();
-
-                    if (ItemModifiedAppearanceEntry const* itemModifiedAppearance = sDB2Manager.GetItemModifiedAppearance(visibleItem.ItemID, visibleItem.ItemAppearanceModID))
-                        if (ItemModifiedAppearanceExtraEntry const* itemModifiedAppearaceExtra = sItemModifiedAppearanceExtraStore.LookupEntry(itemModifiedAppearance->ID))
-                            if (itemModifiedAppearaceExtra->DisplayWeaponSubclassID > 0)
-                                itemSubclass = itemModifiedAppearaceExtra->DisplayWeaponSubclassID;
-                }
-            }
-            if (itemSubclass != reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerOffhandWeaponType: // 233
-        {
-            UF::VisibleItem const& visibleItem = referencePlayer->m_playerData->VisibleItems[EQUIPMENT_SLOT_OFFHAND];
-            uint32 itemSubclass = ITEM_SUBCLASS_WEAPON_FIST_WEAPON;
-            if (ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(visibleItem.ItemID))
-            {
-                if (itemTemplate->GetClass() == ITEM_CLASS_WEAPON)
-                {
-                    itemSubclass = itemTemplate->GetSubClass();
-
-                    if (ItemModifiedAppearanceEntry const* itemModifiedAppearance = sDB2Manager.GetItemModifiedAppearance(visibleItem.ItemID, visibleItem.ItemAppearanceModID))
-                        if (ItemModifiedAppearanceExtraEntry const* itemModifiedAppearaceExtra = sItemModifiedAppearanceExtraStore.LookupEntry(itemModifiedAppearance->ID))
-                            if (itemModifiedAppearaceExtra->DisplayWeaponSubclassID > 0)
-                                itemSubclass = itemModifiedAppearaceExtra->DisplayWeaponSubclassID;
-                }
-            }
-            if (itemSubclass != reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerPvpTier: // 234
-        {
-            PvpTierEntry const* pvpTier = sPvpTierStore.LookupEntry(reqValue);
-            if (!pvpTier)
-                return false;
-            UF::PVPInfo const* pvpInfo = referencePlayer->GetPvpInfoForBracket(pvpTier->BracketID);
-            if (!pvpInfo)
-                return false;
-            if (pvpTier->ID != pvpInfo->PvpTierID)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerAzeriteLevelEqualOrGreaterThan: // 235
-        {
-            Item const* heartOfAzeroth = referencePlayer->GetItemByEntry(ITEM_ID_HEART_OF_AZEROTH, ItemSearchLocation::Everywhere);
-            if (!heartOfAzeroth || heartOfAzeroth->ToAzeriteItem()->GetLevel() < reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerIsOnQuestInQuestline: // 236
-        {
-            bool isOnQuest = false;
-            if (std::vector<QuestLineXQuestEntry const*> const* questLineQuests = sDB2Manager.GetQuestsForQuestLine(reqValue))
-            {
-                isOnQuest = std::any_of(questLineQuests->begin(), questLineQuests->end(), [referencePlayer](QuestLineXQuestEntry const* questLineQuest)
-                {
-                    return referencePlayer->FindQuestSlot(questLineQuest->QuestID) < MAX_QUEST_LOG_SIZE;
-                });
-            }
-            if (!isOnQuest)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerIsQnQuestLinkedToScheduledWorldStateGroup: // 237
-            return false; // OBSOLETE (db2 removed)
-        case ModifierTreeType::PlayerIsInRaidGroup: // 238
-        {
-            Group const* group = referencePlayer->GetGroup();
-            if (!group || !group->isRaidGroup())
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerPvpTierInBracketEqualOrGreaterThan: // 239
-        {
-            UF::PVPInfo const* pvpInfo = referencePlayer->GetPvpInfoForBracket(secondaryAsset);
-            if (!pvpInfo)
-                return false;
-            PvpTierEntry const* pvpTier = sPvpTierStore.LookupEntry(pvpInfo->PvpTierID);
-            if (!pvpTier)
-                return false;
-            if (pvpTier->Rank < int32(reqValue))
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerCanAcceptQuestInQuestline: // 240
-        {
-            std::vector<QuestLineXQuestEntry const*> const* questLineQuests = sDB2Manager.GetQuestsForQuestLine(reqValue);
-            if (!questLineQuests)
-                return false;
-            bool canTakeQuest = std::any_of(questLineQuests->begin(), questLineQuests->end(), [referencePlayer](QuestLineXQuestEntry const* questLineQuest)
-            {
-                if (Quest const* quest = sObjectMgr->GetQuestTemplate(questLineQuest->QuestID))
-                    return referencePlayer->CanTakeQuest(quest, false);
-                return false;
-            });
-            if (!canTakeQuest)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasCompletedQuestline: // 241
-        {
-            std::vector<QuestLineXQuestEntry const*> const* questLineQuests = sDB2Manager.GetQuestsForQuestLine(reqValue);
-            if (!questLineQuests)
-                return false;
-            for (QuestLineXQuestEntry const* questLineQuest : *questLineQuests)
-                if (!referencePlayer->GetQuestRewardStatus(questLineQuest->QuestID))
-                    return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasCompletedQuestlineQuestCount: // 242
-        {
-            std::vector<QuestLineXQuestEntry const*> const* questLineQuests = sDB2Manager.GetQuestsForQuestLine(reqValue);
-            if (!questLineQuests)
-                return false;
-            uint32 completedQuests = 0;
-            for (QuestLineXQuestEntry const* questLineQuest : *questLineQuests)
-                if (referencePlayer->GetQuestRewardStatus(questLineQuest->QuestID))
-                    ++completedQuests;
-            if (completedQuests < reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasCompletedPercentageOfQuestline: // 243
-        {
-            std::vector<QuestLineXQuestEntry const*> const* questLineQuests = sDB2Manager.GetQuestsForQuestLine(reqValue);
-            if (!questLineQuests || questLineQuests->empty())
-                return false;
-            std::size_t completedQuests = 0;
-            for (QuestLineXQuestEntry const* questLineQuest : *questLineQuests)
-                if (referencePlayer->GetQuestRewardStatus(questLineQuest->QuestID))
-                    ++completedQuests;
-            if (GetPctOf(completedQuests, questLineQuests->size()) < reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasWarModeEnabled: // 244
-            if (!referencePlayer->HasPlayerLocalFlag(PLAYER_LOCAL_FLAG_WAR_MODE))
-                return false;
-            break;
-        case ModifierTreeType::PlayerIsOnWarModeShard: // 245
-            if (!referencePlayer->HasPlayerFlag(PLAYER_FLAGS_WAR_MODE_ACTIVE))
-                return false;
-            break;
-        case ModifierTreeType::PlayerIsAllowedToToggleWarModeInArea: // 246
-            if (!referencePlayer->CanEnableWarModeInArea())
-                return false;
-            break;
-        case ModifierTreeType::MythicPlusKeystoneLevelEqualOrGreaterThan: // 247 NYI
-        case ModifierTreeType::MythicPlusCompletedInTime: // 248 NYI
-        case ModifierTreeType::MythicPlusMapChallengeMode: // 249 NYI
-        case ModifierTreeType::MythicPlusDisplaySeason: // 250 NYI
-        case ModifierTreeType::MythicPlusMilestoneSeason: // 251 NYI
-            return false;
-        case ModifierTreeType::PlayerVisibleRace: // 252
-        {
-            CreatureDisplayInfoEntry const* creatureDisplayInfo = sCreatureDisplayInfoStore.LookupEntry(referencePlayer->GetDisplayId());
-            if (!creatureDisplayInfo)
-                return false;
-            CreatureDisplayInfoExtraEntry const* creatureDisplayInfoExtra = sCreatureDisplayInfoExtraStore.LookupEntry(creatureDisplayInfo->ExtendedDisplayInfoID);
-            if (!creatureDisplayInfoExtra)
-                return false;
-            if (uint32(creatureDisplayInfoExtra->DisplayRaceID) != reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::TargetVisibleRace: // 253
-        {
-            if (!ref || !ref->IsUnit())
-                return false;
-            CreatureDisplayInfoEntry const* creatureDisplayInfo = sCreatureDisplayInfoStore.LookupEntry(ref->ToUnit()->GetDisplayId());
-            if (!creatureDisplayInfo)
-                return false;
-            CreatureDisplayInfoExtraEntry const* creatureDisplayInfoExtra = sCreatureDisplayInfoExtraStore.LookupEntry(creatureDisplayInfo->ExtendedDisplayInfoID);
-            if (!creatureDisplayInfoExtra)
-                return false;
-            if (uint32(creatureDisplayInfoExtra->DisplayRaceID) != reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::FriendshipRepReactionEqual: // 254
-        {
-            FriendshipRepReactionEntry const* friendshipRepReaction = sFriendshipRepReactionStore.LookupEntry(reqValue);
-            if (!friendshipRepReaction)
-                return false;
-            FriendshipReputationEntry const* friendshipReputation = sFriendshipReputationStore.LookupEntry(friendshipRepReaction->FriendshipRepID);
-            if (!friendshipReputation)
-                return false;
-            DB2Manager::FriendshipRepReactionSet const* friendshipReactions = sDB2Manager.GetFriendshipRepReactions(reqValue);
-            if (!friendshipReactions)
-                return false;
-            uint32 rank = referencePlayer->GetReputationRank(friendshipReputation->FactionID);
-            if (rank >= friendshipReactions->size())
-                return false;
-            auto itr = friendshipReactions->begin();
-            std::advance(itr, rank);
-            if ((*itr)->ID != reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerAuraStackCountEqual: // 255
-            if (referencePlayer->GetAuraCount(secondaryAsset) != reqValue)
-                return false;
-            break;
-        case ModifierTreeType::TargetAuraStackCountEqual: // 256
-            if (!ref || !ref->IsUnit() || ref->ToUnit()->GetAuraCount(secondaryAsset) != reqValue)
-                return false;
-            break;
-        case ModifierTreeType::PlayerAuraStackCountEqualOrGreaterThan: // 257
-            if (referencePlayer->GetAuraCount(secondaryAsset) < reqValue)
-                return false;
-            break;
-        case ModifierTreeType::TargetAuraStackCountEqualOrGreaterThan: // 258
-            if (!ref || !ref->IsUnit() || ref->ToUnit()->GetAuraCount(secondaryAsset) < reqValue)
-                return false;
-            break;
-        case ModifierTreeType::PlayerHasAzeriteEssenceRankLessThan: // 259
-        {
-            if (Item const* heartOfAzeroth = referencePlayer->GetItemByEntry(ITEM_ID_HEART_OF_AZEROTH, ItemSearchLocation::Everywhere))
-                if (AzeriteItem const* azeriteItem = heartOfAzeroth->ToAzeriteItem())
-                    for (UF::UnlockedAzeriteEssence const& essence : azeriteItem->m_azeriteItemData->UnlockedEssences)
-                        if (essence.AzeriteEssenceID == reqValue && essence.Rank < secondaryAsset)
-                            return true;
-            return false;
-        }
-        case ModifierTreeType::PlayerHasAzeriteEssenceRankEqual: // 260
-        {
-            if (Item const* heartOfAzeroth = referencePlayer->GetItemByEntry(ITEM_ID_HEART_OF_AZEROTH, ItemSearchLocation::Everywhere))
-                if (AzeriteItem const* azeriteItem = heartOfAzeroth->ToAzeriteItem())
-                    for (UF::UnlockedAzeriteEssence const& essence : azeriteItem->m_azeriteItemData->UnlockedEssences)
-                        if (essence.AzeriteEssenceID == reqValue && essence.Rank == secondaryAsset)
-                            return true;
-            return false;
-        }
-        case ModifierTreeType::PlayerHasAzeriteEssenceRankGreaterThan: // 261
-        {
-            if (Item const* heartOfAzeroth = referencePlayer->GetItemByEntry(ITEM_ID_HEART_OF_AZEROTH, ItemSearchLocation::Everywhere))
-                if (AzeriteItem const* azeriteItem = heartOfAzeroth->ToAzeriteItem())
-                    for (UF::UnlockedAzeriteEssence const& essence : azeriteItem->m_azeriteItemData->UnlockedEssences)
-                        if (essence.AzeriteEssenceID == reqValue && essence.Rank > secondaryAsset)
-                            return true;
-            return false;
-        }
-        case ModifierTreeType::PlayerHasAuraWithEffectIndex: // 262
-            if (!referencePlayer->GetAuraEffect(reqValue, secondaryAsset))
-                return false;
-            break;
-        case ModifierTreeType::PlayerLootSpecializationMatchesRole: // 263
-        {
-            ChrSpecializationEntry const* spec = sChrSpecializationStore.LookupEntry(referencePlayer->GetPrimarySpecialization());
-            if (!spec || spec->Role != int32(reqValue))
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerIsAtMaxExpansionLevel: // 264
-            if (!referencePlayer->IsMaxLevel())
-                return false;
-            break;
-        case ModifierTreeType::TransmogSource: // 265
-        {
-            ItemModifiedAppearanceEntry const* itemModifiedAppearance = sItemModifiedAppearanceStore.LookupEntry(miscValue2);
-            if (!itemModifiedAppearance)
-                return false;
-            if (itemModifiedAppearance->TransmogSourceTypeEnum != int32(reqValue))
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasAzeriteEssenceInSlotAtRankLessThan: // 266
-            if (Item const* heartOfAzeroth = referencePlayer->GetItemByEntry(ITEM_ID_HEART_OF_AZEROTH, ItemSearchLocation::Everywhere))
-                if (AzeriteItem const* azeriteItem = heartOfAzeroth->ToAzeriteItem())
-                    if (UF::SelectedAzeriteEssences const* selectedEssences = azeriteItem->GetSelectedAzeriteEssences())
-                        for (UF::UnlockedAzeriteEssence const& essence : azeriteItem->m_azeriteItemData->UnlockedEssences)
-                            if (essence.AzeriteEssenceID == selectedEssences->AzeriteEssenceID[reqValue] && essence.Rank < secondaryAsset)
-                                return true;
-            return false;
-        case ModifierTreeType::PlayerHasAzeriteEssenceInSlotAtRankGreaterThan: // 267
-            if (Item const* heartOfAzeroth = referencePlayer->GetItemByEntry(ITEM_ID_HEART_OF_AZEROTH, ItemSearchLocation::Everywhere))
-                if (AzeriteItem const* azeriteItem = heartOfAzeroth->ToAzeriteItem())
-                    if (UF::SelectedAzeriteEssences const* selectedEssences = azeriteItem->GetSelectedAzeriteEssences())
-                        for (UF::UnlockedAzeriteEssence const& essence : azeriteItem->m_azeriteItemData->UnlockedEssences)
-                            if (essence.AzeriteEssenceID == selectedEssences->AzeriteEssenceID[reqValue] && essence.Rank > secondaryAsset)
-                                return true;
-            return false;
-        case ModifierTreeType::PlayerLevelWithinContentTuning: // 268
-        {
-            uint8 level = referencePlayer->GetLevel();
-            if (Optional<ContentTuningLevels> levels = sDB2Manager.GetContentTuningData(reqValue, 0))
-            {
-                if (secondaryAsset)
-                    return level >= levels->MinLevelWithDelta && level <= levels->MaxLevelWithDelta;
-                return level >= levels->MinLevel && level <= levels->MaxLevel;
-            }
-            return false;
-        }
-        case ModifierTreeType::TargetLevelWithinContentTuning: // 269
-        {
-            if (!ref || !ref->IsUnit())
-                return false;
-            uint8 level = ref->ToUnit()->GetLevel();
-            if (Optional<ContentTuningLevels> levels = sDB2Manager.GetContentTuningData(reqValue, 0))
-            {
-                if (secondaryAsset)
-                    return level >= levels->MinLevelWithDelta && level <= levels->MaxLevelWithDelta;
-                return level >= levels->MinLevel && level <= levels->MaxLevel;
-            }
-            return false;
-        }
-        case ModifierTreeType::PlayerIsScenarioInitiator: // 270 NYI
-            return false;
-        case ModifierTreeType::PlayerHasCompletedQuestOrIsOnQuest: // 271
-        {
-            QuestStatus status = referencePlayer->GetQuestStatus(reqValue);
-            if (status == QUEST_STATUS_NONE || status == QUEST_STATUS_FAILED)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerLevelWithinOrAboveContentTuning: // 272
-        {
-            uint8 level = referencePlayer->GetLevel();
-            if (Optional<ContentTuningLevels> levels = sDB2Manager.GetContentTuningData(reqValue, 0))
-                return secondaryAsset ? level >= levels->MinLevelWithDelta : level >= levels->MinLevel;
-            return false;
-        }
-        case ModifierTreeType::TargetLevelWithinOrAboveContentTuning: // 273
-        {
-            if (!ref || !ref->IsUnit())
-                return false;
-            uint8 level = ref->ToUnit()->GetLevel();
-            if (Optional<ContentTuningLevels> levels = sDB2Manager.GetContentTuningData(reqValue, 0))
-                return secondaryAsset ? level >= levels->MinLevelWithDelta : level >= levels->MinLevel;
-            return false;
-        }
-        case ModifierTreeType::PlayerLevelWithinOrAboveLevelRange: // 274 NYI
-        case ModifierTreeType::TargetLevelWithinOrAboveLevelRange: // 275 NYI
-            return false;
-        case ModifierTreeType::MaxJailersTowerLevelEqualOrGreaterThan: // 276
-            if (referencePlayer->m_activePlayerData->JailersTowerLevelMax < int32(reqValue))
-                return false;
-            break;
-        case ModifierTreeType::GroupedWithRaFRecruit: // 277
-        {
-            Group const* group = referencePlayer->GetGroup();
-            if (!group)
-                return false;
-            for (GroupReference const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
-                if (itr->GetSource()->GetSession()->GetRecruiterId() == referencePlayer->GetSession()->GetAccountId())
-                    return true;
-            return false;
-        }
-        case ModifierTreeType::GroupedWithRaFRecruiter: // 278
-        {
-            Group const* group = referencePlayer->GetGroup();
-            if (!group)
-                return false;
-            for (GroupReference const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
-                if (itr->GetSource()->GetSession()->GetAccountId() == referencePlayer->GetSession()->GetRecruiterId())
-                    return true;
-            return false;
-        }
-        case ModifierTreeType::PlayerSpecialization: // 279
-            if (referencePlayer->GetPrimarySpecialization() != reqValue)
-                return false;
-            break;
-        case ModifierTreeType::PlayerMapOrCosmeticChildMap: // 280
-        {
-            MapEntry const* map = referencePlayer->GetMap()->GetEntry();
-            if (map->ID != reqValue && map->CosmeticParentMapID != int32(reqValue))
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerCanAccessShadowlandsPrepurchaseContent: // 281
-            if (referencePlayer->GetSession()->GetAccountExpansion() < EXPANSION_SHADOWLANDS)
-                return false;
-            break;
-        case ModifierTreeType::PlayerHasEntitlement: // 282 NYI
-        case ModifierTreeType::PlayerIsInPartySyncGroup: // 283 NYI
-        case ModifierTreeType::QuestHasPartySyncRewards: // 284 NYI
-        case ModifierTreeType::HonorGainSource: // 285 NYI
-        case ModifierTreeType::JailersTowerActiveFloorIndexEqualOrGreaterThan: // 286 NYI
-        case ModifierTreeType::JailersTowerActiveFloorDifficultyEqualOrGreaterThan: // 287 NYI
-            return false;
-        case ModifierTreeType::PlayerCovenant: // 288
-            if (referencePlayer->m_playerData->CovenantID != int32(reqValue))
-                return false;
-            break;
-        case ModifierTreeType::HasTimeEventPassed: // 289
-        {
-            time_t eventTimestamp = GameTime::GetGameTime();
-            switch (reqValue)
-            {
-                case 111: // Battle for Azeroth Season 4 Start
-                    eventTimestamp = time_t(1579618800); // January 21, 2020 8:00
-                    break;
-                case 120: // Patch 9.0.1
-                    eventTimestamp = time_t(1602601200); // October 13, 2020 8:00
-                    break;
-                case 121: // Shadowlands Season 1 Start
-                    eventTimestamp = time_t(1607439600); // December 8, 2020 8:00
-                    break;
-                case 123: // Shadowlands Season 1 End
-                    // timestamp = unknown
-                    break;;
-                case 149: // Shadowlands Season 2 End
-                    // timestamp = unknown
-                    break;
-                default:
-                    break;
-            }
-            if (GameTime::GetGameTime() < eventTimestamp)
-                return false;
-            break;
-        }
-        case ModifierTreeType::GarrisonHasPermanentTalent: // 290 NYI
-            return false;
-        case ModifierTreeType::HasActiveSoulbind: // 291
-            if (referencePlayer->m_playerData->SoulbindID != int32(reqValue))
-                return false;
-            break;
-        case ModifierTreeType::HasMemorizedSpell: // 292 NYI
-            return false;
-        case ModifierTreeType::PlayerHasAPACSubscriptionReward_2020: // 293
-        case ModifierTreeType::PlayerHasTBCCDEWarpStalker_Mount: // 294
-        case ModifierTreeType::PlayerHasTBCCDEDarkPortal_Toy: // 295
-        case ModifierTreeType::PlayerHasTBCCDEPathOfIllidan_Toy: // 296
-        case ModifierTreeType::PlayerHasImpInABallToySubscriptionReward: // 297
-            return false;
-        case ModifierTreeType::PlayerIsInAreaGroup: // 298
-        {
-            std::vector<uint32> areas = sDB2Manager.GetAreasForGroup(reqValue);
-            if (AreaTableEntry const* area = sAreaTableStore.LookupEntry(referencePlayer->GetAreaId()))
-                for (uint32 areaInGroup : areas)
-                    if (areaInGroup == area->ID || areaInGroup == area->ParentAreaID)
-                        return true;
-            return false;
-        }
-        case ModifierTreeType::TargetIsInAreaGroup: // 299
-        {
-            if (!ref)
-                return false;
-            std::vector<uint32> areas = sDB2Manager.GetAreasForGroup(reqValue);
-            if (AreaTableEntry const* area = sAreaTableStore.LookupEntry(ref->GetAreaId()))
-                for (uint32 areaInGroup : areas)
-                    if (areaInGroup == area->ID || areaInGroup == area->ParentAreaID)
-                        return true;
-            return false;
-        }
-        case ModifierTreeType::PlayerIsInChromieTime: // 300
-            if (referencePlayer->m_activePlayerData->UiChromieTimeExpansionID != int32(reqValue))
-                return false;
-            break;
-        case ModifierTreeType::PlayerIsInAnyChromieTime: // 301
-            if (referencePlayer->m_activePlayerData->UiChromieTimeExpansionID == 0)
-                return false;
-            break;
-        case ModifierTreeType::ItemIsAzeriteArmor: // 302
-            if (!sDB2Manager.GetAzeriteEmpoweredItem(miscValue1))
-                return false;
-            break;
-        case ModifierTreeType::PlayerHasRuneforgePower: // 303
-        {
-            uint32 block = reqValue / 32;
-            if (block >= referencePlayer->m_activePlayerData->RuneforgePowers.size())
-                return false;
-
-            uint32 bit = reqValue % 32;
-            return referencePlayer->m_activePlayerData->RuneforgePowers[block] & (1 << bit);
-        }
-        case ModifierTreeType::PlayerInChromieTimeForScaling: // 304
-            if (!(referencePlayer->m_playerData->CtrOptions->ContentTuningConditionMask & 1))
-                return false;
-            break;
-        case ModifierTreeType::IsRaFRecruit: // 305
-            if (!referencePlayer->GetSession()->GetRecruiterId())
-                return false;
-            break;
-        case ModifierTreeType::AllPlayersInGroupHaveAchievement: // 306
-        {
-            if (Group const* group = referencePlayer->GetGroup())
-            {
-                for (GroupReference const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
-                    if (!itr->GetSource()->HasAchieved(reqValue))
-                        return false;
-            }
-            else if (!referencePlayer->HasAchieved(reqValue))
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasSoulbindConduitRankEqualOrGreaterThan: // 307 NYI
-            return false;
-        case ModifierTreeType::PlayerSpellShapeshiftFormCreatureDisplayInfoSelection: // 308
-        {
-            ShapeshiftFormModelData const* formModelData = sDB2Manager.GetShapeshiftFormModelData(referencePlayer->GetRace(), referencePlayer->GetNativeGender(), secondaryAsset);
-            if (!formModelData)
-                return false;
-            uint32 formChoice = referencePlayer->GetCustomizationChoice(formModelData->OptionID);
-            auto choiceItr = std::find_if(formModelData->Choices->begin(), formModelData->Choices->end(), [formChoice](ChrCustomizationChoiceEntry const* choice)
-            {
-                return choice->ID == formChoice;
-            });
-            if (choiceItr == formModelData->Choices->end())
-                return false;
-            if (int32(reqValue) != formModelData->Displays[std::distance(formModelData->Choices->begin(), choiceItr)]->DisplayID)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerSoulbindConduitCountAtRankEqualOrGreaterThan: // 309 NYI
-            return false;
-        case ModifierTreeType::PlayerIsRestrictedAccount: // 310
-            return false;
-        case ModifierTreeType::PlayerIsFlying: // 311
-            if (!referencePlayer->IsFlying())
-                return false;
-            break;
-        case ModifierTreeType::PlayerScenarioIsLastStep: // 312
-        {
-            Scenario const* scenario = referencePlayer->GetScenario();
-            if (!scenario)
-                return false;
-            if (scenario->GetStep() != scenario->GetLastStep())
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasWeeklyRewardsAvailable: // 313
-            if (!*referencePlayer->m_activePlayerData->WeeklyRewardsPeriodSinceOrigin)
-                return false;
-            break;
-        case ModifierTreeType::TargetCovenant: // 314
-            if (!ref || !ref->IsPlayer())
-                return false;
-            if (ref->ToPlayer()->m_playerData->CovenantID != int32(reqValue))
-                return false;
-            break;
-        case ModifierTreeType::PlayerHasTBCCollectorsEdition: // 315
-        case ModifierTreeType::PlayerHasWrathCollectorsEdition: // 316
-            return false;
-        case ModifierTreeType::GarrisonTalentResearchedAndAtRankEqualOrGreaterThan: // 317 NYI
-        case ModifierTreeType::CurrencySpentOnGarrisonTalentResearchEqualOrGreaterThan: // 318 NYI
-        case ModifierTreeType::RenownCatchupActive: // 319 NYI
-        case ModifierTreeType::RapidRenownCatchupActive: // 320 NYI
-        case ModifierTreeType::PlayerMythicPlusRatingEqualOrGreaterThan: // 321 NYI
-        case ModifierTreeType::PlayerMythicPlusRunCountInCurrentExpansionEqualOrGreaterThan: // 322 NYI
-            return false;
-        case ModifierTreeType::PlayerHasCustomizationChoice: // 323
-        {
-            int32 customizationChoiceIndex = referencePlayer->m_playerData->Customizations.FindIndexIf([reqValue](UF::ChrCustomizationChoice const& choice)
-            {
-                return choice.ChrCustomizationChoiceID == reqValue;
-            });
-            if (customizationChoiceIndex < 0)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerBestWeeklyWinPvpTier: // 324
-        {
-            PvpTierEntry const* pvpTier = sPvpTierStore.LookupEntry(reqValue);
-            if (!pvpTier)
-                return false;
-            UF::PVPInfo const* pvpInfo = referencePlayer->GetPvpInfoForBracket(pvpTier->BracketID);
-            if (!pvpInfo)
-                return false;
-            if (pvpTier->ID != pvpInfo->WeeklyBestWinPvpTierID)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerBestWeeklyWinPvpTierInBracketEqualOrGreaterThan: // 325
-        {
-            UF::PVPInfo const* pvpInfo = referencePlayer->GetPvpInfoForBracket(secondaryAsset);
-            if (!pvpInfo)
-                return false;
-            PvpTierEntry const* pvpTier = sPvpTierStore.LookupEntry(pvpInfo->WeeklyBestWinPvpTierID);
-            if (!pvpTier)
-                return false;
-            if (pvpTier->Rank < int32(reqValue))
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasVanillaCollectorsEdition: // 326
-            return false;
-        case ModifierTreeType::PlayerHasItemWithKeystoneLevelModifierEqualOrGreaterThan: // 327
-        {
-            bool bagScanReachedEnd = referencePlayer->ForEachItem(ItemSearchLocation::Inventory, [reqValue, secondaryAsset](Item const* item)
-            {
-                if (item->GetEntry() != reqValue)
-                    return ItemSearchCallbackResult::Continue;
-
-                if (item->GetModifier(ITEM_MODIFIER_CHALLENGE_KEYSTONE_LEVEL) < secondaryAsset)
-                    return ItemSearchCallbackResult::Continue;
-
-                return ItemSearchCallbackResult::Stop;
-            });
-            if (bagScanReachedEnd)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerAuraWithLabelStackCountEqualOrGreaterThan: // 335
-        {
-            uint32 count = 0;
-            referencePlayer->HasAura([secondaryAsset, &count](Aura const* aura)
-            {
-                if (aura->GetSpellInfo()->HasLabel(secondaryAsset))
-                    count += aura->GetStackAmount();
-                return false;
-            });
-            if (count < reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerAuraWithLabelStackCountEqual: // 336
-        {
-            uint32 count = 0;
-            referencePlayer->HasAura([secondaryAsset, &count](Aura const* aura)
-            {
-                if (aura->GetSpellInfo()->HasLabel(secondaryAsset))
-                    count += aura->GetStackAmount();
-                return false;
-            });
-            if (count != reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerAuraWithLabelStackCountEqualOrLessThan: // 337
-        {
-            uint32 count = 0;
-            referencePlayer->HasAura([secondaryAsset, &count](Aura const* aura)
-            {
-                if (aura->GetSpellInfo()->HasLabel(secondaryAsset))
-                    count += aura->GetStackAmount();
-                return false;
-            });
-            if (count > reqValue)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerIsInCrossFactionGroup: // 338
-        {
-            Group const* group = referencePlayer->GetGroup();
-            if (!(group->GetGroupFlags() & GROUP_FLAG_CROSS_FACTION))
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasTraitNodeEntryInActiveConfig: // 340
-        {
-            auto hasTraitNodeEntry = [referencePlayer, reqValue]()
-            {
-                for (UF::TraitConfig const& traitConfig : referencePlayer->m_activePlayerData->TraitConfigs)
-                {
-                    if (TraitConfigType(*traitConfig.Type) == TraitConfigType::Combat)
-                    {
-                        if (int32(*referencePlayer->m_activePlayerData->ActiveCombatTraitConfigID) != traitConfig.ID
-                            || !EnumFlag(TraitCombatConfigFlags(*traitConfig.CombatConfigFlags)).HasFlag(TraitCombatConfigFlags::ActiveForSpec))
-                            continue;
-                    }
-
-                    for (UF::TraitEntry const& traitEntry : traitConfig.Entries)
-                        if (traitEntry.TraitNodeEntryID == int32(reqValue))
-                            return true;
-                }
-                return false;
-            }();
-            if (!hasTraitNodeEntry)
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerHasTraitNodeEntryInActiveConfigRankGreaterOrEqualThan: // 341
-        {
-            auto traitNodeEntryRank = [referencePlayer, secondaryAsset]() -> Optional<uint16>
-            {
-                for (UF::TraitConfig const& traitConfig : referencePlayer->m_activePlayerData->TraitConfigs)
-                {
-                    if (TraitConfigType(*traitConfig.Type) == TraitConfigType::Combat)
-                    {
-                        if (int32(*referencePlayer->m_activePlayerData->ActiveCombatTraitConfigID) != traitConfig.ID
-                            || !EnumFlag(TraitCombatConfigFlags(*traitConfig.CombatConfigFlags)).HasFlag(TraitCombatConfigFlags::ActiveForSpec))
-                            continue;
-                    }
-
-                    for (UF::TraitEntry const& traitEntry : traitConfig.Entries)
-                        if (traitEntry.TraitNodeEntryID == int32(secondaryAsset))
-                            return traitEntry.Rank;
-                }
-                return {};
-            }();
-            if (!traitNodeEntryRank || traitNodeEntryRank < int32(reqValue))
-                return false;
-            break;
-        }
-        case ModifierTreeType::PlayerDaysSinceLogout: // 344
-            if (GameTime::GetGameTime() - referencePlayer->m_playerData->LogoutTime < int64(reqValue) * DAY)
-                return false;
-            break;
-        case ModifierTreeType::PlayerCanUseItem: // 351
-        {
-            ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(reqValue);
-            if (!itemTemplate || !referencePlayer->CanUseItem(itemTemplate))
-                return false;
-            break;
-        }
         default:
             return false;
     }
@@ -4300,44 +3454,6 @@ char const* CriteriaMgr::GetCriteriaTypeString(CriteriaType type)
             return "ChooseRelicTalent";
         case CriteriaType::EarnExpansionLevel:
             return "EarnExpansionLevel";
-        case CriteriaType::AccountHonorLevelReached:
-            return "AccountHonorLevelReached";
-        case CriteriaType::EarnArtifactXPForAzeriteItem:
-            return "EarnArtifactXPForAzeriteItem";
-        case CriteriaType::AzeriteLevelReached:
-            return "AzeriteLevelReached";
-        case CriteriaType::MythicPlusCompleted:
-            return "MythicPlusCompleted";
-        case CriteriaType::ScenarioGroupCompleted:
-            return "ScenarioGroupCompleted";
-        case CriteriaType::CompleteAnyReplayQuest:
-            return "CompleteAnyReplayQuest";
-        case CriteriaType::BuyItemsFromVendors:
-            return "BuyItemsFromVendors";
-        case CriteriaType::SellItemsToVendors:
-            return "SellItemsToVendors";
-        case CriteriaType::ReachMaxLevel:
-            return "ReachMaxLevel";
-        case CriteriaType::MemorizeSpell:
-            return "MemorizeSpell";
-        case CriteriaType::LearnTransmogIllusion:
-            return "LearnTransmogIllusion";
-        case CriteriaType::LearnAnyTransmogIllusion:
-            return "LearnAnyTransmogIllusion";
-        case CriteriaType::EnterTopLevelArea:
-            return "EnterTopLevelArea";
-        case CriteriaType::LeaveTopLevelArea:
-            return "LeaveTopLevelArea";
-        case CriteriaType::SocketGarrisonTalent:
-            return "SocketGarrisonTalent";
-        case CriteriaType::SocketAnySoulbindConduit:
-            return "SocketAnySoulbindConduit";
-        case CriteriaType::ObtainAnyItemWithCurrencyValue:
-            return "ObtainAnyItemWithCurrencyValue";
-        case CriteriaType::MythicPlusRatingAttained:
-            return "MythicPlusRatingAttained";
-        case CriteriaType::SpentTalentPoint:
-            return "SpentTalentPoint";
         default:
             return "MissingType";
     }
