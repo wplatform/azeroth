@@ -7118,9 +7118,6 @@ void Player::UpdateArea(uint32 newArea)
         _restMgr->RemoveRestFlag(REST_FLAG_IN_FACTION_AREA);
 
     PushQuests();
-
-    UpdateCriteria(CriteriaType::EnterTopLevelArea, newArea);
-
     UpdateMountCapability();
 }
 
@@ -14564,7 +14561,6 @@ void Player::RewardQuest(Quest const* quest, LootItemType rewardType, uint32 rew
         UpdateCriteria(CriteriaType::CompleteQuestsInZone, quest->GetQuestId());
     UpdateCriteria(CriteriaType::CompleteQuestsCount);
     UpdateCriteria(CriteriaType::CompleteQuest, quest->GetQuestId());
-    UpdateCriteria(CriteriaType::CompleteAnyReplayQuest, 1);
 
     // make full db save
     SaveToDB(false);
@@ -21902,8 +21898,6 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uin
         if (pProto->GetQuality() > ITEM_QUALITY_EPIC || (pProto->GetQuality() == ITEM_QUALITY_EPIC && pProto->GetBaseItemLevel() >= MinNewsItemLevel))
             if (Guild* guild = GetGuild())
                 guild->AddGuildNews(GUILD_NEWS_ITEM_PURCHASED, GetGUID(), 0, item);
-
-        UpdateCriteria(CriteriaType::BuyItemsFromVendors, 1);
         return true;
     }
 

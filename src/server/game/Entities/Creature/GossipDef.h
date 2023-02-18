@@ -91,25 +91,6 @@ enum class GossipOptionNpc : uint8
     Count
 };
 
-enum class GossipOptionStatus : uint8
-{
-    Available       = 0,
-    Unavailable     = 1,
-    Locked          = 2,
-    AlreadyComplete = 3
-};
-
-enum class GossipOptionRewardType : uint8
-{
-    Item        = 0,
-    Currency    = 1
-};
-
-enum class GossipOptionFlags : int32
-{
-    None                = 0x0,
-    QuestLabelPrepend   = 0x1
-};
 
 struct GossipMenuItem
 {
@@ -117,14 +98,9 @@ struct GossipMenuItem
     uint32              OrderIndex;
     GossipOptionNpc     OptionNpc;
     std::string         OptionText;
-    uint32              Language;
-    GossipOptionFlags   Flags;
-    Optional<int32>     GossipNpcOptionID;
     bool                BoxCoded;
     uint32              BoxMoney;
     std::string         BoxText;
-    Optional<int32>     SpellID;
-    Optional<int32>     OverrideIconID;
 
     // action data
     uint32              ActionMenuID;
@@ -156,9 +132,8 @@ class TC_GAME_API GossipMenu
         GossipMenu& operator=(GossipMenu&&) = delete;
         ~GossipMenu();
 
-        uint32 AddMenuItem(int32 gossipOptionId, int32 orderIndex, GossipOptionNpc optionNpc, std::string optionText, uint32 language, GossipOptionFlags flags,
-                           Optional<int32> gossipNpcOptionId, uint32 actionMenuId, uint32 actionPoiId, bool boxCoded, uint32 boxMoney,
-                           std::string boxText, Optional<int32> spellId, Optional<int32> overrideIconId, uint32 sender, uint32 action);
+        uint32 AddMenuItem(int32 gossipOptionId, int32 orderIndex, GossipOptionNpc optionNpc, std::string optionText, uint32 actionMenuId, uint32 actionPoiId,
+                               bool boxCoded, uint32 boxMoney, std::string boxText, uint32 sender, uint32 action);
         void AddMenuItem(uint32 menuId, uint32 menuItemId, uint32 sender, uint32 action);
         void AddMenuItem(GossipMenuItems const& menuItem, uint32 sender, uint32 action);
 

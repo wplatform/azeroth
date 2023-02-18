@@ -51,30 +51,14 @@ namespace WorldPackets
             ObjectGuid Unit;
         };
 
-        struct TreasureItem
-        {
-            GossipOptionRewardType Type = GossipOptionRewardType(0);
-            int32 ID = 0;
-            int32 Quantity = 0;
-        };
-
-        struct TreasureLootList
-        {
-            std::vector<TreasureItem> Items;
-        };
-
         struct ClientGossipOptions
         {
-            int32 ClientOption  = 0;
+            int32 GossipOptionID  = 0;
             GossipOptionNpc OptionNPC = {};
             uint8 OptionFlags   = 0;
             int32 OptionCost    = 0;
-            uint32 OptionLanguage = 0;
-            GossipOptionStatus Status = {};
             std::string_view Text;
             std::string_view Confirm;
-            TreasureLootList Treasure;
-            Optional<int32> SpellID;
         };
 
         struct ClientGossipText
@@ -138,9 +122,7 @@ namespace WorldPackets
             int32 StackCount                = 0;
             int32 ExtendedCostID            = 0;
             int32 PlayerConditionFailed     = 0;
-            bool Locked                     = false;
             bool DoNotFilterOnVendor        = false;
-            bool Refundable                 = false;
         };
 
         class VendorInventory final : public ServerPacket
@@ -207,12 +189,10 @@ namespace WorldPackets
 
             WorldPacket const* Write() override;
 
-            int32 ID            = 0;
             uint32 Flags        = 0;
-            TaggedPosition<Position::XYZ> Pos;
+            TaggedPosition<Position::XY> Pos;
             int32 Icon          = 0;
             int32 Importance    = 0;
-            int32 WMOGroupID    = 0;
             std::string Name;
         };
 

@@ -40,9 +40,8 @@ GossipMenu::GossipMenu()
 
 GossipMenu::~GossipMenu() = default;
 
-uint32 GossipMenu::AddMenuItem(int32 gossipOptionId, int32 orderIndex, GossipOptionNpc optionNpc, std::string optionText, uint32 language,
-    GossipOptionFlags flags, Optional<int32> gossipNpcOptionId, uint32 actionMenuId, uint32 actionPoiId, bool boxCoded, uint32 boxMoney,
-    std::string boxText, Optional<int32> spellId, Optional<int32> overrideIconId, uint32 sender, uint32 action)
+uint32 GossipMenu::AddMenuItem(int32 gossipOptionId, int32 orderIndex, GossipOptionNpc optionNpc, std::string optionText, uint32 actionMenuId, uint32 actionPoiId,
+                               bool boxCoded, uint32 boxMoney, std::string boxText, uint32 sender, uint32 action)
 {
     ASSERT(_menuItems.size() <= GOSSIP_MAX_MENU_ITEMS);
 
@@ -87,14 +86,9 @@ uint32 GossipMenu::AddMenuItem(int32 gossipOptionId, int32 orderIndex, GossipOpt
     menuItem.OrderIndex = orderIndex;
     menuItem.OptionNpc = optionNpc;
     menuItem.OptionText = std::move(optionText);
-    menuItem.Language = language;
-    menuItem.Flags = flags;
-    menuItem.GossipNpcOptionID = gossipNpcOptionId;
     menuItem.BoxCoded = boxCoded;
     menuItem.BoxMoney = boxMoney;
     menuItem.BoxText = std::move(boxText);
-    menuItem.SpellID = spellId;
-    menuItem.OverrideIconID = overrideIconId;
     menuItem.ActionMenuID = actionMenuId;
     menuItem.ActionPoiID = actionPoiId;
     menuItem.Sender = sender;
@@ -160,9 +154,8 @@ void GossipMenu::AddMenuItem(GossipMenuItems const& menuItem, uint32 sender, uin
                 ObjectMgr::GetLocaleString(gossipMenuLocale->BoxText, GetLocale(), strBoxText);
     }
 
-    AddMenuItem(menuItem.GossipOptionID, menuItem.OrderIndex, menuItem.OptionNpc, std::move(strOptionText), menuItem.Language, menuItem.Flags,
-        menuItem.GossipNpcOptionID, menuItem.ActionMenuID, menuItem.ActionPoiID, menuItem.BoxCoded, menuItem.BoxMoney, std::move(strBoxText),
-        menuItem.SpellID, menuItem.OverrideIconID, sender, action);
+    AddMenuItem(menuItem.GossipOptionID, menuItem.OrderIndex, menuItem.OptionNpc, std::move(strOptionText),
+        menuItem.ActionMenuID, menuItem.ActionPoiID, menuItem.BoxCoded, menuItem.BoxMoney, std::move(strBoxText), sender, action);
 }
 
 GossipMenuItem const* GossipMenu::GetItem(int32 gossipOptionId) const
@@ -259,14 +252,8 @@ void PlayerMenu::SendGossipMenu(uint32 titleTextId, ObjectGuid objectGUID)
         opt.OptionNPC = item.OptionNpc;
         opt.OptionFlags = item.BoxCoded;    // makes pop up box password
         opt.OptionCost = item.BoxMoney;     // money required to open menu, 2.0.3
-        opt.OptionLanguage = item.Language;
-        opt.Flags = item.Flags;
-        opt.OrderIndex = item.OrderIndex;
         opt.Text = item.OptionText;         // text for gossip item
         opt.Confirm = item.BoxText;         // accept text (related to money) pop up box, 2.0.3
-        opt.Status = GossipOptionStatus::Available;
-        opt.SpellID = item.SpellID;
-        opt.OverrideIconID = item.OverrideIconID;
     }
 
     packet.GossipText.resize(_questMenu.GetMenuItemCount());
@@ -319,7 +306,6 @@ void PlayerMenu::SendPointOfInterest(uint32 id) const
     }
 
     WorldPackets::NPC::GossipPOI packet;
-    packet.ID = pointOfInterest->ID;
     packet.Name = pointOfInterest->Name;
 
     LocaleConstant localeConstant = _session->GetSessionDbLocaleIndex();
@@ -331,7 +317,6 @@ void PlayerMenu::SendPointOfInterest(uint32 id) const
     packet.Pos = pointOfInterest->Pos;
     packet.Icon = pointOfInterest->Icon;
     packet.Importance = pointOfInterest->Importance;
-    packet.WMOGroupID = pointOfInterest->WMOGroupID;
 
     _session->SendPacket(packet.Write());
 }
@@ -447,13 +432,6 @@ void PlayerMenu::SendQuestGiverQuestDetails(Quest const* quest, ObjectGuid npcGU
     packet.PortraitTurnInName = quest->GetPortraitTurnInName();
 
     LocaleConstant localeConstant = _session->GetSessionDbLocaleIndex();
-    std::transform(quest->GetConditionalQuestDescription().begin(), quest->GetConditionalQuestDescription().end(), std::back_inserter(packet.ConditionalDescriptionText), [localeConstant](QuestConditionalText const& text)
-    {
-        std::string_view content = text.Text[LOCALE_enUS];
-        ObjectMgr::GetLocaleString(text.Text, localeConstant, content);
-        return WorldPackets::Quest::ConditionalQuestText{ text.PlayerConditionId, text.QuestgiverCreatureId, content };
-    });
-
     if (localeConstant != LOCALE_enUS)
     {
         if (QuestTemplateLocale const* questTemplateLocale = sObjectMgr->GetQuestLocale(quest->GetQuestId()))
@@ -483,10 +461,6 @@ void PlayerMenu::SendQuestGiverQuestDetails(Quest const* quest, ObjectGuid npcGU
     packet.QuestFlags[1] = quest->GetFlagsEx();
     packet.QuestFlags[2] = quest->GetFlagsEx2();
     packet.SuggestedPartyMembers = quest->GetSuggestedPlayers();
-
-    // Is there a better way? what about game objects?
-    if (Creature const* creature = ObjectAccessor::GetCreature(*_session->GetPlayer(), npcGUID))
-        packet.QuestGiverCreatureID = creature->GetCreatureTemplate()->Entry;
 
     // RewardSpell can teach multiple spells in trigger spell effects. But not all effects must be SPELL_EFFECT_LEARN_SPELL. See example spell 33950
     if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(quest->GetRewSpell(), DIFFICULTY_NONE))
@@ -543,13 +517,6 @@ void PlayerMenu::SendQuestGiverOfferReward(Quest const* quest, ObjectGuid npcGUI
     packet.PortraitTurnInName = quest->GetPortraitTurnInName();
 
     LocaleConstant locale = _session->GetSessionDbLocaleIndex();
-    std::transform(quest->GetConditionalOfferRewardText().begin(), quest->GetConditionalOfferRewardText().end(), std::back_inserter(packet.ConditionalRewardText), [locale](QuestConditionalText const& text)
-    {
-        std::string_view content = text.Text[LOCALE_enUS];
-        ObjectMgr::GetLocaleString(text.Text, locale, content);
-        return WorldPackets::Quest::ConditionalQuestText{ text.PlayerConditionId, text.QuestgiverCreatureId, content };
-    });
-
     if (locale != LOCALE_enUS)
     {
         if (QuestTemplateLocale const* questTemplateLocale = sObjectMgr->GetQuestLocale(quest->GetQuestId()))
@@ -573,7 +540,6 @@ void PlayerMenu::SendQuestGiverOfferReward(Quest const* quest, ObjectGuid npcGUI
     // Is there a better way? what about game objects?
     if (Creature const* creature = ObjectAccessor::GetCreature(*_session->GetPlayer(), npcGUID))
     {
-        packet.QuestGiverCreatureID = creature->GetCreatureTemplate()->Entry;
         offer.QuestGiverCreatureID = creature->GetCreatureTemplate()->Entry;
     }
 
@@ -615,13 +581,6 @@ void PlayerMenu::SendQuestGiverRequestItems(Quest const* quest, ObjectGuid npcGU
     packet.CompletionText = quest->GetRequestItemsText();
 
     LocaleConstant locale = _session->GetSessionDbLocaleIndex();
-    std::transform(quest->GetConditionalRequestItemsText().begin(), quest->GetConditionalRequestItemsText().end(), std::back_inserter(packet.ConditionalCompletionText), [locale](QuestConditionalText const& text)
-    {
-        std::string_view content = text.Text[LOCALE_enUS];
-        ObjectMgr::GetLocaleString(text.Text, locale, content);
-        return WorldPackets::Quest::ConditionalQuestText{ text.PlayerConditionId, text.QuestgiverCreatureId, content };
-    });
-
     if (locale != LOCALE_enUS)
     {
         if (QuestTemplateLocale const* questTemplateLocale = sObjectMgr->GetQuestLocale(quest->GetQuestId()))

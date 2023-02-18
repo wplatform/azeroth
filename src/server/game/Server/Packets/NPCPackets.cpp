@@ -18,15 +18,31 @@
 #include "NPCPackets.h"
 #include "Util.h"
 
-namespace WorldPackets
+namespace WorldPackets::NPC
 {
-namespace NPC
+
+
+
+ByteBuffer& operator<<(ByteBuffer& data, ClientGossipOptions const& gossipOption)
 {
+    data << int32(gossipOption.GossipOptionID);
+    data << uint8(gossipOption.OptionNPC);
+    data << int8(gossipOption.OptionFlags);
+    data << int32(gossipOption.OptionCost);
+    data.WriteBits(gossipOption.Text.size(), 12);
+    data.WriteBits(gossipOption.Confirm.size(), 12);
+    data.FlushBits();
+
+    data.WriteString(gossipOption.Text);
+    data.WriteString(gossipOption.Confirm);
+    return data;
+}
+
 ByteBuffer& operator<<(ByteBuffer& data, ClientGossipText const& gossipText)
 {
     data << int32(gossipText.QuestID);
-    data << int32(gossipText.ContentTuningID);
     data << int32(gossipText.QuestType);
+    data << int32(gossipText.ContentTuningID);
     data << int32(gossipText.QuestFlags[0]);
     data << int32(gossipText.QuestFlags[1]);
 
@@ -44,23 +60,7 @@ void Hello::Read()
     _worldPacket >> Unit;
 }
 
-ByteBuffer& operator<<(ByteBuffer& data, TreasureItem const& treasureItem)
-{
-    data.WriteBits(AsUnderlyingType(treasureItem.Type), 1);
-    data << int32(treasureItem.ID);
-    data << int32(treasureItem.Quantity);
 
-    return data;
-}
-
-ByteBuffer& operator<<(ByteBuffer& data, TreasureLootList const& treasureLootList)
-{
-    data << uint32(treasureLootList.Items.size());
-    for (TreasureItem const& treasureItem : treasureLootList.Items)
-        data << treasureItem;
-
-    return data;
-}
 
 WorldPacket const* GossipMessage::Write()
 {
@@ -72,26 +72,7 @@ WorldPacket const* GossipMessage::Write()
     _worldPacket << uint32(GossipText.size());
 
     for (ClientGossipOptions const& options : GossipOptions)
-    {
-        _worldPacket << int32(options.ClientOption);
-        _worldPacket << uint8(options.OptionNPC);
-        _worldPacket << int8(options.OptionFlags);
-        _worldPacket << int32(options.OptionCost);
-        _worldPacket << uint32(options.OptionLanguage);
-        _worldPacket.WriteBits(options.Text.size(), 12);
-        _worldPacket.WriteBits(options.Confirm.size(), 12);
-        _worldPacket.WriteBits(AsUnderlyingType(options.Status), 2);
-        _worldPacket.WriteBit(options.SpellID.has_value());
-        _worldPacket.FlushBits();
-
-        _worldPacket << options.Treasure;
-
-        _worldPacket.WriteString(options.Text);
-        _worldPacket.WriteString(options.Confirm);
-
-        if (options.SpellID)
-            _worldPacket << int32(*options.SpellID);
-    }
+        _worldPacket << options;
 
     for (ClientGossipText const& text : GossipText)
         _worldPacket << text;
@@ -110,9 +91,7 @@ ByteBuffer& operator<<(ByteBuffer& data, VendorItem const& item)
     data << int32(item.ExtendedCostID);
     data << int32(item.PlayerConditionFailed);
     data << item.Item;
-    data.WriteBit(item.Locked);
     data.WriteBit(item.DoNotFilterOnVendor);
-    data.WriteBit(item.Refundable);
     data.FlushBits();
 
     return data;
@@ -165,10 +144,17 @@ void GossipSelectOption::Read()
 {
     _worldPacket >> GossipUnit;
     _worldPacket >> GossipID;
-    _worldPacket >> GossipIndex;
+    _worldPacket >> GossipOptionID;
 
     uint32 length = _worldPacket.ReadBits(8);
     PromotionCode = _worldPacket.ReadString(length);
+}
+
+WorldPacket const* PlayerTabardVendorActivate::Write()
+{
+    _worldPacket << Vendor;
+
+    return &_worldPacket;
 }
 
 WorldPacket const* GossipComplete::Write()
@@ -179,23 +165,13 @@ WorldPacket const* GossipComplete::Write()
     return &_worldPacket;
 }
 
-WorldPacket const* PlayerTabardVendorActivate::Write()
-{
-    _worldPacket << Vendor;
-
-    return &_worldPacket;
-}
-
 WorldPacket const* GossipPOI::Write()
 {
-    _worldPacket << int32(ID);
+    _worldPacket.WriteBits(Flags, 14);
+    _worldPacket.WriteBits(Name.length(), 6);
     _worldPacket << Pos;
     _worldPacket << int32(Icon);
     _worldPacket << int32(Importance);
-    _worldPacket << int32(WMOGroupID);
-    _worldPacket.WriteBits(Flags, 14);
-    _worldPacket.WriteBits(Name.length(), 6);
-    _worldPacket.FlushBits();
     _worldPacket.WriteString(Name);
 
     return &_worldPacket;
@@ -212,6 +188,7 @@ WorldPacket const* SpiritHealerConfirm::Write()
 
     return &_worldPacket;
 }
+
 
 void TrainerBuySpell::Read()
 {
@@ -239,6 +216,5 @@ void SetPetSlot::Read()
     _worldPacket >> PetNumber;
     _worldPacket >> DestSlot;
     _worldPacket >> StableMaster;
-}
 }
 }
