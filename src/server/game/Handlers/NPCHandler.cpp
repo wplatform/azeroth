@@ -306,8 +306,10 @@ void WorldSession::SendSpiritResurrect()
     {
         WorldSafeLocsEntry const* ghostGrave = sObjectMgr->GetClosestGraveyard(*_player, _player->GetTeam(), _player);
 
-        if (corpseGrave != ghostGrave)
-            _player->TeleportTo(corpseGrave->Loc);
+        if (corpseGrave != ghostGrave) {
+            WorldLocation loc(corpseGrave->MapID, corpseGrave->GetPositionX(), corpseGrave->GetPositionY(), corpseGrave->GetPositionZ(), corpseGrave->GetOrientation());
+            _player->TeleportTo(loc);
+        }
     }
 }
 

@@ -202,19 +202,14 @@ namespace WorldPackets
             uint32 GarrSiteLevelID = 0;
             uint32 NumFollowerActivationsRemaining = 0;
             uint32 NumMissionsStartedToday = 0;   // might mean something else, but sending 0 here enables follower abilities "Increase success chance of the first mission of the day by %."
-            int32 MinAutoTroopLevel = 0;
             std::vector<GarrisonPlotInfo*> Plots;
             std::vector<GarrisonBuildingInfo const*> Buildings;
             std::vector<GarrisonFollower const*> Followers;
-            std::vector<GarrisonFollower const*> AutoTroops;
             std::vector<GarrisonMission const*> Missions;
             std::vector<std::vector<GarrisonMissionReward>> MissionRewards;
             std::vector<std::vector<GarrisonMissionReward>> MissionOvermaxRewards;
             std::vector<GarrisonMissionBonusAbility const*> MissionAreaBonuses;
             std::vector<GarrisonTalent> Talents;
-            std::vector<GarrisonCollection> Collections;
-            std::vector<GarrisonEventList> EventLists;
-            std::vector<GarrisonSpecGroup> SpecGroups;
             std::vector<bool> CanStartMission;
             std::vector<int32> ArchivedMissions;
         };
@@ -301,7 +296,7 @@ namespace WorldPackets
         class GarrisonBuildingRemoved final : public ServerPacket
         {
         public:
-            GarrisonBuildingRemoved() : ServerPacket(SMSG_GARRISON_BUILDING_REMOVED, 4 + 4 + 4 + 4) { }
+            GarrisonBuildingRemoved() : ServerPacket(SMSG_GARRISON_BUILDING_REMOVED, 4 + 4 + 4) { }
 
             WorldPacket const* Write() override;
 
@@ -314,7 +309,7 @@ namespace WorldPackets
         class GarrisonLearnBlueprintResult final : public ServerPacket
         {
         public:
-            GarrisonLearnBlueprintResult() : ServerPacket(SMSG_GARRISON_LEARN_BLUEPRINT_RESULT, 4 + 4 + 4) { }
+            GarrisonLearnBlueprintResult() : ServerPacket(SMSG_GARRISON_LEARN_BLUEPRINT_RESULT, 4 + 4) { }
 
             WorldPacket const* Write() override;
 
@@ -358,7 +353,7 @@ namespace WorldPackets
         class GarrisonGetMapData final : public ClientPacket
         {
         public:
-            GarrisonGetMapData(WorldPacket&& packet) : ClientPacket(CMSG_GARRISON_GET_MAP_DATA, std::move(packet)) { }
+            GarrisonGetMapData(WorldPacket&& packet) : ClientPacket(CMSG_GARRISON_GET_BUILDING_LANDMARKS, std::move(packet)) { }
 
             void Read() override { }
         };
@@ -375,7 +370,7 @@ namespace WorldPackets
         class GarrisonMapDataResponse final : public ServerPacket
         {
         public:
-            GarrisonMapDataResponse() : ServerPacket(SMSG_GARRISON_MAP_DATA_RESPONSE) { }
+            GarrisonMapDataResponse() : ServerPacket(SMSG_GARRISON_BUILDING_LANDMARKS) { }
 
             WorldPacket const* Write() override;
 

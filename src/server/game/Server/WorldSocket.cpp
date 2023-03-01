@@ -462,7 +462,7 @@ WorldSocket::ReadDataHandlerResult WorldSocket::ReadDataHandler()
             HandleConnectToFailed(connectToFailed);
             break;
         }
-        case CMSG_ENTER_ENCRYPTED_MODE_ACK:
+        case CMSG_ENABLE_ENCRYPTION_ACK:
             LogOpcodeText(opcode, sessionGuard);
             HandleEnterEncryptedModeAck();
             break;

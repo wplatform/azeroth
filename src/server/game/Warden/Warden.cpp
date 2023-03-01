@@ -70,7 +70,7 @@ void Warden::SendModuleToClient()
         EndianConvert(packet.DataSize);
 
         EncryptData(reinterpret_cast<uint8*>(&packet), burstSize + 3);
-        WorldPacket pkt1(SMSG_WARDEN3_DATA, burstSize + 3);
+        WorldPacket pkt1(SMSG_WARDEN_DATA, burstSize + 3);
         pkt1.append(reinterpret_cast<uint8*>(&packet), burstSize + 3);
         _session->SendPacket(&pkt1);
     }
@@ -93,7 +93,7 @@ void Warden::RequestModule()
     // Encrypt with warden RC4 key.
     EncryptData(reinterpret_cast<uint8*>(&request), sizeof(WardenModuleUse));
 
-    WorldPacket pkt(SMSG_WARDEN3_DATA, sizeof(WardenModuleUse));
+    WorldPacket pkt(SMSG_WARDEN_DATA, sizeof(WardenModuleUse));
     pkt.append(reinterpret_cast<uint8*>(&request), sizeof(WardenModuleUse));
     _session->SendPacket(&pkt);
 }

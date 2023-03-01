@@ -643,7 +643,7 @@ void CriteriaHandler::UpdateCriteria(CriteriaType type, uint64 miscValue1 /*= 0*
                     for (uint32 rewQuest : rewQuests)
                     {
                         Quest const* quest = sObjectMgr->GetQuestTemplate(rewQuest);
-                        if (quest && quest->GetZoneOrSort() >= 0 && quest->GetZoneOrSort() == criteria->Entry->Asset.ZoneID)
+                        if (quest && quest->GetZoneOrSort() >= 0 && uint32(quest->GetZoneOrSort()) == criteria->Entry->Asset.ZoneID)
                             ++counter;
                     }
                     SetCriteriaProgress(criteria, counter, referencePlayer, PROGRESS_HIGHEST);
@@ -1408,7 +1408,7 @@ bool CriteriaHandler::RequirementsSatisfied(Criteria const* criteria, uint64 mis
             if (miscValue1)
             {
                 Quest const* quest = sObjectMgr->GetQuestTemplate(miscValue1);
-                if (!quest ||  quest->GetZoneOrSort() != criteria->Entry->Asset.ZoneID)
+                if (!quest ||  uint32(quest->GetZoneOrSort()) != criteria->Entry->Asset.ZoneID)
                     return false;
             }
             break;
@@ -1615,12 +1615,7 @@ bool CriteriaHandler::RequirementsSatisfied(Criteria const* criteria, uint64 mis
             break;
         case CriteriaType::BattlePetReachLevel:
         case CriteriaType::ActivelyEarnPetLevel:
-            if (!miscValue1 || !miscValue2 || miscValue2 != uint32(criteria->Entry->Asset.PetLevel))
-                return false;
-            break;
         case CriteriaType::ActivelyReachLevel:
-            if (!miscValue1 || miscValue1 != uint32(criteria->Entry->Asset.PlayerLevel))
-                return false;
             break;
         default:
             break;
@@ -1668,7 +1663,7 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
     {
         case ModifierTreeType::PlayerInebriationLevelEqualOrGreaterThan: // 1
         {
-            uint32 inebriation = std::min(std::max<uint32>(referencePlayer->GetDrunkValue(), *referencePlayer->m_playerData->FakeInebriation), 100u);
+            uint32 inebriation = std::min(std::max<uint32>(referencePlayer->GetDrunkValue(), referencePlayer->GetUInt32Value(PLAYER_FAKE_INEBRIATION)), 100u);
             if (inebriation < reqValue)
                 return false;
             break;
@@ -1837,8 +1832,8 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
                 return false;
             break;
         case ModifierTreeType::ClientVersionEqualOrLessThan: // 33
-            if (reqValue < sRealmList->GetMinorMajorBugfixVersionForBuild(realm.Build))
-                return false;
+            /*if (reqValue < sRealmList->GetMinorMajorBugfixVersionForBuild(realm.Build))
+                return false;*/
             break;
         case ModifierTreeType::BattlePetTeamLevel: // 34
             for (WorldPackets::BattlePet::BattlePetSlot const& slot : referencePlayer->GetSession()->GetBattlePetMgr()->GetSlots())
@@ -2222,9 +2217,9 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
             break;
         }
         case ModifierTreeType::PlayerHasCompletedQuest: // 110
-            if (uint32 questBit = sDB2Manager.GetQuestUniqueBitFlag(reqValue))
+            /*if (uint32 questBit = sDB2Manager.GetQuestUniqueBitFlag(reqValue))
                 if (!(referencePlayer->m_activePlayerData->QuestCompleted[((questBit - 1) >> 6)] & (UI64LIT(1) << ((questBit - 1) & 63))))
-                    return false;
+                    return false;*/
             break;
         case ModifierTreeType::PlayerIsReadyToTurnInQuest: // 111
             if (referencePlayer->GetQuestStatus(reqValue) != QUEST_STATUS_COMPLETE)
@@ -2253,7 +2248,7 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
             size_t playerIndexOffset = size_t(areaTable->AreaBit) / PLAYER_EXPLORED_ZONES_BITS;
             if (playerIndexOffset >= PLAYER_EXPLORED_ZONES_SIZE)
                 break;
-            if (!(referencePlayer->m_activePlayerData->ExploredZones[playerIndexOffset] & (UI64LIT(1) << (areaTable->AreaBit % PLAYER_EXPLORED_ZONES_BITS))))
+            if (!(referencePlayer->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + playerIndexOffset) & (UI64LIT(1) << (areaTable->AreaBit % PLAYER_EXPLORED_ZONES_BITS))))
                 return false;
             break;
         }
@@ -2968,12 +2963,7 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
             return false;
         case ModifierTreeType::PlayerHasRestriction: // 203
         {
-            int32 restrictionIndex = referencePlayer->m_activePlayerData->CharacterRestrictions.FindIndexIf([reqValue](UF::CharacterRestriction const& restriction)
-            {
-                return restriction.Type == reqValue;
-            });
-            if (restrictionIndex < 0)
-                return false;
+            //referencePlayer->GetDynamicStructuredValues<>(PLAYER_DYNAMIC_FIELD_CHARACTER_RESTRICTIONS)
             break;
         }
         case ModifierTreeType::PlayerCreatedCharacterLessThanHoursAgoRealTime: // 204 NYI

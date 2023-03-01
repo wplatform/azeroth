@@ -189,10 +189,10 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-
-        if (!MapManager::IsValidMapCoord(gy->Loc))
+        WorldLocation loc(gy->MapID, gy->GetPositionX(), gy->GetPositionY(), gy->GetPositionZ(), gy->GetOrientation());
+        if (!MapManager::IsValidMapCoord(loc))
         {
-            handler->PSendSysMessage(LANG_INVALID_TARGET_COORD, gy->GetPositionX(), gy->GetPositionY(), gy->Loc.GetMapId());
+            handler->PSendSysMessage(LANG_INVALID_TARGET_COORD, gy->GetPositionX(), gy->GetPositionY(), gy->MapID);
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -203,8 +203,7 @@ public:
             player->FinishTaxiFlight();
         else
             player->SaveRecallPosition(); // save only in non-flight case
-
-        player->TeleportTo(gy->Loc);
+        player->TeleportTo(loc);
         return true;
     }
 

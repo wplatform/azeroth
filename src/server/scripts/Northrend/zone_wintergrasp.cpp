@@ -228,7 +228,7 @@ struct npc_wg_spirit_guide : public ScriptedAI
             for (uint8 i = 0; i < gy.size(); i++)
                 if (action - GOSSIP_ACTION_INFO_DEF == i && gy[i]->GetControlTeamId() == player->GetTeamId())
                     if (WorldSafeLocsEntry const* safeLoc = sDB2Manager.GetWorldSafeLoc(gy[i]->GetGraveyardId()))
-                        player->TeleportTo(safeLoc->Loc);
+                        player->TeleportTo(safeLoc);
         }
         return true;
     }

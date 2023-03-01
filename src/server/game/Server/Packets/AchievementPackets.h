@@ -152,7 +152,7 @@ namespace WorldPackets
         class BroadcastAchievement final : public ServerPacket
         {
         public:
-            BroadcastAchievement() : ServerPacket(SMSG_BROADCAST_ACHIEVEMENT) { }
+            BroadcastAchievement() : ServerPacket(SMSG_SERVER_FIRST_ACHIEVEMENT) { }
 
             WorldPacket const* Write() override;
 

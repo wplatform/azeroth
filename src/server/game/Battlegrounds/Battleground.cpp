@@ -240,10 +240,11 @@ inline void Battleground::_CheckSafePositions(uint32 diff)
 
                 Position pos = player->GetPosition();
                 WorldSafeLocsEntry const* startPos = GetTeamStartPosition(Battleground::GetTeamIndexByTeamId(player->GetBGTeam()));
-                if (pos.GetExactDistSq(startPos->Loc) > maxDist)
+                WorldLocation loc(startPos->MapID, startPos->GetPositionX(), startPos->GetPositionY(), startPos->GetPositionZ(), startPos->GetOrientation());
+                if (pos.GetExactDistSq(loc) > maxDist)
                 {
                     TC_LOG_DEBUG("bg.battleground", "BATTLEGROUND: Sending {} back to start location (map: {}) (possible exploit)", player->GetName(), GetMapId());
-                    player->TeleportTo(startPos->Loc);
+                    player->TeleportTo(loc);
                 }
             }
         }
@@ -1034,8 +1035,10 @@ void Battleground::StartBattleground()
 
 void Battleground::TeleportPlayerToExploitLocation(Player* player)
 {
-    if (WorldSafeLocsEntry const* loc = GetExploitTeleportLocation(Team(player->GetBGTeam())))
-        player->TeleportTo(loc->Loc);
+    if (WorldSafeLocsEntry const* loc = GetExploitTeleportLocation(Team(player->GetBGTeam()))) {
+        WorldLocation wLoc(loc->MapID, loc->GetPositionX(), loc->GetPositionY(), loc->GetPositionZ(), loc->GetOrientation());
+        player->TeleportTo(wLoc);
+    }
 }
 
 void Battleground::AddPlayer(Player* player)
@@ -1410,8 +1413,10 @@ void Battleground::RelocateDeadPlayers(ObjectGuid guideGuid)
             if (!closestGrave)
                 closestGrave = GetClosestGraveyard(player);
 
-            if (closestGrave)
-                player->TeleportTo(closestGrave->Loc);
+            if (closestGrave) {
+                WorldLocation loc(closestGrave->MapID, closestGrave->GetPositionX(), closestGrave->GetPositionY(), closestGrave->GetPositionZ(), closestGrave->GetOrientation());
+                player->TeleportTo(loc);
+            }
         }
         ghostList.clear();
     }
@@ -1699,7 +1704,8 @@ bool Battleground::AddSpiritGuide(uint32 type, float x, float y, float z, float 
         // creature->SetVisibleAura(0, SPELL_SPIRIT_HEAL_CHANNEL);
         // casting visual effect
         creature->SetChannelSpellId(SPELL_SPIRIT_HEAL_CHANNEL);
-        creature->SetChannelVisual({ VISUAL_SPIRIT_HEAL_CHANNEL, 0 });
+        creature->SetChannelSpellXSpellVisualId(VISUAL_SPIRIT_HEAL_CHANNEL);
+        // correct cast speed
         //creature->CastSpell(creature, SPELL_SPIRIT_HEAL_CHANNEL, true);
         return true;
     }

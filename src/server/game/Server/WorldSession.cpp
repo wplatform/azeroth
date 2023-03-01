@@ -1306,7 +1306,7 @@ uint32 WorldSession::DosProtection::GetMaxPacketCounterAllowed(uint16 opcode) co
         // CPU usage sending 2000 packets/second on a 3.70 GHz 4 cores on Win x64
         //                                              [% CPU mysqld]   [%CPU worldserver RelWithDebInfo]
         case CMSG_PLAYER_LOGIN:                         //   0               0.5
-        case CMSG_QUERY_PLAYER_NAMES:                   //   0               1
+        case CMSG_QUERY_PLAYER_NAME:                    //   0               1
         case CMSG_QUERY_PET_NAME:                       //   0               1
         case CMSG_QUERY_NPC_TEXT:                       //   0               1
         case CMSG_ATTACK_STOP:                          //   0               1
@@ -1337,8 +1337,6 @@ uint32 WorldSession::DosProtection::GetMaxPacketCounterAllowed(uint16 opcode) co
         case CMSG_GUILD_BANK_TEXT_QUERY:                //   0               1.5
         case CMSG_QUERY_CORPSE_LOCATION_FROM_CLIENT:    //   0               1.5
         case CMSG_MOVE_SET_FACING:                      //   0               1.5
-        case CMSG_MOVE_SET_FACING_HEARTBEAT:            //   0               1.5
-        case CMSG_MOVE_SET_PITCH:                       //   0               1.5
         case CMSG_REQUEST_PARTY_MEMBER_STATS:           //   0               1.5
         case CMSG_QUEST_GIVER_COMPLETE_QUEST:           //   0               1.5
         case CMSG_SET_ACTION_BUTTON:                    //   0               1.5
@@ -1368,8 +1366,11 @@ uint32 WorldSession::DosProtection::GetMaxPacketCounterAllowed(uint16 opcode) co
         case CMSG_QUEST_GIVER_STATUS_MULTIPLE_QUERY:    //   0               2.5
         case CMSG_BEGIN_TRADE:                          //   0               2.5
         case CMSG_INITIATE_TRADE:                       //   0               3
-        case CMSG_CHAT_ADDON_MESSAGE:                   //   0               3.5
-        case CMSG_CHAT_ADDON_MESSAGE_TARGETED:          //   0               3.5
+        case CMSG_CHAT_ADDON_MESSAGE_GUILD:             //   0               3.5
+        case CMSG_CHAT_ADDON_MESSAGE_OFFICER:           //   0               3.5
+        case CMSG_CHAT_ADDON_MESSAGE_PARTY:             //   0               3.5
+        case CMSG_CHAT_ADDON_MESSAGE_RAID:              //   0               3.5
+        case CMSG_CHAT_ADDON_MESSAGE_WHISPER:           //   0               3.5
         case CMSG_CHAT_MESSAGE_AFK:                     //   0               3.5
         case CMSG_CHAT_MESSAGE_CHANNEL:                 //   0               3.5
         case CMSG_CHAT_MESSAGE_DND:                     //   0               3.5
@@ -1476,16 +1477,17 @@ uint32 WorldSession::DosProtection::GetMaxPacketCounterAllowed(uint16 opcode) co
         case CMSG_CREATE_CHARACTER:                     //   7               5         3 async db queries
         case CMSG_ENUM_CHARACTERS:                      //  22               3         2 async db queries
         case CMSG_ENUM_CHARACTERS_DELETED_BY_CLIENT:    //  22               3         2 async db queries
-        case CMSG_SUBMIT_USER_FEEDBACK:                 // not profiled                1 async db query
+        case CMSG_SUPPORT_TICKET_SUBMIT_BUG:            // not profiled                1 async db query
+        case CMSG_SUPPORT_TICKET_SUBMIT_SUGGESTION:     // not profiled                1 async db query
         case CMSG_SUPPORT_TICKET_SUBMIT_COMPLAINT:      // not profiled                1 async db query
         case CMSG_CALENDAR_ADD_EVENT:                   //  21              10         2 async db query
         case CMSG_CALENDAR_UPDATE_EVENT:                // not profiled
         case CMSG_CALENDAR_REMOVE_EVENT:                // not profiled
         case CMSG_CALENDAR_COPY_EVENT:                  // not profiled
-        case CMSG_CALENDAR_INVITE:                      // not profiled
+        case CMSG_CALENDAR_EVENT_INVITE:                // not profiled
         case CMSG_CALENDAR_EVENT_SIGN_UP:               // not profiled
-        case CMSG_CALENDAR_RSVP:                        // not profiled
-        case CMSG_CALENDAR_MODERATOR_STATUS:            // not profiled
+        case CMSG_CALENDAR_EVENT_RSVP:                  // not profiled
+        case CMSG_CALENDAR_EVENT_MODERATOR_STATUS:      // not profiled
         case CMSG_CALENDAR_REMOVE_INVITE:               // not profiled
         case CMSG_SET_LOOT_METHOD:                      // not profiled
         case CMSG_GUILD_INVITE_BY_NAME:                 // not profiled

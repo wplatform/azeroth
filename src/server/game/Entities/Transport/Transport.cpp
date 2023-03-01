@@ -33,7 +33,6 @@
 #include "UpdateData.h"
 #include "Vehicle.h"
 #include <boost/dynamic_bitset.hpp>
-#include <G3D/Vector3.h>
 #include <sstream>
 
 void TransportBase::UpdatePassengerPosition(Map* map, WorldObject* passenger, float x, float y, float z, float o, bool setHomePosition)
@@ -89,9 +88,7 @@ Transport::Transport() : GameObject(),
     _transportInfo(nullptr), _movementState(TransportMovementState::Moving), _eventsToTrigger(std::make_unique<boost::dynamic_bitset<uint8>>()),
     _currentPathLeg(0), _pathProgress(0), _delayedAddModel(false)
 {
-    m_updateFlag.ServerTime = true;
-    m_updateFlag.Stationary = true;
-    m_updateFlag.Rotation = true;
+    m_updateFlag = UPDATEFLAG_TRANSPORT | UPDATEFLAG_STATIONARY_POSITION | UPDATEFLAG_ROTATION;
 }
 
 Transport::~Transport()
@@ -148,7 +145,7 @@ bool Transport::Create(ObjectGuid::LowType guidlow, uint32 entry, float x, float
     SetGoState(!goinfo->moTransport.allowstopping ? GO_STATE_READY : GO_STATE_ACTIVE);
     SetGoType(GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT);
     SetGoAnimProgress(255);
-    SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::SpawnTrackingStateAnimID), sDB2Manager.GetEmptyAnimStateID());
+    //SetUpdateFieldValue(m_values.ModifyValue(&GameObject::m_gameObjectData).ModifyValue(&UF::GameObjectData::SpawnTrackingStateAnimID), sDB2Manager.GetEmptyAnimStateID());
     SetName(goinfo->name);
     SetLocalRotation(0.0f, 0.0f, 0.0f, 1.0f);
     SetParentRotation(QuaternionData());

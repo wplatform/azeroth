@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +20,7 @@
 
 #include "Define.h"
 #include "Realm.h"
+#include <array>
 #include <map>
 #include <shared_mutex>
 #include <vector>
@@ -32,7 +32,9 @@ struct RealmBuildInfo
     uint32 MajorVersion;
     uint32 MinorVersion;
     uint32 BugfixVersion;
-    uint32 HotfixVersion;
+    std::array<char, 4> HotfixVersion;
+    std::array<uint8, 16> Win64AuthSeed;
+    std::array<uint8, 16> Mac64AuthSeed;
 };
 
 namespace boost
@@ -82,6 +84,7 @@ public:
     Realm const* GetRealm(Battlenet::RealmHandle const& id) const;
 
     RealmBuildInfo const* GetBuildInfo(uint32 build) const;
+    uint32 GetMinorMajorBugfixVersionForBuild(uint32 build) const;
     void WriteSubRegions(bgs::protocol::game_utilities::v1::GetAllValuesForAttributeResponse* response) const;
     std::vector<uint8> GetRealmEntryJSON(Battlenet::RealmHandle const& id, uint32 build) const;
     std::vector<uint8> GetRealmList(uint32 build, std::string const& subRegion) const;
@@ -91,6 +94,7 @@ public:
 private:
     RealmList();
 
+    void LoadBuildInfo();
     void UpdateRealms(boost::system::error_code const& error);
     void UpdateRealm(Realm& realm, Battlenet::RealmHandle const& id, uint32 build, std::string const& name,
         boost::asio::ip::address&& address, boost::asio::ip::address&& localAddr, boost::asio::ip::address&& localSubmask,

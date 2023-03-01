@@ -43,14 +43,12 @@ TC_API_EXPORT EnumText EnumUtils<Classes>::ToString(Classes value)
         case CLASS_MONK: return { "CLASS_MONK", "Monk", "" };
         case CLASS_DRUID: return { "CLASS_DRUID", "Druid", "" };
         case CLASS_DEMON_HUNTER: return { "CLASS_DEMON_HUNTER", "Demon Hunter", "" };
-        case CLASS_EVOKER: return { "CLASS_EVOKER", "Evoker", "" };
-        case CLASS_ADVENTURER: return { "CLASS_ADVENTURER", "Adventurer", "" };
         default: throw std::out_of_range("value");
     }
 }
 
 template <>
-TC_API_EXPORT size_t EnumUtils<Classes>::Count() { return 14; }
+TC_API_EXPORT size_t EnumUtils<Classes>::Count() { return 12; }
 
 template <>
 TC_API_EXPORT Classes EnumUtils<Classes>::FromIndex(size_t index)
@@ -69,8 +67,6 @@ TC_API_EXPORT Classes EnumUtils<Classes>::FromIndex(size_t index)
         case 9: return CLASS_MONK;
         case 10: return CLASS_DRUID;
         case 11: return CLASS_DEMON_HUNTER;
-        case 12: return CLASS_EVOKER;
-        case 13: return CLASS_ADVENTURER;
         default: throw std::out_of_range("index");
     }
 }
@@ -92,8 +88,6 @@ TC_API_EXPORT size_t EnumUtils<Classes>::ToIndex(Classes value)
         case CLASS_MONK: return 9;
         case CLASS_DRUID: return 10;
         case CLASS_DEMON_HUNTER: return 11;
-        case CLASS_EVOKER: return 12;
-        case CLASS_ADVENTURER: return 13;
         default: throw std::out_of_range("value");
     }
 }
@@ -126,13 +120,12 @@ TC_API_EXPORT EnumText EnumUtils<Powers>::ToString(Powers value)
         case POWER_ARCANE_CHARGES: return { "POWER_ARCANE_CHARGES", "Arcane Charges", "" };
         case POWER_FURY: return { "POWER_FURY", "Fury", "" };
         case POWER_PAIN: return { "POWER_PAIN", "Pain", "" };
-        case POWER_ESSENCE: return { "POWER_ESSENCE", "Essence", "" };
         default: throw std::out_of_range("value");
     }
 }
 
 template <>
-TC_API_EXPORT size_t EnumUtils<Powers>::Count() { return 21; }
+TC_API_EXPORT size_t EnumUtils<Powers>::Count() { return 20; }
 
 template <>
 TC_API_EXPORT Powers EnumUtils<Powers>::FromIndex(size_t index)
@@ -159,7 +152,6 @@ TC_API_EXPORT Powers EnumUtils<Powers>::FromIndex(size_t index)
         case 17: return POWER_ARCANE_CHARGES;
         case 18: return POWER_FURY;
         case 19: return POWER_PAIN;
-        case 20: return POWER_ESSENCE;
         default: throw std::out_of_range("index");
     }
 }
@@ -189,7 +181,6 @@ TC_API_EXPORT size_t EnumUtils<Powers>::ToIndex(Powers value)
         case POWER_ARCANE_CHARGES: return 17;
         case POWER_FURY: return 18;
         case POWER_PAIN: return 19;
-        case POWER_ESSENCE: return 20;
         default: throw std::out_of_range("value");
     }
 }
@@ -2207,8 +2198,8 @@ TC_API_EXPORT EnumText EnumUtils<SpellCastResult>::ToString(SpellCastResult valu
         case SPELL_FAILED_BAD_TARGETS: return { "SPELL_FAILED_BAD_TARGETS", "SPELL_FAILED_BAD_TARGETS", "" };
         case SPELL_FAILED_PVP_TARGET_WHILE_UNFLAGGED: return { "SPELL_FAILED_PVP_TARGET_WHILE_UNFLAGGED", "SPELL_FAILED_PVP_TARGET_WHILE_UNFLAGGED", "" };
         case SPELL_FAILED_CANT_BE_CHARMED: return { "SPELL_FAILED_CANT_BE_CHARMED", "SPELL_FAILED_CANT_BE_CHARMED", "" };
-        case SPELL_FAILED_CANT_BE_SALVAGED: return { "SPELL_FAILED_CANT_BE_SALVAGED", "SPELL_FAILED_CANT_BE_SALVAGED", "" };
-        case SPELL_FAILED_CANT_BE_SALVAGED_SKILL: return { "SPELL_FAILED_CANT_BE_SALVAGED_SKILL", "SPELL_FAILED_CANT_BE_SALVAGED_SKILL", "" };
+        case SPELL_FAILED_CANT_BE_DISENCHANTED: return { "SPELL_FAILED_CANT_BE_DISENCHANTED", "SPELL_FAILED_CANT_BE_DISENCHANTED", "" };
+        case SPELL_FAILED_CANT_BE_DISENCHANTED_SKILL: return { "SPELL_FAILED_CANT_BE_DISENCHANTED_SKILL", "SPELL_FAILED_CANT_BE_DISENCHANTED_SKILL", "" };
         case SPELL_FAILED_CANT_BE_ENCHANTED: return { "SPELL_FAILED_CANT_BE_ENCHANTED", "SPELL_FAILED_CANT_BE_ENCHANTED", "" };
         case SPELL_FAILED_CANT_BE_MILLED: return { "SPELL_FAILED_CANT_BE_MILLED", "SPELL_FAILED_CANT_BE_MILLED", "" };
         case SPELL_FAILED_CANT_BE_PROSPECTED: return { "SPELL_FAILED_CANT_BE_PROSPECTED", "SPELL_FAILED_CANT_BE_PROSPECTED", "" };
@@ -2481,42 +2472,12 @@ TC_API_EXPORT EnumText EnumUtils<SpellCastResult>::ToString(SpellCastResult valu
         case SPELL_FAILED_NO_ARTIFACT_EQUIPPED: return { "SPELL_FAILED_NO_ARTIFACT_EQUIPPED", "SPELL_FAILED_NO_ARTIFACT_EQUIPPED", "" };
         case SPELL_FAILED_WRONG_ARTIFACT_EQUIPPED: return { "SPELL_FAILED_WRONG_ARTIFACT_EQUIPPED", "SPELL_FAILED_WRONG_ARTIFACT_EQUIPPED", "" };
         case SPELL_FAILED_TARGET_IS_UNTARGETABLE_BY_ANYONE: return { "SPELL_FAILED_TARGET_IS_UNTARGETABLE_BY_ANYONE", "SPELL_FAILED_TARGET_IS_UNTARGETABLE_BY_ANYONE", "" };
-        case SPELL_FAILED_SPELL_EFFECT_FAILED: return { "SPELL_FAILED_SPELL_EFFECT_FAILED", "SPELL_FAILED_SPELL_EFFECT_FAILED", "" };
-        case SPELL_FAILED_NEED_ALL_PARTY_MEMBERS: return { "SPELL_FAILED_NEED_ALL_PARTY_MEMBERS", "SPELL_FAILED_NEED_ALL_PARTY_MEMBERS", "" };
-        case SPELL_FAILED_ARTIFACT_AT_FULL_POWER: return { "SPELL_FAILED_ARTIFACT_AT_FULL_POWER", "SPELL_FAILED_ARTIFACT_AT_FULL_POWER", "" };
-        case SPELL_FAILED_AP_ITEM_FROM_PREVIOUS_TIER: return { "SPELL_FAILED_AP_ITEM_FROM_PREVIOUS_TIER", "SPELL_FAILED_AP_ITEM_FROM_PREVIOUS_TIER", "" };
-        case SPELL_FAILED_AREA_TRIGGER_CREATION: return { "SPELL_FAILED_AREA_TRIGGER_CREATION", "SPELL_FAILED_AREA_TRIGGER_CREATION", "" };
-        case SPELL_FAILED_AZERITE_EMPOWERED_ONLY: return { "SPELL_FAILED_AZERITE_EMPOWERED_ONLY", "SPELL_FAILED_AZERITE_EMPOWERED_ONLY", "" };
-        case SPELL_FAILED_AZERITE_EMPOWERED_NO_CHOICES_TO_UNDO: return { "SPELL_FAILED_AZERITE_EMPOWERED_NO_CHOICES_TO_UNDO", "SPELL_FAILED_AZERITE_EMPOWERED_NO_CHOICES_TO_UNDO", "" };
-        case SPELL_FAILED_WRONG_FACTION: return { "SPELL_FAILED_WRONG_FACTION", "SPELL_FAILED_WRONG_FACTION", "" };
-        case SPELL_FAILED_NOT_ENOUGH_CURRENCY: return { "SPELL_FAILED_NOT_ENOUGH_CURRENCY", "SPELL_FAILED_NOT_ENOUGH_CURRENCY", "" };
-        case SPELL_FAILED_BATTLE_FOR_AZEROTH_RIDING_REQUIREMENT: return { "SPELL_FAILED_BATTLE_FOR_AZEROTH_RIDING_REQUIREMENT", "SPELL_FAILED_BATTLE_FOR_AZEROTH_RIDING_REQUIREMENT", "" };
-        case SPELL_FAILED_MOUNT_EQUIPMENT_ERROR: return { "SPELL_FAILED_MOUNT_EQUIPMENT_ERROR", "SPELL_FAILED_MOUNT_EQUIPMENT_ERROR", "" };
-        case SPELL_FAILED_NOT_WHILE_LEVEL_LINKED: return { "SPELL_FAILED_NOT_WHILE_LEVEL_LINKED", "SPELL_FAILED_NOT_WHILE_LEVEL_LINKED", "" };
-        case SPELL_FAILED_LEVEL_LINKED_LOW_LEVEL: return { "SPELL_FAILED_LEVEL_LINKED_LOW_LEVEL", "SPELL_FAILED_LEVEL_LINKED_LOW_LEVEL", "" };
-        case SPELL_FAILED_SUMMON_MAP_CONDITION: return { "SPELL_FAILED_SUMMON_MAP_CONDITION", "SPELL_FAILED_SUMMON_MAP_CONDITION", "" };
-        case SPELL_FAILED_SET_COVENANT_ERROR: return { "SPELL_FAILED_SET_COVENANT_ERROR", "SPELL_FAILED_SET_COVENANT_ERROR", "" };
-        case SPELL_FAILED_RUNEFORGE_LEGENDARY_UPGRADE: return { "SPELL_FAILED_RUNEFORGE_LEGENDARY_UPGRADE", "SPELL_FAILED_RUNEFORGE_LEGENDARY_UPGRADE", "" };
-        case SPELL_FAILED_SET_CHROMIE_TIME_ERROR: return { "SPELL_FAILED_SET_CHROMIE_TIME_ERROR", "SPELL_FAILED_SET_CHROMIE_TIME_ERROR", "" };
-        case SPELL_FAILED_INELIGIBLE_WEAPON_APPEARANCE: return { "SPELL_FAILED_INELIGIBLE_WEAPON_APPEARANCE", "SPELL_FAILED_INELIGIBLE_WEAPON_APPEARANCE", "" };
-        case SPELL_FAILED_PLAYER_CONDITION: return { "SPELL_FAILED_PLAYER_CONDITION", "SPELL_FAILED_PLAYER_CONDITION", "" };
-        case SPELL_FAILED_NOT_WHILE_CHROMIE_TIMED: return { "SPELL_FAILED_NOT_WHILE_CHROMIE_TIMED", "SPELL_FAILED_NOT_WHILE_CHROMIE_TIMED", "" };
-        case SPELL_FAILED_CRAFTING_REAGENTS: return { "SPELL_FAILED_CRAFTING_REAGENTS", "SPELL_FAILED_CRAFTING_REAGENTS", "" };
-        case SPELL_FAILED_SPECTATOR_OR_COMMENTATOR: return { "SPELL_FAILED_SPECTATOR_OR_COMMENTATOR", "SPELL_FAILED_SPECTATOR_OR_COMMENTATOR", "" };
-        case SPELL_FAILED_SOULBIND_CONDUIT_LEARN_FAILED_INVALID_COVENANT: return { "SPELL_FAILED_SOULBIND_CONDUIT_LEARN_FAILED_INVALID_COVENANT", "SPELL_FAILED_SOULBIND_CONDUIT_LEARN_FAILED_INVALID_COVENANT", "" };
-        case SPELL_FAILED_SHADOWLANDS_RIDING_REQUIREMENT: return { "SPELL_FAILED_SHADOWLANDS_RIDING_REQUIREMENT", "SPELL_FAILED_SHADOWLANDS_RIDING_REQUIREMENT", "" };
-        case SPELL_FAILED_NOT_IN_MAGE_TOWER: return { "SPELL_FAILED_NOT_IN_MAGE_TOWER", "SPELL_FAILED_NOT_IN_MAGE_TOWER", "" };
-        case SPELL_FAILED_GARRISON_FOLLOWER_AT_MIN_LEVEL: return { "SPELL_FAILED_GARRISON_FOLLOWER_AT_MIN_LEVEL", "SPELL_FAILED_GARRISON_FOLLOWER_AT_MIN_LEVEL", "" };
-        case SPELL_FAILED_CANT_BE_RECRAFTED: return { "SPELL_FAILED_CANT_BE_RECRAFTED", "SPELL_FAILED_CANT_BE_RECRAFTED", "" };
-        case SPELL_FAILED_PASSIVE_REPLACED: return { "SPELL_FAILED_PASSIVE_REPLACED", "SPELL_FAILED_PASSIVE_REPLACED", "" };
-        case SPELL_FAILED_CANT_FLY_HERE: return { "SPELL_FAILED_CANT_FLY_HERE", "SPELL_FAILED_CANT_FLY_HERE", "" };
-        case SPELL_FAILED_UNKNOWN: return { "SPELL_FAILED_UNKNOWN", "SPELL_FAILED_UNKNOWN", "" };
         default: throw std::out_of_range("value");
     }
 }
 
 template <>
-TC_API_EXPORT size_t EnumUtils<SpellCastResult>::Count() { return 320; }
+TC_API_EXPORT size_t EnumUtils<SpellCastResult>::Count() { return 289; }
 
 template <>
 TC_API_EXPORT SpellCastResult EnumUtils<SpellCastResult>::FromIndex(size_t index)
@@ -2539,8 +2500,8 @@ TC_API_EXPORT SpellCastResult EnumUtils<SpellCastResult>::FromIndex(size_t index
         case 13: return SPELL_FAILED_BAD_TARGETS;
         case 14: return SPELL_FAILED_PVP_TARGET_WHILE_UNFLAGGED;
         case 15: return SPELL_FAILED_CANT_BE_CHARMED;
-        case 16: return SPELL_FAILED_CANT_BE_SALVAGED;
-        case 17: return SPELL_FAILED_CANT_BE_SALVAGED_SKILL;
+        case 16: return SPELL_FAILED_CANT_BE_DISENCHANTED;
+        case 17: return SPELL_FAILED_CANT_BE_DISENCHANTED_SKILL;
         case 18: return SPELL_FAILED_CANT_BE_ENCHANTED;
         case 19: return SPELL_FAILED_CANT_BE_MILLED;
         case 20: return SPELL_FAILED_CANT_BE_PROSPECTED;
@@ -2813,36 +2774,6 @@ TC_API_EXPORT SpellCastResult EnumUtils<SpellCastResult>::FromIndex(size_t index
         case 287: return SPELL_FAILED_NO_ARTIFACT_EQUIPPED;
         case 288: return SPELL_FAILED_WRONG_ARTIFACT_EQUIPPED;
         case 289: return SPELL_FAILED_TARGET_IS_UNTARGETABLE_BY_ANYONE;
-        case 290: return SPELL_FAILED_SPELL_EFFECT_FAILED;
-        case 291: return SPELL_FAILED_NEED_ALL_PARTY_MEMBERS;
-        case 292: return SPELL_FAILED_ARTIFACT_AT_FULL_POWER;
-        case 293: return SPELL_FAILED_AP_ITEM_FROM_PREVIOUS_TIER;
-        case 294: return SPELL_FAILED_AREA_TRIGGER_CREATION;
-        case 295: return SPELL_FAILED_AZERITE_EMPOWERED_ONLY;
-        case 296: return SPELL_FAILED_AZERITE_EMPOWERED_NO_CHOICES_TO_UNDO;
-        case 297: return SPELL_FAILED_WRONG_FACTION;
-        case 298: return SPELL_FAILED_NOT_ENOUGH_CURRENCY;
-        case 299: return SPELL_FAILED_BATTLE_FOR_AZEROTH_RIDING_REQUIREMENT;
-        case 300: return SPELL_FAILED_MOUNT_EQUIPMENT_ERROR;
-        case 301: return SPELL_FAILED_NOT_WHILE_LEVEL_LINKED;
-        case 302: return SPELL_FAILED_LEVEL_LINKED_LOW_LEVEL;
-        case 303: return SPELL_FAILED_SUMMON_MAP_CONDITION;
-        case 304: return SPELL_FAILED_SET_COVENANT_ERROR;
-        case 305: return SPELL_FAILED_RUNEFORGE_LEGENDARY_UPGRADE;
-        case 306: return SPELL_FAILED_SET_CHROMIE_TIME_ERROR;
-        case 307: return SPELL_FAILED_INELIGIBLE_WEAPON_APPEARANCE;
-        case 308: return SPELL_FAILED_PLAYER_CONDITION;
-        case 309: return SPELL_FAILED_NOT_WHILE_CHROMIE_TIMED;
-        case 310: return SPELL_FAILED_CRAFTING_REAGENTS;
-        case 311: return SPELL_FAILED_SPECTATOR_OR_COMMENTATOR;
-        case 312: return SPELL_FAILED_SOULBIND_CONDUIT_LEARN_FAILED_INVALID_COVENANT;
-        case 313: return SPELL_FAILED_SHADOWLANDS_RIDING_REQUIREMENT;
-        case 314: return SPELL_FAILED_NOT_IN_MAGE_TOWER;
-        case 315: return SPELL_FAILED_GARRISON_FOLLOWER_AT_MIN_LEVEL;
-        case 316: return SPELL_FAILED_CANT_BE_RECRAFTED;
-        case 317: return SPELL_FAILED_PASSIVE_REPLACED;
-        case 318: return SPELL_FAILED_CANT_FLY_HERE;
-        case 319: return SPELL_FAILED_UNKNOWN;
         default: throw std::out_of_range("index");
     }
 }
@@ -2868,8 +2799,8 @@ TC_API_EXPORT size_t EnumUtils<SpellCastResult>::ToIndex(SpellCastResult value)
         case SPELL_FAILED_BAD_TARGETS: return 13;
         case SPELL_FAILED_PVP_TARGET_WHILE_UNFLAGGED: return 14;
         case SPELL_FAILED_CANT_BE_CHARMED: return 15;
-        case SPELL_FAILED_CANT_BE_SALVAGED: return 16;
-        case SPELL_FAILED_CANT_BE_SALVAGED_SKILL: return 17;
+        case SPELL_FAILED_CANT_BE_DISENCHANTED: return 16;
+        case SPELL_FAILED_CANT_BE_DISENCHANTED_SKILL: return 17;
         case SPELL_FAILED_CANT_BE_ENCHANTED: return 18;
         case SPELL_FAILED_CANT_BE_MILLED: return 19;
         case SPELL_FAILED_CANT_BE_PROSPECTED: return 20;
@@ -3142,36 +3073,6 @@ TC_API_EXPORT size_t EnumUtils<SpellCastResult>::ToIndex(SpellCastResult value)
         case SPELL_FAILED_NO_ARTIFACT_EQUIPPED: return 287;
         case SPELL_FAILED_WRONG_ARTIFACT_EQUIPPED: return 288;
         case SPELL_FAILED_TARGET_IS_UNTARGETABLE_BY_ANYONE: return 289;
-        case SPELL_FAILED_SPELL_EFFECT_FAILED: return 290;
-        case SPELL_FAILED_NEED_ALL_PARTY_MEMBERS: return 291;
-        case SPELL_FAILED_ARTIFACT_AT_FULL_POWER: return 292;
-        case SPELL_FAILED_AP_ITEM_FROM_PREVIOUS_TIER: return 293;
-        case SPELL_FAILED_AREA_TRIGGER_CREATION: return 294;
-        case SPELL_FAILED_AZERITE_EMPOWERED_ONLY: return 295;
-        case SPELL_FAILED_AZERITE_EMPOWERED_NO_CHOICES_TO_UNDO: return 296;
-        case SPELL_FAILED_WRONG_FACTION: return 297;
-        case SPELL_FAILED_NOT_ENOUGH_CURRENCY: return 298;
-        case SPELL_FAILED_BATTLE_FOR_AZEROTH_RIDING_REQUIREMENT: return 299;
-        case SPELL_FAILED_MOUNT_EQUIPMENT_ERROR: return 300;
-        case SPELL_FAILED_NOT_WHILE_LEVEL_LINKED: return 301;
-        case SPELL_FAILED_LEVEL_LINKED_LOW_LEVEL: return 302;
-        case SPELL_FAILED_SUMMON_MAP_CONDITION: return 303;
-        case SPELL_FAILED_SET_COVENANT_ERROR: return 304;
-        case SPELL_FAILED_RUNEFORGE_LEGENDARY_UPGRADE: return 305;
-        case SPELL_FAILED_SET_CHROMIE_TIME_ERROR: return 306;
-        case SPELL_FAILED_INELIGIBLE_WEAPON_APPEARANCE: return 307;
-        case SPELL_FAILED_PLAYER_CONDITION: return 308;
-        case SPELL_FAILED_NOT_WHILE_CHROMIE_TIMED: return 309;
-        case SPELL_FAILED_CRAFTING_REAGENTS: return 310;
-        case SPELL_FAILED_SPECTATOR_OR_COMMENTATOR: return 311;
-        case SPELL_FAILED_SOULBIND_CONDUIT_LEARN_FAILED_INVALID_COVENANT: return 312;
-        case SPELL_FAILED_SHADOWLANDS_RIDING_REQUIREMENT: return 313;
-        case SPELL_FAILED_NOT_IN_MAGE_TOWER: return 314;
-        case SPELL_FAILED_GARRISON_FOLLOWER_AT_MIN_LEVEL: return 315;
-        case SPELL_FAILED_CANT_BE_RECRAFTED: return 316;
-        case SPELL_FAILED_PASSIVE_REPLACED: return 317;
-        case SPELL_FAILED_CANT_FLY_HERE: return 318;
-        case SPELL_FAILED_UNKNOWN: return 319;
         default: throw std::out_of_range("value");
     }
 }
@@ -3325,16 +3226,12 @@ TC_API_EXPORT EnumText EnumUtils<Mechanics>::ToString(Mechanics value)
         case MECHANIC_SAPPED: return { "MECHANIC_SAPPED", "MECHANIC_SAPPED", "" };
         case MECHANIC_ENRAGED: return { "MECHANIC_ENRAGED", "MECHANIC_ENRAGED", "" };
         case MECHANIC_WOUNDED: return { "MECHANIC_WOUNDED", "MECHANIC_WOUNDED", "" };
-        case MECHANIC_INFECTED_2: return { "MECHANIC_INFECTED_2", "MECHANIC_INFECTED_2", "" };
-        case MECHANIC_INFECTED_3: return { "MECHANIC_INFECTED_3", "MECHANIC_INFECTED_3", "" };
-        case MECHANIC_INFECTED_4: return { "MECHANIC_INFECTED_4", "MECHANIC_INFECTED_4", "" };
-        case MECHANIC_TAUNTED: return { "MECHANIC_TAUNTED", "MECHANIC_TAUNTED", "" };
         default: throw std::out_of_range("value");
     }
 }
 
 template <>
-TC_API_EXPORT size_t EnumUtils<Mechanics>::Count() { return 37; }
+TC_API_EXPORT size_t EnumUtils<Mechanics>::Count() { return 33; }
 
 template <>
 TC_API_EXPORT Mechanics EnumUtils<Mechanics>::FromIndex(size_t index)
@@ -3374,10 +3271,6 @@ TC_API_EXPORT Mechanics EnumUtils<Mechanics>::FromIndex(size_t index)
         case 30: return MECHANIC_SAPPED;
         case 31: return MECHANIC_ENRAGED;
         case 32: return MECHANIC_WOUNDED;
-        case 33: return MECHANIC_INFECTED_2;
-        case 34: return MECHANIC_INFECTED_3;
-        case 35: return MECHANIC_INFECTED_4;
-        case 36: return MECHANIC_TAUNTED;
         default: throw std::out_of_range("index");
     }
 }
@@ -3420,10 +3313,6 @@ TC_API_EXPORT size_t EnumUtils<Mechanics>::ToIndex(Mechanics value)
         case MECHANIC_SAPPED: return 30;
         case MECHANIC_ENRAGED: return 31;
         case MECHANIC_WOUNDED: return 32;
-        case MECHANIC_INFECTED_2: return 33;
-        case MECHANIC_INFECTED_3: return 34;
-        case MECHANIC_INFECTED_4: return 35;
-        case MECHANIC_TAUNTED: return 36;
         default: throw std::out_of_range("value");
     }
 }
@@ -3926,16 +3815,6 @@ TC_API_EXPORT EnumText EnumUtils<Emote>::ToString(Emote value)
         case EMOTE_ONESHOT_BARSWEEP_STAND: return { "EMOTE_ONESHOT_BARSWEEP_STAND", "EMOTE_ONESHOT_BARSWEEP_STAND", "" };
         case EMOTE_TORGHAST_TALKING_HEAD_MAW_CAST_SOUND: return { "EMOTE_TORGHAST_TALKING_HEAD_MAW_CAST_SOUND", "EMOTE_TORGHAST_TALKING_HEAD_MAW_CAST_SOUND", "" };
         case EMOTE_TORGHAST_TALKING_HEAD_MAW_CAST_SOUND2: return { "EMOTE_TORGHAST_TALKING_HEAD_MAW_CAST_SOUND2", "EMOTE_TORGHAST_TALKING_HEAD_MAW_CAST_SOUND2", "" };
-        case EMOTE_ONESHOT_STAND_VAR0: return { "EMOTE_ONESHOT_STAND_VAR0", "EMOTE_ONESHOT_STAND_VAR0", "" };
-        case EMOTE_ONESHOT_FLYCUSTOMSPELL01: return { "EMOTE_ONESHOT_FLYCUSTOMSPELL01", "EMOTE_ONESHOT_FLYCUSTOMSPELL01", "" };
-        case EMOTE_ONESHOT_SPELLEFFECT_DECAY: return { "EMOTE_ONESHOT_SPELLEFFECT_DECAY", "EMOTE_ONESHOT_SPELLEFFECT_DECAY", "" };
-        case EMOTE_STATE_CREATURE_SPECIAL: return { "EMOTE_STATE_CREATURE_SPECIAL", "EMOTE_STATE_CREATURE_SPECIAL", "" };
-        case EMOTE_ONESHOT_WAREACT01: return { "EMOTE_ONESHOT_WAREACT01", "EMOTE_ONESHOT_WAREACT01", "" };
-        case EMOTE_ONESHOT_FLYCUSTOMSPELL04: return { "EMOTE_ONESHOT_FLYCUSTOMSPELL04", "EMOTE_ONESHOT_FLYCUSTOMSPELL04", "" };
-        case EMOTE_ONESHOT_TALK_SUBDUED: return { "EMOTE_ONESHOT_TALK_SUBDUED", "EMOTE_ONESHOT_TALK_SUBDUED", "" };
-        case EMOTE_STATE_EMOTETALK: return { "EMOTE_STATE_EMOTETALK", "EMOTE_STATE_EMOTETALK", "" };
-        case EMOTE_STATE_WAINTERACTION: return { "EMOTE_STATE_WAINTERACTION", "EMOTE_STATE_WAINTERACTION", "" };
-        case EMOTE_ONESHOT_TAKE_OFF_START: return { "EMOTE_ONESHOT_TAKE_OFF_START", "EMOTE_ONESHOT_TAKE_OFF_START", "" };
         default: throw std::out_of_range("value");
     }
 }
@@ -4348,16 +4227,6 @@ TC_API_EXPORT Emote EnumUtils<Emote>::FromIndex(size_t index)
         case 397: return EMOTE_ONESHOT_BARSWEEP_STAND;
         case 398: return EMOTE_TORGHAST_TALKING_HEAD_MAW_CAST_SOUND;
         case 399: return EMOTE_TORGHAST_TALKING_HEAD_MAW_CAST_SOUND2;
-        case 400: return EMOTE_ONESHOT_STAND_VAR0;
-        case 401: return EMOTE_ONESHOT_FLYCUSTOMSPELL01;
-        case 402: return EMOTE_ONESHOT_SPELLEFFECT_DECAY;
-        case 403: return EMOTE_STATE_CREATURE_SPECIAL;
-        case 404: return EMOTE_ONESHOT_WAREACT01;
-        case 405: return EMOTE_ONESHOT_FLYCUSTOMSPELL04;
-        case 406: return EMOTE_ONESHOT_TALK_SUBDUED;
-        case 407: return EMOTE_STATE_EMOTETALK;
-        case 408: return EMOTE_STATE_WAINTERACTION;
-        case 409: return EMOTE_ONESHOT_TAKE_OFF_START;
         default: throw std::out_of_range("index");
     }
 }
@@ -4767,16 +4636,6 @@ TC_API_EXPORT size_t EnumUtils<Emote>::ToIndex(Emote value)
         case EMOTE_ONESHOT_BARSWEEP_STAND: return 397;
         case EMOTE_TORGHAST_TALKING_HEAD_MAW_CAST_SOUND: return 398;
         case EMOTE_TORGHAST_TALKING_HEAD_MAW_CAST_SOUND2: return 399;
-        case EMOTE_ONESHOT_STAND_VAR0: return 400;
-        case EMOTE_ONESHOT_FLYCUSTOMSPELL01: return 401;
-        case EMOTE_ONESHOT_SPELLEFFECT_DECAY: return 402;
-        case EMOTE_STATE_CREATURE_SPECIAL: return 403;
-        case EMOTE_ONESHOT_WAREACT01: return 404;
-        case EMOTE_ONESHOT_FLYCUSTOMSPELL04: return 405;
-        case EMOTE_ONESHOT_TALK_SUBDUED: return 406;
-        case EMOTE_STATE_EMOTETALK: return 407;
-        case EMOTE_STATE_WAINTERACTION: return 408;
-        case EMOTE_ONESHOT_TAKE_OFF_START: return 409;
         default: throw std::out_of_range("value");
     }
 }
@@ -4905,9 +4764,6 @@ TC_API_EXPORT EnumText EnumUtils<ChatMsg>::ToString(ChatMsg value)
         case CHAT_MSG_PET_BATTLE_INFO: return { "CHAT_MSG_PET_BATTLE_INFO", "CHAT_MSG_PET_BATTLE_INFO", "" };
         case CHAT_MSG_INSTANCE_CHAT: return { "CHAT_MSG_INSTANCE_CHAT", "CHAT_MSG_INSTANCE_CHAT", "" };
         case CHAT_MSG_INSTANCE_CHAT_LEADER: return { "CHAT_MSG_INSTANCE_CHAT_LEADER", "CHAT_MSG_INSTANCE_CHAT_LEADER", "" };
-        case CHAT_MSG_GUILD_ITEM_LOOTED: return { "CHAT_MSG_GUILD_ITEM_LOOTED", "CHAT_MSG_GUILD_ITEM_LOOTED", "" };
-        case CHAT_MSG_COMMUNITIES_CHANNEL: return { "CHAT_MSG_COMMUNITIES_CHANNEL", "CHAT_MSG_COMMUNITIES_CHANNEL", "" };
-        case CHAT_MSG_VOICE_TEXT: return { "CHAT_MSG_VOICE_TEXT", "CHAT_MSG_VOICE_TEXT", "" };
         case MAX_CHAT_MSG_TYPE: return { "MAX_CHAT_MSG_TYPE", "MAX_CHAT_MSG_TYPE", "" };
         default: throw std::out_of_range("value");
     }
@@ -4986,9 +4842,6 @@ TC_API_EXPORT ChatMsg EnumUtils<ChatMsg>::FromIndex(size_t index)
         case 62: return CHAT_MSG_PET_BATTLE_INFO;
         case 63: return CHAT_MSG_INSTANCE_CHAT;
         case 64: return CHAT_MSG_INSTANCE_CHAT_LEADER;
-        case 65: return CHAT_MSG_GUILD_ITEM_LOOTED;
-        case 66: return CHAT_MSG_COMMUNITIES_CHANNEL;
-        case 67: return CHAT_MSG_VOICE_TEXT;
         case 68: return MAX_CHAT_MSG_TYPE;
         default: throw std::out_of_range("index");
     }
@@ -5064,9 +4917,6 @@ TC_API_EXPORT size_t EnumUtils<ChatMsg>::ToIndex(ChatMsg value)
         case CHAT_MSG_PET_BATTLE_INFO: return 62;
         case CHAT_MSG_INSTANCE_CHAT: return 63;
         case CHAT_MSG_INSTANCE_CHAT_LEADER: return 64;
-        case CHAT_MSG_GUILD_ITEM_LOOTED: return 65;
-        case CHAT_MSG_COMMUNITIES_CHANNEL: return 66;
-        case CHAT_MSG_VOICE_TEXT: return 67;
         case MAX_CHAT_MSG_TYPE: return 68;
         default: throw std::out_of_range("value");
     }
@@ -5104,13 +4954,12 @@ TC_API_EXPORT EnumText EnumUtils<SpellFamilyNames>::ToString(SpellFamilyNames va
         case SPELLFAMILY_UNK91: return { "SPELLFAMILY_UNK91", "SPELLFAMILY_UNK91", "" };
         case SPELLFAMILY_UNK100: return { "SPELLFAMILY_UNK100", "SPELLFAMILY_UNK100", "" };
         case SPELLFAMILY_DEMON_HUNTER: return { "SPELLFAMILY_DEMON_HUNTER", "SPELLFAMILY_DEMON_HUNTER", "" };
-        case SPELLFAMILY_EVOKER: return { "SPELLFAMILY_EVOKER", "SPELLFAMILY_EVOKER", "" };
         default: throw std::out_of_range("value");
     }
 }
 
 template <>
-TC_API_EXPORT size_t EnumUtils<SpellFamilyNames>::Count() { return 25; }
+TC_API_EXPORT size_t EnumUtils<SpellFamilyNames>::Count() { return 24; }
 
 template <>
 TC_API_EXPORT SpellFamilyNames EnumUtils<SpellFamilyNames>::FromIndex(size_t index)
@@ -5141,7 +4990,6 @@ TC_API_EXPORT SpellFamilyNames EnumUtils<SpellFamilyNames>::FromIndex(size_t ind
         case 21: return SPELLFAMILY_UNK91;
         case 22: return SPELLFAMILY_UNK100;
         case 23: return SPELLFAMILY_DEMON_HUNTER;
-        case 24: return SPELLFAMILY_EVOKER;
         default: throw std::out_of_range("index");
     }
 }
@@ -5175,7 +5023,6 @@ TC_API_EXPORT size_t EnumUtils<SpellFamilyNames>::ToIndex(SpellFamilyNames value
         case SPELLFAMILY_UNK91: return 21;
         case SPELLFAMILY_UNK100: return 22;
         case SPELLFAMILY_DEMON_HUNTER: return 23;
-        case SPELLFAMILY_EVOKER: return 24;
         default: throw std::out_of_range("value");
     }
 }

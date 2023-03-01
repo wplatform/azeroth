@@ -744,7 +744,7 @@ void AreaTrigger::DoActions(Unit* unit)
                     {
                         if (WorldSafeLocsEntry const* safeLoc = sDB2Manager.GetWorldSafeLoc(action.Param))
                             if (Player* player = caster->ToPlayer())
-                                player->TeleportTo(safeLoc->Loc);
+                                player->TeleportTo(safeLoc);
                         break;
                     }
                     default:

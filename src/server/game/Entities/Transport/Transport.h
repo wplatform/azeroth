@@ -86,7 +86,7 @@ class TC_GAME_API Transport : public GameObject, public TransportBase
 
         int32 GetMapIdForSpawning() const override;
 
-        uint32 GetTransportPeriod() const { return m_gameObjectData->Level; }
+        uint32 GetTransportPeriod() const { return GetUInt32Value(GAMEOBJECT_LEVEL); }
         void SetPeriod(uint32 period) { SetLevel(period); }
         uint32 GetTimer() const { return _pathProgress; }
 
