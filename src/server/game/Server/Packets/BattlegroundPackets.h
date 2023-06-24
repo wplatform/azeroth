@@ -24,7 +24,6 @@
 #include "Optional.h"
 #include "PacketUtilities.h"
 #include "Position.h"
-#include <array>
 
 namespace WorldPackets
 {
@@ -33,17 +32,12 @@ namespace WorldPackets
         class SeasonInfo final : public ServerPacket
         {
         public:
-            SeasonInfo() : ServerPacket(SMSG_SEASON_INFO, 4 + 4 + 4 + 4 + 4 + 1) { }
+            SeasonInfo() : ServerPacket(SMSG_PVP_SEASON, 8) { }
 
             WorldPacket const* Write() override;
 
-            int32 MythicPlusDisplaySeasonID = 0;
-            int32 MythicPlusMilestoneSeasonID = 0;
-            int32 PreviousArenaSeason = 0;
-            int32 CurrentArenaSeason = 0;
-            int32 PvpSeasonID = 0;
-            int32 ConquestWeeklyProgressCurrencyID = 0;
-            bool WeeklyRewardChestsEnabled = false;
+            uint32 PreviousSeason = 0;
+            uint32 CurrentSeason = 0;
         };
 
         class AreaSpiritHealerQuery final : public ClientPacket
@@ -135,16 +129,13 @@ namespace WorldPackets
                 Optional<int32> RatingChange;
                 Optional<uint32> PreMatchMMR;
                 Optional<int32> MmrChange;
-                std::vector<PVPMatchPlayerPVPStat> Stats;
+                std::vector<int32> Stats;
                 int32 PrimaryTalentTree = 0;
-                int32 Sex = 0;
+                int32 PrimaryTalentTreeNameIndex = 0;  // controls which name field from ChrSpecialization.dbc will be sent to lua
                 int32 Race = 0;
-                int32 Class = 0;
-                int32 CreatureID = 0;
-                int32 HonorLevel = 0;
-                int32 Role = 0;
+                uint32 Prestige = 0;
             };
-
+            Optional<uint8> Winner;
             std::vector<PVPMatchPlayerStatistics> Statistics;
             Optional<RatingData> Ratings;
             std::array<int8, 2> PlayerCount = { };
@@ -153,7 +144,7 @@ namespace WorldPackets
         class PVPMatchStatisticsMessage final : public ServerPacket
         {
         public:
-            PVPMatchStatisticsMessage() : ServerPacket(SMSG_PVP_MATCH_STATISTICS, 0) { }
+            PVPMatchStatisticsMessage() : ServerPacket(SMSG_PVP_LOG_DATA, 0) { }
 
             WorldPacket const* Write() override;
 
@@ -163,7 +154,7 @@ namespace WorldPackets
         struct BattlefieldStatusHeader
         {
             WorldPackets::LFG::RideTicket Ticket;
-            std::vector<uint64> QueueID;
+            uint64 QueueID = 0;
             uint8 RangeMin = 0;
             uint8 RangeMax = 0;
             uint8 TeamSize = 0;
@@ -223,7 +214,6 @@ namespace WorldPackets
             bool SuspendedQueue = false;
             bool EligibleForMatchmaking = false;
             uint32 WaitTime = 0;
-            int32 Unused920 = 0;
         };
 
         class BattlefieldStatusFailed final : public ServerPacket
@@ -246,8 +236,9 @@ namespace WorldPackets
 
             void Read() override;
 
-            Array<uint64, 1> QueueIDs;
+            bool JoinAsGroup = false;
             uint8 Roles = 0;
+            uint64 QueueID = 0;
             int32 BlacklistMap[2] = { };
         };
 
@@ -428,114 +419,9 @@ namespace WorldPackets
         class RequestRatedPvpInfo final : public ClientPacket
         {
         public:
-            RequestRatedPvpInfo(WorldPacket&& packet) : ClientPacket(CMSG_REQUEST_RATED_PVP_INFO, std::move(packet)) { }
+            RequestRatedPvpInfo(WorldPacket&& packet) : ClientPacket(CMSG_REQUEST_RATED_BATTLEFIELD_INFO, std::move(packet)) { }
 
             void Read() override { }
-        };
-
-        class RatedPvpInfo final : public ServerPacket
-        {
-        public:
-            RatedPvpInfo() : ServerPacket(SMSG_RATED_PVP_INFO, 6 * sizeof(BracketInfo)) { }
-
-            WorldPacket const* Write() override;
-
-            struct BracketInfo
-            {
-                int32 PersonalRating = 0;
-                int32 Ranking = 0;
-                int32 SeasonPlayed = 0;
-                int32 SeasonWon = 0;
-                int32 Unused1 = 0;
-                int32 Unused2 = 0;
-                int32 WeeklyPlayed = 0;
-                int32 WeeklyWon = 0;
-                int32 BestWeeklyRating = 0;
-                int32 LastWeeksBestRating = 0;
-                int32 BestSeasonRating = 0;
-                int32 PvpTierID = 0;
-                int32 Unused3 = 0;
-                int32 WeeklyBestWinPvpTierID = 0;
-                int32 Unused4 = 0;
-                int32 Rank = 0;
-                bool Disqualified = false;
-            } Bracket[6];
-        };
-
-        class PVPMatchInitialize final : public ServerPacket
-        {
-        public:
-            PVPMatchInitialize() : ServerPacket(SMSG_PVP_MATCH_INITIALIZE, 4 + 1 + 4 + 4 + 1 + 4 + 1) { }
-
-            WorldPacket const* Write() override;
-
-            enum MatchState : uint8
-            {
-                InProgress = 1,
-                Complete = 3,
-                Inactive = 4
-            };
-
-            uint32 MapID = 0;
-            MatchState State = Inactive;
-            Timestamp<> StartTime;
-            WorldPackets::Duration<Seconds> Duration;
-            uint8 ArenaFaction = 0;
-            uint32 BattlemasterListID = 0;
-            bool Registered = false;
-            bool AffectsRating = false;
-        };
-
-        class PVPMatchComplete final : public ServerPacket
-        {
-        public:
-            PVPMatchComplete() : ServerPacket(SMSG_PVP_MATCH_COMPLETE) { }
-
-            WorldPacket const* Write() override;
-
-            uint8 Winner = 0;
-            WorldPackets::Duration<Seconds> Duration;
-            Optional<PVPMatchStatistics> LogData;
-            uint32 SoloShuffleStatus = 0;
-        };
-
-        enum class BattlegroundCapturePointState : uint8
-        {
-            Neutral             = 1,
-            ContestedHorde      = 2,
-            ContestedAlliance   = 3,
-            HordeCaptured       = 4,
-            AllianceCaptured    = 5
-        };
-
-        struct BattlegroundCapturePointInfo
-        {
-            ObjectGuid Guid;
-            TaggedPosition<Position::XY> Pos;
-            BattlegroundCapturePointState State = BattlegroundCapturePointState::Neutral;
-            Timestamp<> CaptureTime;
-            Duration<Milliseconds, uint32> CaptureTotalDuration;
-        };
-
-        class UpdateCapturePoint final : public ServerPacket
-        {
-        public:
-            UpdateCapturePoint() : ServerPacket(SMSG_UPDATE_CAPTURE_POINT) { }
-
-            WorldPacket const* Write() override;
-
-            BattlegroundCapturePointInfo CapturePointInfo;
-        };
-
-        class CapturePointRemoved final : public ServerPacket
-        {
-        public:
-            CapturePointRemoved() : ServerPacket(SMSG_CAPTURE_POINT_REMOVED) { }
-            CapturePointRemoved(ObjectGuid capturePointGUID) : ServerPacket(SMSG_CAPTURE_POINT_REMOVED), CapturePointGUID(capturePointGUID) { }
-
-            WorldPacket const* Write() override;
-
-            ObjectGuid CapturePointGUID;
         };
     }
 }

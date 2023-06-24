@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -43,7 +42,7 @@ class TC_COMMON_API HmacHash
         uint8* GetDigest() { return _digest; }
         uint32 GetLength() const { return DigestLength; }
     private:
-        HMAC_CTX _ctx;
+        HMAC_CTX* _ctx;
         uint8 _digest[DigestLength];
 };
 
